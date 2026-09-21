@@ -1,0 +1,13 @@
+{
+  "name": "objetivos-tierra-films",
+  "version": "1.5.0",
+  "private": true,
+  "description": "Dashboard BI retail Lima 2026 de Tierra Films",
+  "scripts": {
+    "dev": "live-server --port=3000 --open=index.html --no-browser",
+    "build": "node scripts/build.js"
+  },
+  "engines": { "node": ">=20" },
+  "dependencies": {},
+  "devDependencies": { "live-server": "^1.2.2" }
+}

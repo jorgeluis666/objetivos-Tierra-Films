@@ -1,0 +1,108 @@
+# Tierra Films | Dashboard Lima Retail 2026
+
+Dashboard de gasto publicitario para Tierra Films, adaptado desde la arquitectura original del panel de Amador.
+
+## Acceso
+
+- Password del login: `TierraFilms2026`
+- Entrada local: `index.html`
+- Build publicado: `dist/index.html`
+
+## Modulo principal
+
+- Titulo: `Gasto Publicitario`
+- Subtitulo: `Branding y ventas`
+- KPIs: coste total, CTR, clics, conversiones y costo por conversion.
+
+## Fuente de datos
+
+La fuente normalizada del dashboard esta en:
+
+`data/tierra-films-lima-retail-2026.json`
+
+Desde la version 1.2.0 el JSON guarda la data agrupada por mes:
+
+```json
+{
+  "defaultMonth": "2026-08",
+  "months": [
+    {
+      "id": "2026-08",
+      "label": "Agosto 2026",
+      "sourceFile": "...",
+      "records": [ /* tabla de campanas */ ],
+      "impressions": { "total": 33828, "daily": [ { "date": "2026-08-01", "impressions": 1234 } ] }
+    }
+  ]
+}
+```
+
+El filtro `Mes` del dashboard lista cada entrada de `months` y recuerda la ultima
+seleccion del usuario. Los meses sin tabla de campanas muestran un aviso y solo
+grafican impresiones.
+
+## Paneles del modulo
+
+1. `Resultados por campana`: detalle del mes seleccionado.
+2. `Evolucion diaria`: lineas en el tiempo con los indicadores del mes
+   seleccionado. Dibuja las series que traiga la data diaria: inversion,
+   resultados, costo por resultado e impresiones. El costo por resultado se
+   calcula dia a dia como inversion entre resultados.
+
+Si el mes tiene los totales de campanas pero no el export diario de inversion y
+resultados, el panel reparte esos totales entre los dias segun las impresiones de
+cada dia. Esas lineas salen punteadas, con `(est.)` en la leyenda y un aviso
+debajo del grafico: son un prorrateo, no cifras diarias reales. Al importar el
+export diario se reemplazan por los valores reales.
+
+El CTR de la cabecera usa las impresiones reales de la serie diaria cuando
+existen (clics / impresiones). Sin serie diaria cae al CTR ponderado que trae la
+tabla de campanas.
+
+### Formatos aceptados
+
+1. Tabla de resultados por campana (`.csv`, `.xlsx`, `.xlsm`):
+   `Campaña | Coste | % Δ | CTR | % Δ | Clics | % Δ | Conv | % Δ | Cos/con | % Δ`
+2. Serie diaria (`.csv`): primera columna `Fecha` y una o mas de estas columnas,
+   en cualquier combinacion: `Impresiones`, `Coste` (o `Costo`, `Inversion`,
+   `Importe gastado`, `Gasto`), `Resultados` (o `Conversaciones`, `Conv`,
+   `Mensajes`) y `Clics`.
+
+Cada archivo diario se fusiona por fecha dentro del mes, asi que puedes enviar
+las impresiones en un export y la inversion diaria en otro.
+
+## Origen de la data cargada
+
+Los archivos fuente se guardan en `data/csv-backups/`:
+
+- `Gráfico_de_serie_temporal(2026.MM...).csv`: impresiones diarias de enero a
+  agosto de 2026, exportadas del panel de campanas.
+- `Reporte_Aquarius_Agosto2026_tabla.csv`: tabla de resultados de agosto 2026,
+  transcrita del reporte `Aquarius_-_Dashboard_Lima_Retail (4).pdf`
+  (1 ago 2026 - 31 ago 2026). Sus totales cuadran con el reporte:
+  S/ 1,854.85 de coste, 2,325 clics, 129 conversiones, S/ 14.38 por conversion
+  y CTR 6.87%. Reemplaza a la tabla anterior, que era de otro periodo.
+
+## Importar la data de cada mes
+
+```bash
+python scripts/import-tierra-films-data.py "ruta/al/archivo.csv" --month 2026-09
+```
+
+- `--month AAAA-MM` define el periodo destino. Si el nombre del archivo trae el
+  rango de fechas (por ejemplo `...(2026.08.01-2026.08.31).csv`) el mes se
+  detecta solo.
+- `--label "Setiembre 2026"` cambia la etiqueta visible del filtro.
+- La importacion actualiza solo el mes indicado y conserva los meses anteriores.
+- Ejecuta el importador una vez por cada archivo: uno para la tabla de campanas y
+  otro para la serie de impresiones del mismo mes.
+
+Despues de importar, regenera el build:
+
+## Build
+
+```bash
+npm.cmd run build
+```
+
+El build incrusta los assets en `dist/index.html`. Si Windows bloquea `dist/data`, el script mantiene actualizado el HTML y muestra una advertencia.
