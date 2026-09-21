@@ -7,7 +7,7 @@ Adaptar el dashboard original de Amador a Tierra Films con lectura de gasto publ
 ## Identidad
 
 - Marca principal: Tierra Films
-- Password: `TierraFilms2026`
+- Password: `TF2026`
 - Titulo: `Tierra Films | Dashboard Lima Retail 2026`
 - Paleta: azules, celestes y tonos agua
 - Enfoque: gasto publicitario, branding y ventas

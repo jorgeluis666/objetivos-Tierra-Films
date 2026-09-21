@@ -4,7 +4,7 @@ Dashboard de gasto publicitario para Tierra Films, adaptado desde la arquitectur
 
 ## Acceso
 
-- Password del login: `TierraFilms2026`
+- Password del login: `TF2026`
 - Entrada local: `index.html`
 - Build publicado: `dist/index.html`
 
