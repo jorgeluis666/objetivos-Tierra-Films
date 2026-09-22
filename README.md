@@ -27,12 +27,10 @@ paneles de Amador y Aquarius.
 2. **Proyecciones**: cierre del mes en curso (el mes del ultimo dia con datos).
    - Cada semana de Google Ads se reparte en partes iguales entre sus dias para
      armar el acumulado diario real.
-   - Tres escenarios para los dias que faltan:
-     - `Ritmo del mes`: acumulado del mes / dias con datos.
-     - `Ultimas 4 semanas`: promedio diario de los ultimos 28 dias.
-     - `Presupuesto diario`: gasta el presupuesto completo cada dia, con la
-       eficiencia (CTR, CPC, conversiones por sol) de las ultimas 4 semanas.
-   - Grafico acumulado de `Gasto`, `Conversiones` o `Costo x conversion`, con el
+   - Los dias que faltan se proyectan con el ritmo del mes (acumulado del mes /
+     dias con datos).
+   - Grafico acumulado filtrable por `Gasto`, `Conversiones` o
+     `Costo x conversion`, con el
      tope de presupuesto, la tabla de cierre contra el mes anterior y las semanas
      que faltan.
    - `Simulador de cierre`: el nodo naranja del ultimo dia se arrastra (en las

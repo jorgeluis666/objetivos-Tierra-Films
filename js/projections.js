@@ -3,12 +3,11 @@
   //
   // Google Ads entrega totales por semana, asi que cada semana se reparte en
   // partes iguales entre sus dias. Con esa serie diaria se calcula el acumulado
-  // real del mes y se proyecta el resto con uno de tres ritmos. El nodo final de
+  // real del mes y se proyecta el resto con el ritmo del mes. El nodo final de
   // la grafica se arrastra para simular otro cierre: el simulador convierte
   // conversiones en gasto (y al reves) con el costo por conversion marginal.
   const GOAL_KEY = 'tierra_films_projection_goal_v2';
   const CPA_KEY = 'tierra_films_projection_marginal_cpa';
-  const SCENARIO_KEY = 'tierra_films_projection_scenario';
   const METRICS = ['cost', 'impressions', 'clicks', 'conversions'];
   const CHART_METRICS = {
     cost: { label: 'Gasto', unit: 'money', color: '#0284c7', drag: true },
@@ -228,16 +227,6 @@
   }
 
   function renderToggles() {
-    const scenarios = document.getElementById('projection-scenarios');
-    scenarios.innerHTML = toggleHtml(Object.entries(SCENARIOS), state.scenario);
-    scenarios.querySelectorAll('input').forEach(input => input.addEventListener('change', () => {
-      state.scenario = input.value;
-      writeStorage(SCENARIO_KEY, state.scenario);
-      // El escenario manda sobre la simulacion: se vuelve a su cierre.
-      state.goal = null;
-      writeStorage(GOAL_KEY, null);
-      render();
-    }));
     const metrics = document.getElementById('projection-metrics');
     metrics.innerHTML = toggleHtml(Object.entries(CHART_METRICS), state.metric);
     metrics.querySelectorAll('input').forEach(input => input.addEventListener('change', () => {
@@ -257,17 +246,14 @@
       if (step < 0) return null;
       return metricValue(metric, costAt(step), convAt(step));
     });
-    const scenarios = Object.fromEntries(Object.keys(SCENARIOS).map(key => [
-      key,
-      line(step => last.cost + m.rates[key].cost * step, step => last.conversions + m.rates[key].conversions * step)
-    ]));
+    const rate = m.rates[state.scenario];
     const sim = simClose();
     const perDayCost = m.remaining ? (sim.cost - last.cost) / m.remaining : 0;
     const perDayConv = m.remaining ? (sim.conversions - last.conversions) / m.remaining : 0;
     return {
       labels,
       real,
-      scenarios,
+      projection: line(step => last.cost + rate.cost * step, step => last.conversions + rate.conversions * step),
       sim: line(step => last.cost + perDayCost * step, step => last.conversions + perDayConv * step)
     };
   }
@@ -290,19 +276,16 @@
       pointHoverRadius: 4,
       tension: 0.2
     }];
-    Object.entries(SCENARIOS).forEach(([key, scenario]) => {
-      const active = key === state.scenario;
-      datasets.push({
-        key,
-        label: `Proyeccion: ${scenario.label}`,
-        data: series.scenarios[key],
-        borderColor: active ? scenario.color : `${scenario.color}59`,
-        borderWidth: active ? 2 : 1.2,
-        borderDash: [6, 5],
-        pointRadius: 0,
-        fill: false,
-        tension: 0
-      });
+    datasets.push({
+      key: 'projection',
+      label: `Proyeccion: ${SCENARIOS[state.scenario].label.toLowerCase()}`,
+      data: series.projection,
+      borderColor: SCENARIOS[state.scenario].color,
+      borderWidth: 2,
+      borderDash: [6, 5],
+      pointRadius: 0,
+      fill: false,
+      tension: 0
     });
     datasets.push({
       key: 'sim',
@@ -364,7 +347,7 @@
     const lw = m.lastWeek;
     const avgWeekCost = m.rates.recent.cost * 7;
     const warn = lw && lw.days === 7 && lw.cost < avgWeekCost * 0.6
-      ? ` Ojo: la ultima semana (${f.weekLabel(lw)}) gasto ${f.fmtMoney(lw.cost)}, muy por debajo del promedio de ${f.fmtMoney(avgWeekCost)} por semana; si fue una pausa puntual, el escenario "${SCENARIOS.recent.label}" o "${SCENARIOS.budget.label}" es mas realista.`
+      ? ` Ojo: la ultima semana (${f.weekLabel(lw)}) gasto ${f.fmtMoney(lw.cost)}, muy por debajo del promedio de ${f.fmtMoney(avgWeekCost)} por semana; si fue una pausa puntual, la proyeccion puede quedarse corta.`
       : '';
     const dragNote = meta.drag
       ? `Arrastra el nodo naranja del ultimo dia para simular otro cierre de ${meta.label.toLowerCase()}: el simulador recalcula el resto con el costo por conversion marginal.`
@@ -479,7 +462,7 @@
       </tr>`).join('');
   }
 
-  // Semanas que faltan para cerrar el mes, con el ritmo del escenario activo.
+  // Semanas que faltan para cerrar el mes, con el ritmo de la simulacion.
   function renderWeeks() {
     const m = state.model;
     const f = F();
@@ -504,7 +487,7 @@
     const body = document.getElementById('projection-weeks-body');
     document.getElementById('projection-weeks-sub').textContent = isSimulated()
       ? 'Lo que tendria que aportar cada semana restante para llegar al cierre simulado.'
-      : 'Lo que aportaria cada semana restante del mes con el escenario elegido.';
+      : 'Lo que aportaria cada semana restante del mes al ritmo actual.';
     if (!rows.length) {
       body.innerHTML = '<tr><td colspan="6" class="table-empty">El mes ya esta cerrado con datos reales.</td></tr>';
       return;
@@ -602,8 +585,6 @@
   function setup(data) {
     state.data = data;
     state.model = buildModel(data);
-    const storedScenario = readStorage(SCENARIO_KEY);
-    if (SCENARIOS[storedScenario]) state.scenario = storedScenario;
     const storedGoal = Number(readStorage(GOAL_KEY));
     state.goal = Number.isFinite(storedGoal) && storedGoal > 0 ? storedGoal : null;
     const storedCpa = Number(readStorage(CPA_KEY));
