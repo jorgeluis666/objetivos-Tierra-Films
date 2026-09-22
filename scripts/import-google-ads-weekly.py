@@ -18,6 +18,8 @@ Se pueden pasar varios archivos a la vez:
 - Segmentado por Dia: dibuja la curva real dia a dia.
 - Grafico de serie temporal ("Fecha,Coste"): curva diaria de las columnas que
   traiga, con fechas en español ("sáb, 1 ago 2026") e importes con moneda.
+- Informe de palabras clave por semana: alimenta el modulo Palabras Clave con
+  cuota de impresiones, perdida por ranking y nivel de calidad.
 
 Los meses sin informe propio se calculan repartiendo por dias las semanas que
 los cruzan, y quedan marcados como estimados.
@@ -109,7 +111,8 @@ def read_table(path: Path) -> tuple[str, list[str], list[dict[str, str]], str]:
         column = line.split(",")[0].strip().strip('"')
         if column in DATE_COLUMNS and "," in line:
             rows = list(csv.DictReader(lines[index:]))
-            return DATE_COLUMNS[column], lines[:index], rows, column
+            kind = "keywords" if "Palabra clave" in line else DATE_COLUMNS[column]
+            return kind, lines[:index], rows, column
     for index, line in enumerate(lines):
         if line.startswith("Estado de la campaña,"):
             return "period", lines[:index], list(csv.DictReader(lines[index:])), ""
@@ -141,6 +144,76 @@ def month_label(mid: str) -> str:
     return f"{MONTH_LABELS[int(month) - 1]} {year}"
 
 
+def parse_share(value: str | None) -> tuple[float | None, str | None]:
+    """'23,64%' -> (0.2364, None); '< 10%' -> (0.1, 'lt'); '> 90%' -> (0.9, 'gt')."""
+    text = str(value or "").strip()
+    if not text or text in ("--", "-"):
+        return None, None
+    approx = "lt" if text.startswith("<") else ("gt" if text.startswith(">") else None)
+    number = parse_number(text)
+    return (None, None) if number is None else (round(number / 100, 6), approx)
+
+
+def parse_keywords(path: Path, rows: list[dict[str, str]], date_column: str) -> dict:
+    """Informe de palabras clave por semana."""
+    def column(*needles: str) -> str | None:
+        for header in (rows[0].keys() if rows else []):
+            name = str(header or "").lower()
+            if all(needle in name for needle in needles):
+                return header
+        return None
+
+    col_share = column("cuota de impr")
+    col_lost_rank = column("perd", "ranking")
+    col_lost_top = column("parte sup")
+    col_quality = column("nivel de calidad")
+    col_conv_rate = column("tasa de conv")
+    weeks: dict[date, list[dict]] = {}
+    catalog: dict[tuple[str, str], dict] = {}
+    for row in rows:
+        stamp = (row.get(date_column) or "").strip()
+        keyword = (row.get("Palabra clave") or "").strip()
+        match_type = (row.get("Tipo de concordancia") or "").strip()
+        if not re.match(r"^\d{4}-\d{2}-\d{2}$", stamp) or not keyword or "Total" in match_type:
+            continue
+        status = (row.get("Estado de las palabras clave") or "").strip()
+        reasons = (row.get("Motivos del estado") or "").strip()
+        catalog.setdefault((keyword, match_type), {
+            "keyword": keyword, "matchType": match_type, "status": status, "reasons": reasons,
+        })
+        share, share_approx = parse_share(row.get(col_share) if col_share else None)
+        lost_rank, lost_rank_approx = parse_share(row.get(col_lost_rank) if col_lost_rank else None)
+        lost_top, _ = parse_share(row.get(col_lost_top) if col_lost_top else None)
+        conv_rate, _ = parse_share(row.get(col_conv_rate) if col_conv_rate else None)
+        entry = derived({
+            "keyword": keyword,
+            "matchType": match_type,
+            "status": status,
+            "reasons": reasons,
+            "cost": parse_number(row.get("Coste")) or 0.0,
+            "impressions": parse_number(row.get("Impr.")) or 0.0,
+            "clicks": parse_number(row.get("Clics")) or 0.0,
+            "conversions": parse_number(row.get("Conversiones")) or 0.0,
+        })
+        entry.update({
+            "impressionShare": share,
+            "impressionShareApprox": share_approx,
+            "lostRank": lost_rank,
+            "lostRankApprox": lost_rank_approx,
+            "lostTopAbs": lost_top,
+            "convRate": conv_rate,
+            "qualityScore": parse_number(row.get(col_quality)) if col_quality else None,
+        })
+        # Solo interesan las semanas en las que la palabra tuvo actividad.
+        if entry["impressions"] or entry["cost"]:
+            weeks.setdefault(date.fromisoformat(stamp), []).append(entry)
+    if not weeks:
+        raise SystemExit(f"[tf-import] {path.name}: el informe de palabras clave no tiene semanas con actividad.")
+    return {"kind": "keywords", "file": path.name, "period": (min(weeks), max(weeks) + timedelta(days=6)),
+            "entries": {}, "weeks": weeks, "catalog": list(catalog.values()),
+            "campaigns": {}, "accountTotal": None}
+
+
 def parse_series(path: Path, rows: list[dict[str, str]], date_column: str) -> dict:
     """Serie temporal: una fila por fecha con las columnas que traiga el export."""
     columns: dict[str, str] = {}
@@ -170,6 +243,12 @@ def parse_source(path: Path) -> dict:
     kind, preamble, rows, date_column = read_table(path)
     if kind == "series":
         return parse_series(path, rows, date_column)
+    if kind == "keywords":
+        source = parse_keywords(path, rows, date_column)
+        preamble_period = next((parse_range(line) for line in preamble if parse_range(line)), None)
+        if preamble_period:
+            source["period"] = preamble_period
+        return source
     period = next((parse_range(line) for line in preamble if parse_range(line)), None)
     entries: dict[date, dict[str, dict]] = {}
     campaigns: dict[str, dict] = {}
@@ -211,6 +290,40 @@ def parse_source(path: Path) -> dict:
             "campaigns": campaigns, "accountTotal": account_total}
 
 
+def weighted(rows: list[dict], field: str) -> float | None:
+    """Promedio ponderado por impresiones, para cuotas y nivel de calidad."""
+    pairs = [(row[field], row["impressions"]) for row in rows
+             if row.get(field) is not None and row["impressions"]]
+    total = sum(weight for _, weight in pairs)
+    return round(sum(value * weight for value, weight in pairs) / total, 6) if total else None
+
+
+def keyword_block(source: dict) -> dict:
+    """Arma el bloque del modulo Palabras Clave: una entrada por semana."""
+    weeks = []
+    for start in sorted(source["weeks"]):
+        rows = sorted(source["weeks"][start], key=lambda row: -row["cost"])
+        totals = {k: round(sum(row[k] for row in rows), 2) for k in METRICS}
+        weeks.append(derived({
+            "start": start.isoformat(),
+            "end": (start + timedelta(days=6)).isoformat(),
+            **totals,
+            "keywordsWithImpressions": sum(1 for row in rows if row["impressions"]),
+            "impressionShare": weighted(rows, "impressionShare"),
+            "lostRank": weighted(rows, "lostRank"),
+            "lostTopAbs": weighted(rows, "lostTopAbs"),
+            "qualityScore": weighted(rows, "qualityScore"),
+            "rows": rows,
+        }))
+    period = source["period"]
+    return {
+        "sourceFile": source["file"],
+        "period": {"start": period[0].isoformat(), "end": period[1].isoformat()},
+        "catalog": source["catalog"],
+        "weeks": weeks,
+    }
+
+
 def totals_of(by_campaign: dict[str, dict]) -> dict:
     return {k: round(sum(values[k] for values in by_campaign.values()), 2) for k in METRICS}
 
@@ -221,6 +334,7 @@ def build(paths: list[Path]) -> dict:
     daily = next((s for s in sources if s["kind"] == "day"), None)
     periods = [s for s in sources if s["kind"] == "period"]
     series_sources = [s for s in sources if s["kind"] == "series"]
+    keyword_source = next((s for s in sources if s["kind"] == "keywords"), None)
     if not weekly and not daily and not periods and not series_sources:
         raise SystemExit("[tf-import] hace falta al menos un informe.")
 
@@ -232,7 +346,10 @@ def build(paths: list[Path]) -> dict:
     # Rango del informe: el del preambulo o el que cubran las fechas leidas.
     stamps = [stamp for source in sources for stamp in source["entries"]]
     base = weekly or daily or periods[0]
-    ranges = [source["period"] for source in sources if source["period"]]
+    ranges = [source["period"] for source in sources
+              if source["period"] and source["kind"] != "keywords"]
+    if not ranges:
+        ranges = [source["period"] for source in sources if source["period"]]
     if ranges:
         period_start = min(r[0] for r in ranges)
         period_end = max(r[1] for r in ranges)
@@ -427,6 +544,7 @@ def build(paths: list[Path]) -> dict:
         "weeks": week_list,
         "days": day_list,
         "months": month_list,
+        "keywords": keyword_block(keyword_source) if keyword_source else None,
     }
 
 
@@ -446,6 +564,10 @@ def main() -> int:
             if source.resolve() != target.resolve():
                 shutil.copyfile(source, target)
     t = data["totals"]
+    if data.get("keywords"):
+        kw = data["keywords"]
+        print(f"[tf-import] palabras clave: {len(kw['catalog'])} en la cuenta, "
+              f"{len(kw['weeks'])} semanas ({kw['period']['start']} a {kw['period']['end']})")
     detail = f"{len(data['days'])} dias" if data["days"] else "sin detalle diario"
     print(f"[tf-import] {len(data['months'])} meses, {len(data['weeks'])} semanas, {detail} "
           f"({data['period']['start']} a {data['period']['end']}): "

@@ -1310,3 +1310,34 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* 03 - Palabras clave */
+.diagnosis-panel {
+  margin-top: 18px;
+}
+
+.diagnosis-list {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding-left: 18px;
+  color: #334155;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.diagnosis-list b {
+  color: var(--ink);
+}
+
+.diagnosis-list li::marker {
+  color: var(--brand);
+}
+
+.kw-low {
+  color: var(--red);
+}
+
+#keywords-filters + .kpi-strip {
+  margin-top: 12px;
+}

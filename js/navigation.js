@@ -15,6 +15,13 @@
       source: 'Fuente: data/tierra-films-lima-retail-2026.json',
       footer: 'Proyeccion lineal segun el ritmo elegido',
     },
+    'view-keywords': {
+      title: 'Palabras Clave',
+      caption: 'Cuota, ranking y calidad',
+      status: 'Informe semanal de palabras clave',
+      source: 'Fuente: informe de palabras clave de busqueda',
+      footer: 'Cuota de impresiones y Ad Rank',
+    },
     'view-messages': {
       title: 'Calculadora de Mensajes',
       caption: 'Planificación WhatsApp por CPL',
@@ -61,6 +68,7 @@
 
     if (viewId === 'view-messages') window.MessagesCalculator?.init();
     if (viewId === 'view-projection') window.TierraFilmsProjections?.init();
+    if (viewId === 'view-keywords') window.TierraFilmsKeywords?.init();
     if (viewId === 'view-obj') {
       window.TierraFilmsRefreshLabels?.();
       window.setTimeout(() => window.dispatchEvent(new Event('resize')), 0);

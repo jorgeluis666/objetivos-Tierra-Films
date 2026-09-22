@@ -42,7 +42,19 @@ paneles de Amador y Aquarius.
      devuelve gasto, conversiones, costo por conversion del mes y el presupuesto
      diario necesario, y marca en rojo cuando supera el presupuesto actual.
      La meta, el costo marginal y el escenario se guardan en el navegador.
-3. **Calculadora de Mensajes**: modulo heredado, sin cambios.
+3. **Palabras Clave**: informe semanal de palabras clave de busqueda.
+   - Filtro por mes y KPIs: impresiones, clics, cuota de impresiones, perdido
+     por ranking, nivel de calidad y CPC.
+   - `Por que se movieron las impresiones y los clics`: diagnostico automatico.
+     Separa la caida en dos partes con la identidad
+     `impresiones = subastas elegibles x cuota de impresiones`, la contrasta con
+     el gasto diario real y revisa ranking, calidad, CPC y cobertura. Se recalcula
+     solo al importar datos nuevos.
+   - `Evolucion semanal`: impresiones y clics contra cuota, perdido por ranking
+     y CPC.
+   - Tabla por palabra clave con % Δ contra el mes anterior; el nivel de calidad
+     4 o menos sale en rojo.
+4. **Calculadora de Mensajes**: modulo heredado, sin cambios.
 
 ## Semanas que cruzan de mes
 
@@ -107,7 +119,10 @@ campaña.
 1. En Google Ads: Campañas, Descargar > CSV. Conviene bajar:
    - un informe por mes, con el rango del mes y sin segmento (total exacto);
    - el informe del periodo completo con Segmento > Tiempo > Semana;
-   - opcional: el grafico de serie temporal de un mes (curva diaria real).
+   - opcional: el grafico de serie temporal de un mes (curva diaria real);
+   - para el modulo Palabras Clave: Informes > Palabras clave de busqueda, con
+     Segmento > Tiempo > Semana y las columnas de cuota de impresiones, cuota
+     perdida por ranking y nivel de calidad.
    Para la curva diaria real, descarga el mismo informe otra vez con
    Segmento > Tiempo > **Día**.
 2. Importar (reemplaza todo el JSON con el nuevo rango y guarda los CSV en

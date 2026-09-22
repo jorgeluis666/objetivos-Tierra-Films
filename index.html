@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
-<link rel="stylesheet" href="css/dashboard.css?v=1.7.2">
+<link rel="stylesheet" href="css/dashboard.css?v=1.8.0">
 <style>
   .reservations-total-row td { height: auto !important; padding: 10px 12px !important; border-top: 2px solid #cbd5e1 !important; color: #0f172a !important; background: #f8fafc; font-size: 13px; font-weight: 800; vertical-align: middle; }
   .reservations-total-row .total-label { text-align: right; }
@@ -33,7 +33,7 @@
 <body>
 <div class="shell">
   <aside class="sidebar" id="tierra-films-sidebar">
-    <div class="s-brand"><div class="s-title">Tierra Films</div><div class="s-sub">BI Agencia Lima Retail <span class="app-version">v1.7.2</span></div></div>
+    <div class="s-brand"><div class="s-title">Tierra Films</div><div class="s-sub">BI Agencia Lima Retail <span class="app-version">v1.8.0</span></div></div>
     <div class="s-group-lbl">Modulos activos</div>
     <button class="s-item active" type="button" data-view-target="view-obj">
       <div class="s-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg></div>
@@ -42,6 +42,10 @@
     <button class="s-item" type="button" data-view-target="view-projection">
       <div class="s-icon"><svg viewBox="0 0 24 24"><polyline points="3 17 9 11 13 15 21 7"/><polyline points="15 7 21 7 21 13"/></svg></div>
       <div class="s-text"><div class="s-title-nav">Proyecciones</div><div class="s-desc-nav">Cierre de mes y metas</div></div>
+    </button>
+    <button class="s-item" type="button" data-view-target="view-keywords">
+      <div class="s-icon"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.5" y2="16.5"/></svg></div>
+      <div class="s-text"><div class="s-title-nav">Palabras Clave</div><div class="s-desc-nav">Cuota, ranking y calidad</div></div>
     </button>
     <button class="s-item" type="button" data-view-target="view-messages">
       <div class="s-icon"><svg viewBox="0 0 24 24"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="13" x2="13" y2="13"/></svg></div>
@@ -162,8 +166,52 @@
         </div>
       </section>
 
+      <section class="view" id="view-keywords">
+        <div class="sec-lbl">03 - Palabras clave</div>
+        <h1 class="section-title">Palabras Clave</h1>
+        <p class="section-desc">Informe semanal de palabras clave de busqueda: cuanto del mercado captamos, cuanto perdemos por Ad Rank y que palabras mueven el gasto.</p>
+        <div class="retail-filters" id="keywords-filters"></div>
+        <div class="kpi-strip" id="keywords-kpis" aria-label="KPIs de palabras clave"></div>
+
+        <div class="panel projection-table-panel diagnosis-panel">
+          <div class="panel-head">
+            <div>
+              <div class="panel-title">Por que se movieron las impresiones y los clics</div>
+              <div class="panel-sub" id="keywords-diagnosis-sub"></div>
+            </div>
+          </div>
+          <ul class="diagnosis-list" id="keywords-diagnosis"></ul>
+        </div>
+
+        <div class="panel chart-panel">
+          <div class="panel-head chart-panel-head">
+            <div>
+              <div class="panel-title">Evolucion semanal</div>
+              <div class="panel-sub" id="keywords-chart-sub"></div>
+            </div>
+            <div class="chart-legend projection-legend" id="keywords-legend"></div>
+          </div>
+          <div class="chart-wrap h-360"><canvas id="chart-keywords" aria-label="Impresiones, cuota y ranking por semana"></canvas></div>
+        </div>
+
+        <div class="panel campaigns-panel">
+          <div class="panel-head">
+            <div>
+              <div class="panel-title">Palabras clave del periodo</div>
+              <div class="panel-sub" id="keywords-table-sub"></div>
+            </div>
+          </div>
+          <div class="table-scroll">
+            <table class="data-table campaigns-table">
+              <thead><tr><th>Palabra clave</th><th class="num">Impresiones</th><th class="num">% Δ</th><th class="num">Clics</th><th class="num">CTR</th><th class="num">Gasto</th><th class="num">CPC</th><th class="num">Conv.</th><th class="num">Costo x conv.</th><th class="num">Cuota impr.</th><th class="num">Perdido ranking</th><th class="num">Calidad</th></tr></thead>
+              <tbody id="keywords-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
       <section class="view" id="view-messages">
-        <div class="sec-lbl">03 - Planificacion de mensajes</div>
+        <div class="sec-lbl">04 - Planificacion de mensajes</div>
         <h1 class="section-title">Calculadora de Mensajes</h1>
         <p class="section-desc">Proyecta la inversion necesaria para campañas de WhatsApp según la facturación pendiente, el ticket promedio y el costo por lead de cada conjunto de anuncios.</p>
 
@@ -243,12 +291,13 @@
     </div>
   </main>
 </div>
-<script src="js/objectives.js?v=1.7.2"></script>
-<script src="js/reservation-goals.js?v=1.7.2"></script>
-<script src="js/projections.js?v=1.7.2"></script>
-<script src="js/messages-calculator.js?v=1.7.2"></script>
-<script src="js/navigation.js?v=1.7.2"></script>
-<script src="js/sidebar.js?v=1.7.2"></script>
+<script src="js/objectives.js?v=1.8.0"></script>
+<script src="js/reservation-goals.js?v=1.8.0"></script>
+<script src="js/projections.js?v=1.8.0"></script>
+<script src="js/keywords.js?v=1.8.0"></script>
+<script src="js/messages-calculator.js?v=1.8.0"></script>
+<script src="js/navigation.js?v=1.8.0"></script>
+<script src="js/sidebar.js?v=1.8.0"></script>
 <script src="auth-login.js?v=1.5.1"></script>
 <script>
   AuthLogin.init({ password: 'TF2026', brand: 'Tierra Films', title: 'Dashboard\nRetail 2026', accent: '#0284c7', accentDark: '#075985', sessionKey: 'tierra_films_auth' });

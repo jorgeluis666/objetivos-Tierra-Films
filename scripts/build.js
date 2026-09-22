@@ -45,6 +45,7 @@ function main() {
   const app = readFile('js/objectives.js');
   const reservationGoals = readFile('js/reservation-goals.js');
   const projections = readFile('js/projections.js');
+  const keywords = readFile('js/keywords.js');
   const messagesCalculator = readFile('js/messages-calculator.js');
   const navigation = readFile('js/navigation.js');
   const sidebar = readFile('js/sidebar.js');
@@ -59,6 +60,7 @@ function main() {
   html = html.replace(scriptTag('js/objectives.js'), `<script>${app}</script>`);
   html = html.replace(scriptTag('js/reservation-goals.js'), `<script>${reservationGoals}</script>`);
   html = html.replace(scriptTag('js/projections.js'), `<script>${projections}</script>`);
+  html = html.replace(scriptTag('js/keywords.js'), `<script>${keywords}</script>`);
   html = html.replace(scriptTag('js/messages-calculator.js'), `<script>${messagesCalculator}</script>`);
   html = html.replace(scriptTag('js/navigation.js'), `<script>${navigation}</script>`);
   html = html.replace(scriptTag('js/sidebar.js'), `<script>${sidebar}</script>`);
