@@ -2,11 +2,14 @@
   "brand": "Tierra Films",
   "dashboard": "Gasto Publicitario",
   "moduleSubtitle": "Google Ads | Búsqueda",
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "status": "ok",
   "granularity": "week",
   "currency": "PEN",
   "sourceFile": "Informe de campaña (1).csv",
+  "sourceFiles": [
+    "Informe de campaña (1).csv"
+  ],
   "period": {
     "start": "2026-07-01",
     "end": "2026-09-20"
@@ -405,6 +408,7 @@
       "costPerConversion": 41.72
     }
   ],
+  "days": [],
   "months": [
     {
       "id": "2026-07",

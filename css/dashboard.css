@@ -1141,6 +1141,21 @@
   padding: 3px 7px;
   border-radius: 99px;
   color: #475569;
+  background: #f1f5f9;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.sim-delta.up {
+  color: #6d28d9;
+  background: #ede9fe;
+}
+
+.sim-delta.down {
+  color: var(--brand-text);
+  background: var(--brand-soft);
+}
+
 .projection-legend .legend-dot {
   display: inline-block;
   width: 9px;
@@ -1279,4 +1294,19 @@
 
 .projection-sim-field {
   width: 190px;
+}
+
+/* El filtro de meses manda en el ancho; la ficha de la cuenta va al costado */
+.retail-filters {
+  grid-template-columns: minmax(0, auto) minmax(220px, 1fr);
+}
+
+.filter-months {
+  overflow: visible;
+}
+
+@media(max-width:900px) {
+  .retail-filters {
+    grid-template-columns: 1fr;
+  }
 }

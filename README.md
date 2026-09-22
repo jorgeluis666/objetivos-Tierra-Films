@@ -16,8 +16,10 @@ paneles de Amador y Aquarius.
      en el ultimo mes con datos.
    - KPIs: coste, impresiones, CTR, clics (con CPC medio), conversiones y costo
      por conversion.
-   - `Indicadores por semana`: lineas de gasto, conversiones, costo por
-     conversion y CTR de las semanas del mes elegido.
+   - `Indicadores por dia`: lineas de gasto, conversiones, costo por conversion
+     y CTR dia a dia del mes elegido. Con el export semanal solo, cada dia es la
+     semana dividida entre sus dias y las lineas salen punteadas con `(est.)`;
+     al importar el export diario pasan a ser la curva real.
    - `Evolucion semanal`: las mismas lineas para todo el periodo; las semanas del
      mes elegido quedan resaltadas.
    - `Resultados semanales`: tabla con % Δ contra la semana anterior y fila de
@@ -78,12 +80,17 @@ campaña.
 
 1. En Google Ads: Campañas, rango desde el 1 de julio hasta hoy, Segmento >
    Tiempo > Semana, Descargar > CSV.
-2. Importar (reemplaza todo el JSON con el nuevo rango y guarda el CSV en
-   `data/csv-backups/`):
+   Para la curva diaria real, descarga el mismo informe otra vez con
+   Segmento > Tiempo > **Día**.
+2. Importar (reemplaza todo el JSON con el nuevo rango y guarda los CSV en
+   `data/csv-backups/`). Acepta uno o los dos archivos:
 
 ```bash
-python scripts/import-google-ads-weekly.py "ruta/Informe de campaña.csv"
+python scripts/import-google-ads-weekly.py "ruta/Informe semanal.csv" "ruta/Informe diario.csv"
 ```
+
+Con el export diario, los totales de cada mes salen exactos (sin prorratear las
+semanas que cruzan de mes) y los graficos muestran el detalle dia a dia.
 
 3. Regenerar el build:
 

@@ -11,7 +11,7 @@
   const TREND_METRICS = ['cost', 'conversions', 'costPerConversion', 'ctr'];
   const MONTH_NAMES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Setiembre', 'Octubre', 'Noviembre', 'Diciembre'];
   const MONTH_SHORT = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'set', 'oct', 'nov', 'dic'];
-  const state = { data: null, months: [], weeks: [], monthId: ALL, chart: null, trendChart: null };
+  const state = { data: null, months: [], weeks: [], days: [], estimatedDays: false, monthId: ALL, chart: null, trendChart: null };
 
   const fmtMoney = value => Number.isFinite(Number(value)) && value !== null ? `S/ ${Number(value).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-';
   const fmtCount = value => Number.isFinite(Number(value)) && value !== null ? Number(value).toLocaleString('es-PE', { maximumFractionDigits: 0 }) : '-';
@@ -36,6 +36,11 @@
   function shortDate(iso) {
     const { m, d } = parseDate(iso);
     return `${d} ${MONTH_SHORT[m - 1]}`;
+  }
+
+  function formatLongDate(iso) {
+    const { d, m } = parseDate(iso);
+    return `${d} de ${MONTH_NAMES[m - 1].toLowerCase()}`;
   }
 
   function weekLabel(week) {
@@ -83,6 +88,37 @@
     return state.weeks
       .filter(week => week.daysByMonth && week.daysByMonth[state.monthId])
       .map(week => ({ week, share: week.daysByMonth[state.monthId] / week.days }));
+  }
+
+  // Serie diaria: la real del export por dia o, si no hay, la semana repartida
+  // en partes iguales entre sus dias (queda marcada como estimada).
+  function buildDays(data) {
+    if (Array.isArray(data.days) && data.days.length) {
+      state.estimatedDays = false;
+      return data.days.map(withRates);
+    }
+    state.estimatedDays = true;
+    const rows = [];
+    (data.weeks || []).forEach(week => {
+      for (let i = 0; i < week.days; i += 1) {
+        const date = new Date(`${week.dataStart}T00:00:00Z`);
+        date.setUTCDate(date.getUTCDate() + i);
+        rows.push(withRates({
+          date: date.toISOString().slice(0, 10),
+          week: week.start,
+          cost: week.cost / week.days,
+          impressions: week.impressions / week.days,
+          clicks: week.clicks / week.days,
+          conversions: week.conversions / week.days
+        }));
+      }
+    });
+    return rows;
+  }
+
+  function visibleDays() {
+    if (state.monthId === ALL) return state.days;
+    return state.days.filter(day => day.date.startsWith(state.monthId));
   }
 
   function periodTotals() {
@@ -160,7 +196,7 @@
     return new Chart(canvas, {
       type: 'line',
       data: {
-        labels: rows.map(weekLabel),
+        labels: options.labels || rows.map(weekLabel),
         datasets: TREND_METRICS.map(metric => {
           const series = SERIES[metric];
           return {
@@ -170,9 +206,9 @@
             yAxisID: series.axis,
             borderColor: series.color,
             backgroundColor: 'transparent',
-            borderWidth: 2.2,
-            borderDash: series.dashed ? [5, 4] : [],
-            pointRadius: options.pointRadius || 3,
+            borderWidth: options.dashed ? 1.8 : 2.2,
+            borderDash: series.dashed || options.dashed ? [5, 4] : [],
+            pointRadius: options.pointRadius === undefined ? 3 : options.pointRadius,
             pointBackgroundColor: options.pointBackground ? options.pointBackground(series) : series.color,
             pointBorderColor: series.color,
             pointHoverRadius: 6,
@@ -189,8 +225,8 @@
           legend: { display: false },
           tooltip: {
             callbacks: {
-              title: items => `Semana ${weekLabel(rows[items[0].dataIndex])}`,
-              label: context => ` ${SERIES[context.dataset.metricKey].label}: ${formatValue(context.raw, SERIES[context.dataset.metricKey].unit)}`
+              title: items => (options.tooltipTitle ? options.tooltipTitle(items[0].dataIndex) : `Semana ${weekLabel(rows[items[0].dataIndex])}`),
+              label: context => ` ${SERIES[context.dataset.metricKey].label}: ${formatValue(context.raw, SERIES[context.dataset.metricKey].unit)}${options.suffix || ''}`
             }
           }
         },
@@ -206,19 +242,28 @@
     });
   }
 
-  function legendHtml() {
-    return TREND_METRICS.map(metric => `<i class="legend-line${SERIES[metric].dashed ? ' dashed' : ''}" style="${SERIES[metric].dashed ? `color:${SERIES[metric].color}` : `background:${SERIES[metric].color}`}"></i><b>${SERIES[metric].label}</b>`).join('');
+  function legendHtml(estimated = false) {
+    return TREND_METRICS.map(metric => `<i class="legend-line${SERIES[metric].dashed || estimated ? ' dashed' : ''}" style="${SERIES[metric].dashed || estimated ? `color:${SERIES[metric].color}` : `background:${SERIES[metric].color}`}"></i><b>${SERIES[metric].label}${estimated ? ' (est.)' : ''}</b>`).join('');
   }
 
-  // Semanas del mes elegido.
+  // Dia a dia del mes elegido.
   function renderChart() {
-    const rows = visibleWeeks().map(({ week }) => week);
-    document.getElementById('chart-title').textContent = `Indicadores por semana | ${periodLabel()}`;
-    document.getElementById('chart-sub').textContent = 'Gasto, conversiones, costo por conversion y CTR de cada semana (lunes a domingo).';
+    const rows = visibleDays();
+    const perMonth = state.monthId !== ALL;
+    document.getElementById('chart-title').textContent = `Indicadores por dia | ${periodLabel()}`;
+    document.getElementById('chart-sub').textContent = state.estimatedDays
+      ? 'Gasto, conversiones, costo por conversion y CTR estimados por dia: Google Ads entrega totales semanales y cada semana se reparte en partes iguales entre sus dias.'
+      : 'Gasto, conversiones, costo por conversion y CTR de cada dia.';
     const legend = document.querySelector('#chart-panel .chart-legend span');
-    if (legend) legend.innerHTML = legendHtml();
+    if (legend) legend.innerHTML = legendHtml(state.estimatedDays);
     if (state.chart) state.chart.destroy();
-    state.chart = lineChart(document.getElementById('chart-monthly'), rows, {});
+    state.chart = lineChart(document.getElementById('chart-monthly'), rows, {
+      labels: rows.map(row => (perMonth ? String(parseDate(row.date).d) : shortDate(row.date))),
+      tooltipTitle: index => formatLongDate(rows[index].date),
+      pointRadius: rows.length > 40 ? 0 : 2.5,
+      dashed: state.estimatedDays,
+      suffix: state.estimatedDays ? ' (estimado)' : ''
+    });
   }
 
   // Tendencia de todas las semanas; las del mes elegido quedan resaltadas.
@@ -235,7 +280,10 @@
     const note = document.getElementById('daily-note');
     const first = rows[0];
     note.hidden = false;
-    note.textContent = `La primera semana (${weekLabel(first)}) solo tiene ${first.days} dias dentro del informe.${state.monthId === ALL ? '' : ' Los puntos resaltados son las semanas del mes elegido.'} El eje del costo por conversion se recorta para que las semanas con 1 conversion (S/ 569 y S/ 937) no aplasten al resto; el valor exacto sale al pasar el cursor.`;
+    const missingDaily = state.estimatedDays
+      ? ' El detalle por dia del panel de arriba es estimado: para la curva real, descarga el mismo informe con Segmento > Tiempo > Dia y vuelve a importar.'
+      : '';
+    note.textContent = `La primera semana (${weekLabel(first)}) solo tiene ${first.days} dias dentro del informe.${state.monthId === ALL ? '' : ' Los puntos resaltados son las semanas del mes elegido.'} El eje del costo por conversion se recorta para que las semanas con 1 conversion no aplasten al resto; el valor exacto sale al pasar el cursor.${missingDaily}`;
     if (state.trendChart) state.trendChart.destroy();
     state.trendChart = lineChart(document.getElementById('chart-daily'), rows, {
       pointRadius: rows.map(row => (state.monthId !== ALL && selected.has(row.start) ? 5 : 3)),
@@ -322,6 +370,7 @@
       if (!Array.isArray(state.data.weeks) || !state.data.weeks.length) throw new Error('La fuente no contiene semanas con datos.');
       window.TIERRA_FILMS_RETAIL_DATA = state.data;
       state.weeks = state.data.weeks.map(withRates);
+      state.days = buildDays(state.data);
       state.months = (state.data.months || []).map(withRates);
       const stored = readStoredMonth();
       const fallback = state.data.defaultMonth || (state.months.length ? state.months[state.months.length - 1].id : ALL);
