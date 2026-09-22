@@ -53,7 +53,10 @@ paneles de Amador y Aquarius.
    - `Evolucion semanal`: impresiones y clics contra cuota, perdido por ranking
      y CPC.
    - Tabla por palabra clave con % Δ contra el mes anterior; el nivel de calidad
-     4 o menos sale en rojo.
+     4 o menos sale en rojo, y las columnas `Relevancia anuncio` y
+     `Pagina destino` muestran los componentes del nivel de calidad.
+   - Se pueden importar varios informes de palabras clave: uno largo sin las
+     columnas de calidad y otro corto con ellas se fusionan por semana y palabra.
 4. **Calculadora de Mensajes**: modulo heredado, sin cambios.
 
 ## Semanas que cruzan de mes
@@ -122,7 +125,9 @@ campaña.
    - opcional: el grafico de serie temporal de un mes (curva diaria real);
    - para el modulo Palabras Clave: Informes > Palabras clave de busqueda, con
      Segmento > Tiempo > Semana y las columnas de cuota de impresiones, cuota
-     perdida por ranking y nivel de calidad.
+     perdida por ranking, nivel de calidad y sus componentes (rendimiento
+     esperado del anuncio, relevancia del anuncio y experiencia en la pagina de
+     destino).
    Para la curva diaria real, descarga el mismo informe otra vez con
    Segmento > Tiempo > **Día**.
 2. Importar (reemplaza todo el JSON con el nuevo rango y guarda los CSV en

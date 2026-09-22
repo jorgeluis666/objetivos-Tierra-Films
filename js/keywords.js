@@ -18,7 +18,35 @@
   const CHART_METRICS = ['impressions', 'clicks', 'impressionShare', 'lostRank', 'cpc'];
   const state = { ready: false, data: null, weeks: [], months: [], periodId: ALL, chart: null, sort: 'cost' };
 
+  const GRADES = {
+    above: { label: 'Por encima', cls: 'grade-ok' },
+    average: { label: 'En la media', cls: 'grade-mid' },
+    below: { label: 'Por debajo', cls: 'grade-low' }
+  };
+  const COMPONENTS = {
+    expectedCtr: 'rendimiento esperado del anuncio',
+    adRelevance: 'relevancia del anuncio',
+    landingExperience: 'experiencia en la pagina de destino'
+  };
+
   const F = () => window.TierraFilmsFormat;
+
+  function gradeCell(value) {
+    const grade = GRADES[value];
+    return grade ? `<span class="grade-pill ${grade.cls}">${grade.label}</span>` : '<span class="no-data">-</span>';
+  }
+
+  // Reparte el gasto del periodo entre las notas de un componente de calidad.
+  function gradeShare(rows, component) {
+    const totals = { above: 0, average: 0, below: 0, unknown: 0 };
+    let total = 0;
+    rows.forEach(row => {
+      const grade = row[component];
+      totals[GRADES[grade] ? grade : 'unknown'] += row.cost;
+      total += row.cost;
+    });
+    return { totals, total, known: total - totals.unknown };
+  }
 
   function pct(value, digits = 1) {
     return Number.isFinite(value) && value !== null
@@ -96,8 +124,13 @@
         const item = map.get(key) || {
           keyword: row.keyword, matchType: row.matchType, status: row.status, reasons: row.reasons,
           impressions: 0, clicks: 0, cost: 0, conversions: 0,
+          expectedCtr: null, adRelevance: null, landingExperience: null,
           shareWeight: 0, shareSum: 0, lostSum: 0, lostWeight: 0, qsSum: 0, qsWeight: 0
         };
+        // Las semanas vienen ordenadas: gana la nota mas reciente.
+        Object.keys(COMPONENTS).forEach(component => {
+          if (row[component]) item[component] = row[component];
+        });
         item.impressions += row.impressions;
         item.clicks += row.clicks;
         item.cost += row.cost;
@@ -307,6 +340,20 @@
       items.push(`<li><b>Donde se siente mas:</b> ${top}.</li>`);
     }
 
+    const periodRows = aggregateRows(weeks);
+    const components = Object.keys(COMPONENTS).filter(component => gradeShare(periodRows, component).known > 0);
+    if (components.length) {
+      const parts = components.map(component => {
+        const { totals, known } = gradeShare(periodRows, component);
+        const worst = totals.below / known;
+        return `<b>${COMPONENTS[component]}</b>: ${pct(worst, 0)} del gasto esta "por debajo de la media"${totals.above ? `, ${pct(totals.above / known, 0)} "por encima"` : ''}`;
+      });
+      const guilty = components
+        .map(component => ({ component, share: gradeShare(periodRows, component).below }))
+        .map(item => Object.assign(item, { share: gradeShare(periodRows, item.component).totals.below / gradeShare(periodRows, item.component).known }))
+        .sort((a, b) => b.share - a.share)[0];
+      items.push(`<li><b>Que parte del nivel de calidad falla:</b> ${parts.join('; ')}. El componente que mas arrastra el Ad Rank es <b>${COMPONENTS[guilty.component]}</b>${guilty.component === 'landingExperience' ? ': el anuncio no es el problema, la pagina a la que llega el clic si' : ''}.</li>`);
+    }
     if (lowQuality.length) {
       items.push(`<li><b>Calidad:</b> ${lowQuality.length} palabras estan en pausa marcadas como "baja calidad" y el nivel de calidad medio es ${aggregate(weeks).qualityScore ? aggregate(weeks).qualityScore.toLocaleString('es-PE', { maximumFractionDigits: 1 }) : '-'} sobre 10${weakRows.length ? `; las que tienen 4 o menos se llevan ${pct(totalCost ? weakCost / totalCost : null)} del gasto` : ''}. Con esa calidad, subir la puja cuesta mas caro de lo que deberia.</li>`);
     }
@@ -346,8 +393,10 @@
           <td class="num">${pct(row.impressionShare)}</td>
           <td class="num">${pct(row.lostRank)}</td>
           <td class="num"><b${qualityClass}>${quality}</b></td>
+          <td>${gradeCell(row.adRelevance)}</td>
+          <td>${gradeCell(row.landingExperience)}</td>
         </tr>`;
-    }).join('') || '<tr><td colspan="12" class="table-empty">Sin palabras con actividad en este periodo.</td></tr>';
+    }).join('') || '<tr><td colspan="14" class="table-empty">Sin palabras con actividad en este periodo.</td></tr>';
   }
 
   function render() {

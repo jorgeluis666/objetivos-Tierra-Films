@@ -154,6 +154,20 @@ def parse_share(value: str | None) -> tuple[float | None, str | None]:
     return (None, None) if number is None else (round(number / 100, 6), approx)
 
 
+def parse_grade(value: str | None) -> str | None:
+    """'Por encima de la media' -> 'above'; 'Por debajo de la media' -> 'below'."""
+    text = str(value or "").strip().lower()
+    if not text or text in ("--", "-"):
+        return None
+    if "encima" in text or "above" in text:
+        return "above"
+    if "debajo" in text or "below" in text:
+        return "below"
+    if "media" in text or "promedio" in text or "average" in text:
+        return "average"
+    return None
+
+
 def parse_keywords(path: Path, rows: list[dict[str, str]], date_column: str) -> dict:
     """Informe de palabras clave por semana."""
     def column(*needles: str) -> str | None:
@@ -167,6 +181,9 @@ def parse_keywords(path: Path, rows: list[dict[str, str]], date_column: str) -> 
     col_lost_rank = column("perd", "ranking")
     col_lost_top = column("parte sup")
     col_quality = column("nivel de calidad")
+    col_ad_relevance = column("relevancia del anuncio")
+    col_landing = column("experiencia", "destino")
+    col_expected_ctr = column("rendimiento del anuncio esperado") or column("ctr esperado")
     col_conv_rate = column("tasa de conv")
     weeks: dict[date, list[dict]] = {}
     catalog: dict[tuple[str, str], dict] = {}
@@ -203,6 +220,9 @@ def parse_keywords(path: Path, rows: list[dict[str, str]], date_column: str) -> 
             "lostTopAbs": lost_top,
             "convRate": conv_rate,
             "qualityScore": parse_number(row.get(col_quality)) if col_quality else None,
+            "adRelevance": parse_grade(row.get(col_ad_relevance)) if col_ad_relevance else None,
+            "landingExperience": parse_grade(row.get(col_landing)) if col_landing else None,
+            "expectedCtr": parse_grade(row.get(col_expected_ctr)) if col_expected_ctr else None,
         })
         # Solo interesan las semanas en las que la palabra tuvo actividad.
         if entry["impressions"] or entry["cost"]:
@@ -298,11 +318,38 @@ def weighted(rows: list[dict], field: str) -> float | None:
     return round(sum(value * weight for value, weight in pairs) / total, 6) if total else None
 
 
-def keyword_block(source: dict) -> dict:
-    """Arma el bloque del modulo Palabras Clave: una entrada por semana."""
+def keyword_block(sources: list[dict]) -> dict:
+    """Arma el bloque del modulo Palabras Clave: una entrada por semana.
+
+    Con varios informes (por ejemplo, uno largo sin las columnas de calidad y
+    otro corto con ellas) se fusionan por semana y palabra: los archivos
+    posteriores completan los campos vacios del primero.
+    """
+    merged: dict[date, dict[tuple[str, str], dict]] = {}
+    catalog: dict[tuple[str, str], dict] = {}
+    files: list[str] = []
+    ranges = []
+    for source in sources:
+        files.append(source["file"])
+        ranges.append(source["period"])
+        for item in source["catalog"]:
+            key = (item["keyword"], item["matchType"])
+            if key in catalog:
+                catalog[key].update({k: v for k, v in item.items() if v})
+            else:
+                catalog[key] = dict(item)
+        for start, rows in source["weeks"].items():
+            week = merged.setdefault(start, {})
+            for row in rows:
+                key = (row["keyword"], row["matchType"])
+                if key in week:
+                    week[key].update({k: v for k, v in row.items() if v is not None})
+                else:
+                    week[key] = dict(row)
+
     weeks = []
-    for start in sorted(source["weeks"]):
-        rows = sorted(source["weeks"][start], key=lambda row: -row["cost"])
+    for start in sorted(merged):
+        rows = sorted(merged[start].values(), key=lambda row: -row["cost"])
         totals = {k: round(sum(row[k] for row in rows), 2) for k in METRICS}
         weeks.append(derived({
             "start": start.isoformat(),
@@ -315,12 +362,14 @@ def keyword_block(source: dict) -> dict:
             "qualityScore": weighted(rows, "qualityScore"),
             "rows": rows,
         }))
-    period = source["period"]
     return {
-        "sourceFile": source["file"],
-        "period": {"start": period[0].isoformat(), "end": period[1].isoformat()},
-        "catalog": source["catalog"],
+        "sourceFile": ", ".join(files),
+        "period": {"start": min(r[0] for r in ranges).isoformat(),
+                   "end": max(r[1] for r in ranges).isoformat()},
+        "catalog": list(catalog.values()),
         "weeks": weeks,
+        "hasQualityDetail": any(row.get("landingExperience") or row.get("adRelevance")
+                                for week in weeks for row in week["rows"]),
     }
 
 
@@ -334,7 +383,7 @@ def build(paths: list[Path]) -> dict:
     daily = next((s for s in sources if s["kind"] == "day"), None)
     periods = [s for s in sources if s["kind"] == "period"]
     series_sources = [s for s in sources if s["kind"] == "series"]
-    keyword_source = next((s for s in sources if s["kind"] == "keywords"), None)
+    keyword_sources = [s for s in sources if s["kind"] == "keywords"]
     if not weekly and not daily and not periods and not series_sources:
         raise SystemExit("[tf-import] hace falta al menos un informe.")
 
@@ -544,7 +593,7 @@ def build(paths: list[Path]) -> dict:
         "weeks": week_list,
         "days": day_list,
         "months": month_list,
-        "keywords": keyword_block(keyword_source) if keyword_source else None,
+        "keywords": keyword_block(keyword_sources) if keyword_sources else None,
     }
 
 
@@ -567,7 +616,8 @@ def main() -> int:
     if data.get("keywords"):
         kw = data["keywords"]
         print(f"[tf-import] palabras clave: {len(kw['catalog'])} en la cuenta, "
-              f"{len(kw['weeks'])} semanas ({kw['period']['start']} a {kw['period']['end']})")
+              f"{len(kw['weeks'])} semanas ({kw['period']['start']} a {kw['period']['end']})"
+              f"{' | con detalle de calidad' if kw.get('hasQualityDetail') else ''}")
     detail = f"{len(data['days'])} dias" if data["days"] else "sin detalle diario"
     print(f"[tf-import] {len(data['months'])} meses, {len(data['weeks'])} semanas, {detail} "
           f"({data['period']['start']} a {data['period']['end']}): "
