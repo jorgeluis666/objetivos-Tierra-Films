@@ -2,22 +2,26 @@
   // Proyecciones al cierre de mes sobre la data semanal de Google Ads.
   //
   // Google Ads entrega totales por semana, asi que cada semana se reparte en
-  // partes iguales entre sus dias con datos. Con esa serie diaria se calcula el
-  // acumulado real del mes y se proyecta el resto con uno de tres ritmos.
-  const GOAL_KEY = 'tierra_films_projection_goal_v1';
+  // partes iguales entre sus dias. Con esa serie diaria se calcula el acumulado
+  // real del mes y se proyecta el resto con uno de tres ritmos. El nodo final de
+  // la grafica se arrastra para simular otro cierre: el simulador convierte
+  // conversiones en gasto (y al reves) con el costo por conversion marginal.
+  const GOAL_KEY = 'tierra_films_projection_goal_v2';
+  const CPA_KEY = 'tierra_films_projection_marginal_cpa';
   const SCENARIO_KEY = 'tierra_films_projection_scenario';
   const METRICS = ['cost', 'impressions', 'clicks', 'conversions'];
   const CHART_METRICS = {
-    cost: { label: 'Inversion', unit: 'money', color: '#0284c7' },
-    conversions: { label: 'Conversiones', unit: 'count', color: '#7c3aed' },
-    clicks: { label: 'Clics', unit: 'count', color: '#f59e0b' }
+    cost: { label: 'Gasto', unit: 'money', color: '#0284c7', drag: true },
+    conversions: { label: 'Conversiones', unit: 'count', color: '#7c3aed', drag: true },
+    costPerConversion: { label: 'Costo x conversion', unit: 'money', color: '#0f766e', drag: false }
   };
   const SCENARIOS = {
     month: { label: 'Ritmo del mes', color: '#0f766e', desc: 'Acumulado del mes / dias con datos' },
     recent: { label: 'Ultimas 4 semanas', color: '#db2777', desc: 'Promedio diario de los ultimos 28 dias' },
     budget: { label: 'Presupuesto diario', color: '#64748b', desc: 'Gasta el presupuesto completo cada dia, con la eficiencia de las ultimas 4 semanas' }
   };
-  const state = { ready: false, data: null, metric: 'cost', scenario: 'month', goal: null, chart: null, model: null };
+  const SIM_COLOR = '#ea580c';
+  const state = { ready: false, data: null, metric: 'cost', scenario: 'month', goal: null, marginalCpa: null, chart: null, model: null, dragging: false };
 
   const F = () => window.TierraFilmsFormat;
 
@@ -99,6 +103,15 @@
 
     const prevId = month === 1 ? `${year - 1}-12` : `${year}-${String(month - 1).padStart(2, '0')}`;
     const previous = (data.months || []).find(item => item.id === prevId);
+    // Acumulado real dia a dia, base de todas las curvas del grafico.
+    const cumulative = [];
+    let cost = 0;
+    let conversions = 0;
+    monthRows.forEach(row => {
+      cost += row.cost;
+      conversions += row.conversions;
+      cumulative.push({ cost, conversions });
+    });
     return {
       monthId,
       monthLabel: `${F().MONTH_NAMES[month - 1]} ${year}`,
@@ -107,15 +120,52 @@
       daysWithData,
       remaining,
       lastDate,
-      monthRows,
+      cumulative,
       actual,
       rates,
       closes,
       budget,
-      recentFrom: recentRows.length ? recentRows[0].date : null,
       previous: previous ? F().withRates(previous) : null,
       lastWeek: data.weeks[data.weeks.length - 1]
     };
+  }
+
+  // Costo de cada conversion adicional: por defecto el del escenario activo.
+  function scenarioCpa() {
+    const rate = state.model.rates[state.scenario];
+    if (rate.conversions > 0) return rate.cost / rate.conversions;
+    return state.model.actual.costPerConversion || 0;
+  }
+
+  function marginalCpa() {
+    return state.marginalCpa && state.marginalCpa > 0 ? state.marginalCpa : scenarioCpa();
+  }
+
+  function baseClose() {
+    return state.model.closes[state.scenario];
+  }
+
+  // Cierre simulado: las conversiones mandan y el gasto sale del CPA marginal.
+  function simClose() {
+    const m = state.model;
+    const conversions = Math.max(m.actual.conversions, state.goal ?? baseClose().conversions);
+    const cost = m.actual.cost + (conversions - m.actual.conversions) * marginalCpa();
+    return F().withRates({
+      cost,
+      conversions,
+      clicks: baseClose().clicks,
+      impressions: baseClose().impressions
+    });
+  }
+
+  function isSimulated() {
+    return Math.abs(simClose().conversions - baseClose().conversions) > 0.05;
+  }
+
+  function metricValue(metric, cost, conversions) {
+    if (metric === 'cost') return cost;
+    if (metric === 'conversions') return conversions;
+    return conversions > 0 ? cost / conversions : null;
   }
 
   function gapBadge(value, reference, inverse = false) {
@@ -129,12 +179,12 @@
   function renderKpis() {
     const m = state.model;
     const f = F();
-    const close = m.closes[state.scenario];
+    const close = baseClose();
     const monthlyBudget = m.budget * m.daysInMonth;
     const prevConv = m.previous ? m.previous.conversions : null;
     const cards = [
-      [`Inversion al ${f.shortDate(m.lastDate)}`, f.fmtMoney(m.actual.cost), `${m.daysWithData} de ${m.daysInMonth} dias`],
-      ['Inversion proyectada', f.fmtMoney(close.cost), monthlyBudget ? `${f.fmtPercent(close.cost / monthlyBudget)} del presupuesto (${f.fmtMoney(monthlyBudget)})` : 'Al cierre del mes'],
+      [`Gasto al ${f.shortDate(m.lastDate)}`, f.fmtMoney(m.actual.cost), `${m.daysWithData} de ${m.daysInMonth} dias`],
+      ['Gasto proyectado', f.fmtMoney(close.cost), monthlyBudget ? `${f.fmtPercent(close.cost / monthlyBudget)} del presupuesto (${f.fmtMoney(monthlyBudget)})` : 'Al cierre del mes'],
       ['Conversiones proyectadas', f.fmtCount(close.conversions), prevConv ? `${f.fmtCount(prevConv)} en ${m.previous.label.split(' ')[0].toLowerCase()}` : `${f.fmtCount(m.actual.conversions)} reales`],
       ['Costo x conversion', f.fmtMoney(close.costPerConversion), `Real a la fecha ${f.fmtMoney(m.actual.costPerConversion)}`],
       ['Clics proyectados', f.fmtCount(close.clicks), `CPC ${f.fmtMoney(close.cpc)}`],
@@ -143,30 +193,56 @@
     document.getElementById('projection-kpis').innerHTML = cards.map(([label, value, meta]) => `<div class="kpi-pill"><span>${label}</span><strong>${value}</strong><small>${meta}</small></div>`).join('');
   }
 
-  function renderScenarioToggles() {
-    const host = document.getElementById('projection-scenarios');
-    host.innerHTML = Object.entries(SCENARIOS).map(([key, scenario]) => `
-      <label class="series-toggle${key === state.scenario ? ' active' : ''}" style="${key === state.scenario ? `color:${scenario.color};border-color:${scenario.color};background:${scenario.color}14` : ''}" title="${scenario.desc}">
-        <input type="radio" name="projection-scenario" value="${key}"${key === state.scenario ? ' checked' : ''}>${scenario.label}
+  function toggleHtml(entries, active) {
+    return entries.map(([key, item]) => `
+      <label class="series-toggle${key === active ? ' active' : ''}" style="${key === active ? `color:${item.color};border-color:${item.color};background:${item.color}14` : ''}"${item.desc ? ` title="${item.desc}"` : ''}>
+        <input type="radio" value="${key}"${key === active ? ' checked' : ''}>${item.label}
       </label>`).join('');
-    host.querySelectorAll('input').forEach(input => input.addEventListener('change', () => {
+  }
+
+  function renderToggles() {
+    const scenarios = document.getElementById('projection-scenarios');
+    scenarios.innerHTML = toggleHtml(Object.entries(SCENARIOS), state.scenario);
+    scenarios.querySelectorAll('input').forEach(input => input.addEventListener('change', () => {
       state.scenario = input.value;
       writeStorage(SCENARIO_KEY, state.scenario);
+      // El escenario manda sobre la simulacion: se vuelve a su cierre.
+      state.goal = null;
+      writeStorage(GOAL_KEY, null);
       render();
+    }));
+    const metrics = document.getElementById('projection-metrics');
+    metrics.innerHTML = toggleHtml(Object.entries(CHART_METRICS), state.metric);
+    metrics.querySelectorAll('input').forEach(input => input.addEventListener('change', () => {
+      state.metric = input.value;
+      renderToggles();
+      renderChart();
     }));
   }
 
-  function renderMetricToggles() {
-    const host = document.getElementById('projection-metrics');
-    host.innerHTML = Object.entries(CHART_METRICS).map(([key, metric]) => `
-      <label class="series-toggle${key === state.metric ? ' active' : ''}" style="${key === state.metric ? `color:${metric.color};border-color:${metric.color};background:${metric.color}14` : ''}">
-        <input type="radio" name="projection-metric" value="${key}"${key === state.metric ? ' checked' : ''}>${metric.label}
-      </label>`).join('');
-    host.querySelectorAll('input').forEach(input => input.addEventListener('change', () => {
-      state.metric = input.value;
-      renderMetricToggles();
-      renderChart();
-    }));
+  function chartSeries(metric) {
+    const m = state.model;
+    const labels = Array.from({ length: m.daysInMonth }, (_, i) => String(i + 1));
+    const real = labels.map((_, i) => (i < m.cumulative.length ? metricValue(metric, m.cumulative[i].cost, m.cumulative[i].conversions) : null));
+    const last = m.cumulative[m.cumulative.length - 1] || { cost: 0, conversions: 0 };
+    const line = (costAt, convAt) => labels.map((_, i) => {
+      const step = i + 1 - m.daysWithData;
+      if (step < 0) return null;
+      return metricValue(metric, costAt(step), convAt(step));
+    });
+    const scenarios = Object.fromEntries(Object.keys(SCENARIOS).map(key => [
+      key,
+      line(step => last.cost + m.rates[key].cost * step, step => last.conversions + m.rates[key].conversions * step)
+    ]));
+    const sim = simClose();
+    const perDayCost = m.remaining ? (sim.cost - last.cost) / m.remaining : 0;
+    const perDayConv = m.remaining ? (sim.conversions - last.conversions) / m.remaining : 0;
+    return {
+      labels,
+      real,
+      scenarios,
+      sim: line(step => last.cost + perDayCost * step, step => last.conversions + perDayConv * step)
+    };
   }
 
   function renderChart() {
@@ -174,24 +250,15 @@
     const f = F();
     const metric = state.metric;
     const meta = CHART_METRICS[metric];
-    const labels = Array.from({ length: m.daysInMonth }, (_, i) => String(i + 1));
-    const real = [];
-    let running = 0;
-    m.monthRows.forEach(row => { running += row[metric]; real.push(running); });
-    const lastReal = m.daysWithData ? real[m.daysWithData - 1] : 0;
-    const projected = key => labels.map((_, i) => {
-      const day = i + 1;
-      if (day < m.daysWithData) return null;
-      return lastReal + m.rates[key][metric] * (day - m.daysWithData);
-    });
+    const series = chartSeries(metric);
     const datasets = [{
       key: 'real',
       label: 'Real acumulado',
-      data: labels.map((_, i) => (i < real.length ? real[i] : null)),
+      data: series.real,
       borderColor: meta.color,
       backgroundColor: `${meta.color}1f`,
       borderWidth: 2.4,
-      fill: true,
+      fill: metric !== 'costPerConversion',
       pointRadius: 0,
       pointHoverRadius: 4,
       tension: 0.2
@@ -201,21 +268,31 @@
       datasets.push({
         key,
         label: `Proyeccion: ${scenario.label}`,
-        data: projected(key),
-        borderColor: active ? scenario.color : `${scenario.color}66`,
-        borderWidth: active ? 2.4 : 1.4,
+        data: series.scenarios[key],
+        borderColor: active ? scenario.color : `${scenario.color}59`,
+        borderWidth: active ? 2 : 1.2,
         borderDash: [6, 5],
-        pointRadius: labels.map((_, i) => (active && i === labels.length - 1 ? 4 : 0)),
-        pointBackgroundColor: scenario.color,
+        pointRadius: 0,
         fill: false,
         tension: 0
       });
     });
+    datasets.push({
+      key: 'sim',
+      label: 'Simulacion (arrastra el nodo)',
+      data: series.sim,
+      borderColor: SIM_COLOR,
+      backgroundColor: SIM_COLOR,
+      borderWidth: 2.6,
+      pointRadius: series.labels.map((_, i) => (i === series.labels.length - 1 ? 7 : 0)),
+      pointHoverRadius: series.labels.map((_, i) => (i === series.labels.length - 1 ? 9 : 0)),
+      pointBorderColor: '#fff',
+      pointBorderWidth: 2,
+      fill: false,
+      tension: 0
+    });
     if (metric === 'cost' && m.budget) {
-      datasets.push({ key: 'budget-cap', label: 'Presupuesto acumulado', data: labels.map((_, i) => m.budget * (i + 1)), borderColor: '#94a3b8', borderWidth: 1, borderDash: [2, 3], pointRadius: 0, fill: false });
-    }
-    if (metric === 'conversions' && state.goal) {
-      datasets.push({ key: 'goal', label: 'Meta del mes', data: labels.map(() => state.goal), borderColor: '#16a34a', borderWidth: 1.4, borderDash: [2, 3], pointRadius: 0, fill: false });
+      datasets.push({ key: 'budget-cap', label: 'Presupuesto acumulado', data: series.labels.map((_, i) => m.budget * (i + 1)), borderColor: '#94a3b8', borderWidth: 1, borderDash: [2, 3], pointRadius: 0, fill: false });
     }
 
     document.getElementById('projection-title').textContent = `Acumulado de ${meta.label.toLowerCase()} | ${m.monthLabel}`;
@@ -233,10 +310,11 @@
     if (state.chart) state.chart.destroy();
     state.chart = new Chart(canvas, {
       type: 'line',
-      data: { labels, datasets },
+      data: { labels: series.labels, datasets },
       options: {
         responsive: true,
         maintainAspectRatio: false,
+        animation: state.dragging ? false : undefined,
         interaction: { mode: 'index', intersect: false },
         plugins: {
           legend: { display: false },
@@ -250,45 +328,125 @@
         },
         scales: {
           x: { grid: { display: false }, border: { color: '#bfdbfe' }, ticks: { color: '#7890b5', font: { size: 10 } } },
-          y: { beginAtZero: true, border: { display: false }, grid: { color: 'rgba(14,165,233,.16)' }, ticks: { color: '#7890b5', font: { size: 10 }, callback: value => f.formatValue(value, meta.unit, true) } }
+          y: { beginAtZero: metric !== 'costPerConversion', border: { display: false }, grid: { color: 'rgba(14,165,233,.16)' }, ticks: { color: '#7890b5', font: { size: 10 }, callback: value => f.formatValue(value, meta.unit, true) } }
         }
       }
     });
+    bindDrag(canvas);
 
     const lw = m.lastWeek;
     const avgWeekCost = m.rates.recent.cost * 7;
     const warn = lw && lw.days === 7 && lw.cost < avgWeekCost * 0.6
-      ? ` Ojo: la ultima semana (${f.weekLabel(lw)}) invirtio ${f.fmtMoney(lw.cost)}, muy por debajo del promedio de ${f.fmtMoney(avgWeekCost)} por semana; si fue una pausa puntual, el escenario "${SCENARIOS.recent.label}" o "${SCENARIOS.budget.label}" es mas realista.`
+      ? ` Ojo: la ultima semana (${f.weekLabel(lw)}) gasto ${f.fmtMoney(lw.cost)}, muy por debajo del promedio de ${f.fmtMoney(avgWeekCost)} por semana; si fue una pausa puntual, el escenario "${SCENARIOS.recent.label}" o "${SCENARIOS.budget.label}" es mas realista.`
       : '';
-    document.getElementById('projection-note').textContent = `Google Ads entrega totales semanales: cada semana se reparte en partes iguales entre sus dias, por eso la linea real sube en tramos rectos.${warn}`;
+    const dragNote = meta.drag
+      ? `Arrastra el nodo naranja del ultimo dia para simular otro cierre de ${meta.label.toLowerCase()}: el simulador recalcula el resto con el costo por conversion marginal.`
+      : 'El costo por conversion sale de dividir el gasto acumulado entre las conversiones acumuladas, asi que se simula desde las vistas de Gasto o Conversiones.';
+    document.getElementById('projection-note').textContent = `${dragNote} Google Ads entrega totales semanales: cada semana se reparte en partes iguales entre sus dias, por eso la linea real sube en tramos rectos.${warn}`;
+  }
+
+  // El nodo final de la simulacion se arrastra con el mouse o el dedo.
+  function bindDrag(canvas) {
+    if (canvas.dataset.dragBound === '1') return;
+    canvas.dataset.dragBound = '1';
+
+    const simPoint = () => {
+      const chart = state.chart;
+      if (!chart) return null;
+      const index = chart.data.datasets.findIndex(dataset => dataset.key === 'sim');
+      if (index < 0) return null;
+      const points = chart.getDatasetMeta(index).data;
+      return points.length ? points[points.length - 1] : null;
+    };
+
+    const near = event => {
+      const point = simPoint();
+      if (!point) return false;
+      const rect = canvas.getBoundingClientRect();
+      const x = event.clientX - rect.left;
+      const y = event.clientY - rect.top;
+      return Math.hypot(point.x - x, point.y - y) < 26;
+    };
+
+    const valueAt = event => {
+      const rect = canvas.getBoundingClientRect();
+      return state.chart.scales.y.getValueForPixel(event.clientY - rect.top);
+    };
+
+    const apply = event => {
+      const m = state.model;
+      const value = valueAt(event);
+      if (!Number.isFinite(value)) return;
+      let conversions;
+      if (state.metric === 'conversions') {
+        conversions = value;
+      } else {
+        conversions = m.actual.conversions + (value - m.actual.cost) / marginalCpa();
+      }
+      state.goal = Math.max(m.actual.conversions, Math.round(conversions * 10) / 10);
+      const input = document.getElementById('projection-goal');
+      if (input) input.value = Math.round(state.goal);
+      renderChart();
+      renderSim();
+      renderTable();
+      renderWeeks();
+    };
+
+    canvas.addEventListener('pointermove', event => {
+      if (!state.dragging) {
+        canvas.style.cursor = CHART_METRICS[state.metric].drag && near(event) ? 'grab' : 'default';
+        return;
+      }
+      apply(event);
+    });
+    canvas.addEventListener('pointerdown', event => {
+      if (!CHART_METRICS[state.metric].drag || !near(event)) return;
+      state.dragging = true;
+      canvas.style.cursor = 'grabbing';
+      try { canvas.setPointerCapture(event.pointerId); } catch (error) { /* el navegador no soporta captura */ }
+      event.preventDefault();
+    });
+    const stop = event => {
+      if (!state.dragging) return;
+      state.dragging = false;
+      canvas.style.cursor = 'grab';
+      try { canvas.releasePointerCapture(event.pointerId); } catch (error) { /* el puntero ya se solto */ }
+      writeStorage(GOAL_KEY, state.goal === null ? null : String(state.goal));
+    };
+    canvas.addEventListener('pointerup', stop);
+    canvas.addEventListener('pointercancel', stop);
   }
 
   function renderTable() {
     const m = state.model;
     const f = F();
     const rate = m.rates[state.scenario];
-    const close = m.closes[state.scenario];
+    const close = baseClose();
+    const sim = simClose();
+    const simulated = isSimulated();
     const prev = m.previous;
     const prevName = prev ? prev.label.split(' ')[0] : 'Mes anterior';
     document.getElementById('projection-actual-head').textContent = `Real al ${f.shortDate(m.lastDate)}`;
     document.getElementById('projection-close-head').textContent = `Cierre ${m.monthName}`;
+    document.getElementById('projection-sim-head').textContent = simulated ? 'Simulacion' : 'Simulacion (=)';
     document.getElementById('projection-ref-head').textContent = prevName;
     document.getElementById('projection-table-sub').textContent = `Escenario "${SCENARIOS[state.scenario].label}": ${SCENARIOS[state.scenario].desc.toLowerCase()}. Cierre = real + ritmo diario x ${m.remaining} dias restantes.`;
     const rows = [
-      ['Inversion', 'money', 'cost', false],
+      ['Gasto', 'money', 'cost', false],
+      ['Conversiones', 'count', 'conversions', false],
+      ['Costo x conversion', 'money', 'costPerConversion', true, true],
       ['Impresiones', 'count', 'impressions', false],
       ['Clics', 'count', 'clicks', false],
-      ['Conversiones', 'count', 'conversions', false],
       ['CTR', 'percent', 'ctr', false, true],
-      ['CPC medio', 'money', 'cpc', true, true],
-      ['Costo x conversion', 'money', 'costPerConversion', true, true]
+      ['CPC medio', 'money', 'cpc', true, true]
     ];
     document.getElementById('projection-body').innerHTML = rows.map(([label, unit, key, inverse, isRate]) => `
       <tr class="${isRate ? 'projection-cost-row' : ''}">
         <td>${label}</td>
         <td class="num">${f.formatValue(m.actual[key], unit)}</td>
-        <td class="num">${isRate ? '-' : f.formatValue(rate[key], unit === 'count' && rate[key] < 10 ? 'decimal' : unit)}</td>
+        <td class="num">${isRate ? '-' : f.formatValue(rate[key], unit === 'count' ? 'decimal' : unit)}</td>
         <td class="num projection-value">${f.formatValue(close[key], unit)}</td>
+        <td class="num projection-sim-value">${f.formatValue(sim[key], unit)}</td>
         <td class="num">${prev ? f.formatValue(prev[key], unit) : '-'}</td>
         <td>${prev ? gapBadge(close[key], prev[key], inverse) : '-'}</td>
       </tr>`).join('');
@@ -298,7 +456,13 @@
   function renderWeeks() {
     const m = state.model;
     const f = F();
-    const rate = m.rates[state.scenario];
+    const sim = simClose();
+    const rate = {
+      cost: m.remaining ? (sim.cost - m.actual.cost) / m.remaining : 0,
+      conversions: m.remaining ? (sim.conversions - m.actual.conversions) / m.remaining : 0,
+      impressions: m.rates[state.scenario].impressions,
+      clicks: m.rates[state.scenario].clicks
+    };
     const rows = [];
     let cursor = addDays(m.lastDate, 1);
     const monthEnd = `${m.monthId}-${String(m.daysInMonth).padStart(2, '0')}`;
@@ -311,6 +475,9 @@
       cursor = addDays(end, 1);
     }
     const body = document.getElementById('projection-weeks-body');
+    document.getElementById('projection-weeks-sub').textContent = isSimulated()
+      ? 'Lo que tendria que aportar cada semana restante para llegar al cierre simulado.'
+      : 'Lo que aportaria cada semana restante del mes con el escenario elegido.';
     if (!rows.length) {
       body.innerHTML = '<tr><td colspan="6" class="table-empty">El mes ya esta cerrado con datos reales.</td></tr>';
       return;
@@ -322,6 +489,7 @@
       <tr>
         <td class="campaign-name"><span>${f.shortDate(row.start)} - ${f.shortDate(row.end)}</span><small>${row.days} ${row.days === 1 ? 'dia' : 'dias'}</small></td>
         <td class="num">${f.fmtMoney(cost)}</td>
+        <td class="num">${f.fmtMoney(cost / row.days)}</td>
         <td class="num">${f.fmtCount(rate.impressions * row.days)}</td>
         <td class="num">${f.fmtCount(rate.clicks * row.days)}</td>
         <td class="num">${conv.toLocaleString('es-PE', { maximumFractionDigits: 1 })}</td>
@@ -330,66 +498,77 @@
     }).join('');
   }
 
-  // Meta de conversiones: cuanto hay que conseguir por dia y cuanto costaria.
-  function renderGoal() {
+  // Simulador: relacion entre mas conversiones y cuanto gasto exigen.
+  function renderSim() {
     const m = state.model;
     const f = F();
-    const input = document.getElementById('projection-goal');
-    if (document.activeElement !== input) input.value = state.goal ?? '';
-    const grid = document.getElementById('projection-goal-grid');
-    const note = document.getElementById('projection-goal-note');
-    if (!state.goal) {
-      grid.innerHTML = '';
-      note.textContent = `Ingresa la meta de conversiones de ${m.monthName} para ver el ritmo y la inversion que hacen falta en los ${m.remaining} dias restantes.`;
-      return;
-    }
-    const rate = m.rates[state.scenario];
-    const cpa = rate.conversions > 0 ? rate.cost / rate.conversions : m.actual.costPerConversion;
-    const missing = Math.max(0, state.goal - m.actual.conversions);
-    const neededDaily = m.remaining ? missing / m.remaining : 0;
-    const neededCost = missing * cpa;
-    const neededDailyCost = m.remaining ? neededCost / m.remaining : 0;
-    const projected = m.closes[state.scenario].conversions;
-    const reach = projected / state.goal;
+    const sim = simClose();
+    const base = baseClose();
+    const cpa = marginalCpa();
+    const goalInput = document.getElementById('projection-goal');
+    const cpaInput = document.getElementById('projection-cpa');
+    if (document.activeElement !== goalInput) goalInput.value = Math.round(sim.conversions);
+    if (document.activeElement !== cpaInput) cpaInput.value = cpa.toFixed(2);
+    const extraConv = sim.conversions - m.actual.conversions;
+    const extraCost = sim.cost - m.actual.cost;
+    const dailyCost = m.remaining ? extraCost / m.remaining : 0;
     const cards = [
-      ['Faltan', f.fmtCount(missing), `${f.fmtCount(m.actual.conversions)} de ${f.fmtCount(state.goal)} logradas`, ''],
-      ['Conversiones x dia', neededDaily.toLocaleString('es-PE', { maximumFractionDigits: 1 }), `Hoy: ${rate.conversions.toLocaleString('es-PE', { maximumFractionDigits: 1 })} por dia`, neededDaily <= rate.conversions ? 'ok' : 'over'],
-      ['Inversion necesaria', f.fmtMoney(neededCost), `A ${f.fmtMoney(cpa)} por conversion`, ''],
-      ['Presupuesto diario', f.fmtMoney(neededDailyCost), m.budget ? `Actual ${f.fmtMoney(m.budget)} por dia` : '', m.budget && neededDailyCost > m.budget ? 'over' : 'ok']
+      ['Conversiones al cierre', f.fmtCount(sim.conversions), `${f.fmtCount(m.actual.conversions)} reales + ${f.fmtCount(extraConv)} por lograr`, ''],
+      ['Gasto al cierre', f.fmtMoney(sim.cost), `${f.fmtMoney(extraCost)} en los ${m.remaining} dias que faltan`, ''],
+      ['Presupuesto diario', f.fmtMoney(dailyCost), m.budget ? `Actual ${f.fmtMoney(m.budget)} por dia` : '', m.budget && dailyCost > m.budget ? 'over' : 'ok'],
+      ['Costo x conversion del mes', f.fmtMoney(sim.costPerConversion), `Proyeccion base ${f.fmtMoney(base.costPerConversion)}`, sim.costPerConversion <= base.costPerConversion ? 'ok' : 'over']
     ];
-    grid.innerHTML = cards.map(([label, value, meta, cls]) => `<div class="sim-card"><span>${label}</span><strong class="${cls}">${value}</strong><small>${meta}</small></div>`).join('');
-    note.textContent = missing === 0
-      ? 'La meta ya esta cumplida con los datos reales.'
-      : `Con el escenario "${SCENARIOS[state.scenario].label}" el mes cerraria en ${f.fmtCount(projected)} conversiones (${f.fmtPercent(reach)} de la meta). El costo por conversion usado es el del mismo escenario.`;
+    document.getElementById('projection-sim-grid').innerHTML = cards.map(([label, value, meta, cls]) => `<div class="sim-card"><span>${label}</span><strong class="${cls}">${value}</strong><small>${meta}</small></div>`).join('');
+    const diffConv = sim.conversions - base.conversions;
+    const diffCost = sim.cost - base.cost;
+    document.getElementById('projection-sim-note').textContent = isSimulated()
+      ? `Frente a la proyeccion base: ${diffConv > 0 ? '+' : ''}${f.fmtCount(diffConv)} conversiones y ${diffCost > 0 ? '+' : ''}${f.fmtMoney(diffCost)} de gasto, a ${f.fmtMoney(cpa)} cada conversion adicional. Cambia ese costo marginal si esperas que las conversiones extra salgan mas caras.`
+      : `La simulacion arranca en la proyeccion base del escenario "${SCENARIOS[state.scenario].label}". Arrastra el nodo naranja del grafico o escribe la meta: cada conversion adicional se valoriza a ${f.fmtMoney(cpa)}.`;
   }
 
   function render() {
     if (!state.model) return;
-    renderScenarioToggles();
-    renderMetricToggles();
+    renderToggles();
     renderKpis();
     renderChart();
     renderTable();
     renderWeeks();
-    renderGoal();
+    renderSim();
   }
 
-  function bindGoal() {
-    const input = document.getElementById('projection-goal');
-    input.addEventListener('input', () => {
-      const value = Number(input.value);
-      state.goal = input.value !== '' && Number.isFinite(value) && value > 0 ? value : null;
+  function bindInputs() {
+    const goal = document.getElementById('projection-goal');
+    goal.addEventListener('input', () => {
+      const value = Number(goal.value);
+      state.goal = goal.value !== '' && Number.isFinite(value) && value >= 0 ? value : null;
       writeStorage(GOAL_KEY, state.goal === null ? null : String(state.goal));
-      renderGoal();
-      if (state.metric === 'conversions') renderChart();
+      renderChart();
+      renderSim();
+      renderTable();
+      renderWeeks();
     });
-    document.getElementById('projection-goal-prev').addEventListener('click', () => {
+    const cpa = document.getElementById('projection-cpa');
+    cpa.addEventListener('input', () => {
+      const value = Number(cpa.value);
+      state.marginalCpa = cpa.value !== '' && Number.isFinite(value) && value > 0 ? value : null;
+      writeStorage(CPA_KEY, state.marginalCpa === null ? null : String(state.marginalCpa));
+      renderChart();
+      renderSim();
+      renderTable();
+      renderWeeks();
+    });
+    document.getElementById('projection-sim-prev').addEventListener('click', () => {
       if (!state.model.previous) return;
       state.goal = Math.round(state.model.previous.conversions);
       writeStorage(GOAL_KEY, String(state.goal));
-      input.value = state.goal;
-      renderGoal();
-      if (state.metric === 'conversions') renderChart();
+      render();
+    });
+    document.getElementById('projection-sim-reset').addEventListener('click', () => {
+      state.goal = null;
+      state.marginalCpa = null;
+      writeStorage(GOAL_KEY, null);
+      writeStorage(CPA_KEY, null);
+      render();
     });
   }
 
@@ -400,10 +579,12 @@
     if (SCENARIOS[storedScenario]) state.scenario = storedScenario;
     const storedGoal = Number(readStorage(GOAL_KEY));
     state.goal = Number.isFinite(storedGoal) && storedGoal > 0 ? storedGoal : null;
-    const prevButton = document.getElementById('projection-goal-prev');
+    const storedCpa = Number(readStorage(CPA_KEY));
+    state.marginalCpa = Number.isFinite(storedCpa) && storedCpa > 0 ? storedCpa : null;
+    const prevButton = document.getElementById('projection-sim-prev');
     if (state.model.previous) prevButton.textContent = `Igualar ${state.model.previous.label.split(' ')[0].toLowerCase()} (${F().fmtCount(state.model.previous.conversions)})`;
     else prevButton.hidden = true;
-    bindGoal();
+    bindInputs();
     state.ready = true;
   }
 

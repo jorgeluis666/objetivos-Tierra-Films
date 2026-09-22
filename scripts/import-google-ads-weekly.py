@@ -210,7 +210,7 @@ def build(path: Path) -> dict:
         "currency": "PEN",
         "sourceFile": path.name,
         "period": {"start": period_start.isoformat(), "end": period_end.isoformat()},
-        "defaultMonth": "all",
+        "defaultMonth": month_list[-1]["id"],
         "campaigns": list(campaigns.values()),
         "totals": derived(dict(totals)),
         "accountTotal": account_total,

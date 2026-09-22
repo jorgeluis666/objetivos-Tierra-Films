@@ -3,13 +3,12 @@
   const MONTH_STORAGE_KEY = 'tierra_films_selected_month';
   const ALL = 'all';
   const SERIES = {
-    cost: { label: 'Inversion', unit: 'money', color: '#0284c7', fill: 'rgba(2,132,199,.18)', axis: 'y' },
-    conversions: { label: 'Conversiones', unit: 'count', color: '#7c3aed', fill: 'rgba(124,58,237,.16)', axis: 'y1' },
-    costPerConversion: { label: 'Costo x conversion', unit: 'money', color: '#0f766e', fill: 'rgba(15,118,110,.16)', axis: 'y2' },
-    clicks: { label: 'Clics', unit: 'count', color: '#f59e0b', fill: 'rgba(245,158,11,.16)', axis: 'y3' }
+    cost: { label: 'Gasto', unit: 'money', color: '#0284c7', axis: 'y' },
+    conversions: { label: 'Conversiones', unit: 'count', color: '#7c3aed', axis: 'y1' },
+    costPerConversion: { label: 'Costo x conversion', unit: 'money', color: '#0f766e', axis: 'y2', dashed: true },
+    ctr: { label: 'CTR', unit: 'percent', color: '#f59e0b', axis: 'y3', dashed: true }
   };
-  const BAR_METRICS = ['cost', 'conversions', 'costPerConversion'];
-  const TREND_METRICS = ['cost', 'conversions', 'costPerConversion', 'clicks'];
+  const TREND_METRICS = ['cost', 'conversions', 'costPerConversion', 'ctr'];
   const MONTH_NAMES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Setiembre', 'Octubre', 'Noviembre', 'Diciembre'];
   const MONTH_SHORT = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'set', 'oct', 'nov', 'dic'];
   const state = { data: null, months: [], weeks: [], monthId: ALL, chart: null, trendChart: null };
@@ -102,27 +101,31 @@
   function renderFilters() {
     const host = document.getElementById('retail-filters');
     if (!host) return;
-    const allOption = `<option value="${ALL}"${state.monthId === ALL ? ' selected' : ''}>Todo el periodo (${escapeHtml(`${shortDate(state.data.period.start)} - ${shortDate(state.data.period.end)}`)})</option>`;
-    const options = state.months
-      .map(item => `<option value="${escapeHtml(item.id)}"${item.id === state.monthId ? ' selected' : ''}>${escapeHtml(item.label)}${item.daysWithData < item.daysInMonth ? ` (al ${parseDate(state.data.period.end).d})` : ''}</option>`)
-      .reverse()
-      .join('');
     const campaign = state.data.campaigns && state.data.campaigns[0];
+    const options = state.months.map(month => {
+      const partial = month.daysWithData < month.daysInMonth;
+      const label = `${month.label.split(' ')[0]}${partial ? ` (al ${parseDate(state.data.period.end).d})` : ''}`;
+      return `<button type="button" class="month-tab${month.id === state.monthId ? ' active' : ''}" data-month="${escapeHtml(month.id)}">${escapeHtml(label)}</button>`;
+    }).join('');
     host.innerHTML = `
-      <label class="retail-filter" for="filter-month">
-        <span>Periodo</span>
-        <select id="filter-month">${allOption}${options}</select>
-        <small title="Fuente: ${escapeHtml(state.data.sourceFile)}">Fuente: ${escapeHtml(state.data.sourceFile)}</small>
-      </label>
+      <div class="retail-filter">
+        <span>Mes</span>
+        <div class="month-tabs filter-months">
+          ${options}
+          <button type="button" class="month-tab${state.monthId === ALL ? ' active' : ''}" data-month="${ALL}" title="${escapeHtml(`${shortDate(state.data.period.start)} - ${shortDate(state.data.period.end)}`)}">Todo el periodo</button>
+        </div>
+      </div>
       <div class="retail-filter filter-hint">
         <span>Cuenta Google Ads</span>
-        <p>${state.data.campaigns.length} ${state.data.campaigns.length === 1 ? 'campaña' : 'campañas'} de ${escapeHtml(campaign ? campaign.type : 'Búsqueda')}${campaign && campaign.dailyBudget ? ` | presupuesto ${fmtMoney(campaign.dailyBudget)}/dia` : ''} | ${state.weeks.length} semanas cargadas.</p>
+        <p>${state.data.campaigns.length} ${state.data.campaigns.length === 1 ? 'campaña' : 'campañas'} de ${escapeHtml(campaign ? campaign.type : 'Búsqueda')}${campaign && campaign.dailyBudget ? ` | presupuesto ${fmtMoney(campaign.dailyBudget)}/dia` : ''} | ${state.weeks.length} semanas cargadas.<br>Fuente: ${escapeHtml(state.data.sourceFile)}</p>
       </div>
     `;
-    document.getElementById('filter-month').addEventListener('change', event => {
-      state.monthId = event.target.value;
-      storeMonth(state.monthId);
-      renderAll();
+    host.querySelectorAll('[data-month]').forEach(button => {
+      button.addEventListener('click', () => {
+        state.monthId = button.dataset.month;
+        storeMonth(state.monthId);
+        renderAll();
+      });
     });
   }
 
@@ -131,39 +134,14 @@
     const t = periodTotals();
     const days = state.monthId === ALL ? state.weeks.reduce((total, week) => total + week.days, 0) : currentMonth().daysWithData;
     const cards = [
-      ['Coste total', fmtMoney(t.cost), `Promedio ${fmtMoney(t.cost / days)} x dia`],
+      ['Gasto total', fmtMoney(t.cost), `Promedio ${fmtMoney(t.cost / days)} x dia`],
       ['Impresiones', fmtCount(t.impressions), `${days} dias con datos`],
       ['CTR', fmtPercent(t.ctr), 'Clics / impresiones'],
       ['Clics', fmtCount(t.clicks), `CPC medio ${fmtMoney(t.cpc)}`],
       ['Conversiones', fmtCount(t.conversions), 'Resultados registrados'],
-      ['Costo x conversion', fmtMoney(t.costPerConversion), 'Coste / conversiones']
+      ['Costo x conversion', fmtMoney(t.costPerConversion), 'Gasto / conversiones']
     ];
     host.innerHTML = cards.map(([label, value, meta]) => `<div class="kpi-pill"><span>${label}</span><strong>${value}</strong><small>${meta}</small></div>`).join('');
-  }
-
-  function barValuesPlugin(seriesMap) {
-    return {
-      id: 'insideBarValues',
-      afterDatasetsDraw(chart) {
-        const { ctx } = chart;
-        ctx.save();
-        chart.data.datasets.forEach((dataset, datasetIndex) => {
-          const series = seriesMap[dataset.metricKey];
-          chart.getDatasetMeta(datasetIndex).data.forEach((bar, index) => {
-            const value = dataset.data[index];
-            if (!Number.isFinite(Number(value)) || Number(value) <= 0) return;
-            const top = Math.min(bar.y, bar.base);
-            const height = Math.max(bar.y, bar.base) - top;
-            ctx.fillStyle = series.color;
-            ctx.font = '700 9px Inter, sans-serif';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText(formatValue(value, series.unit, true), bar.x, height > 28 ? top + 14 : top - 8);
-          });
-        });
-        ctx.restore();
-      }
-    };
   }
 
   // Tope del eje de costo por conversion: ignora los picos de semanas con 1 conversion.
@@ -173,95 +151,35 @@
     return values[Math.floor(values.length * 0.75)] * 1.6;
   }
 
-  function renderChart() {
-    const rows = visibleWeeks().map(({ week }) => week);
-    document.getElementById('chart-title').textContent = `Resultados por semana | ${periodLabel()}`;
-    document.getElementById('chart-sub').textContent = 'Inversion, conversiones y costo por conversion de cada semana (lunes a domingo).';
-    const legend = document.querySelector('#chart-panel .chart-legend span');
-    if (legend) legend.innerHTML = BAR_METRICS.map(metric => `<i class="legend-line" style="background:${SERIES[metric].color}"></i><b>${SERIES[metric].label}</b>`).join('');
-    const canvas = document.getElementById('chart-monthly');
+  // Grafico de lineas reutilizable: una linea por indicador, cada una con su escala.
+  function lineChart(canvas, rows, options) {
     if (typeof Chart === 'undefined') {
-      canvas.parentElement.innerHTML = '<div class="empty-state"><strong>Grafico no disponible sin conexion.</strong><span>La tabla de resultados sigue visible.</span></div>';
-      return;
+      canvas.parentElement.innerHTML = '<div class="empty-state"><strong>Grafico no disponible sin conexion.</strong><span>Las tablas siguen visibles.</span></div>';
+      return null;
     }
-    if (state.chart) state.chart.destroy();
-    state.chart = new Chart(canvas, {
-      type: 'bar',
-      data: {
-        labels: rows.map(weekLabel),
-        datasets: BAR_METRICS.map(metric => ({
-          metricKey: metric,
-          label: SERIES[metric].label,
-          data: rows.map(row => Number(row[metric] || 0)),
-          yAxisID: SERIES[metric].axis,
-          borderColor: SERIES[metric].color,
-          backgroundColor: SERIES[metric].fill,
-          borderWidth: 1.4,
-          borderRadius: 4,
-          barPercentage: 0.7,
-          categoryPercentage: 0.7,
-          maxBarThickness: 22
-        }))
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        interaction: { mode: 'index', intersect: false },
-        plugins: {
-          legend: { display: false },
-          tooltip: { callbacks: { label: context => ` ${SERIES[context.dataset.metricKey].label}: ${formatValue(context.raw, SERIES[context.dataset.metricKey].unit)}` } }
-        },
-        scales: {
-          x: { grid: { display: false }, border: { color: '#bfdbfe' }, ticks: { color: '#7890b5', font: { size: 10 }, maxRotation: 35, minRotation: 0 } },
-          y: { beginAtZero: true, border: { display: false }, grid: { color: 'rgba(14,165,233,.16)' }, ticks: { color: '#7890b5', font: { size: 10 }, callback: value => formatValue(value, 'money', true) } },
-          y1: { beginAtZero: true, position: 'right', border: { display: false }, grid: { drawOnChartArea: false }, ticks: { color: '#7c3aed', font: { size: 10 }, precision: 0 } },
-          // Las semanas con 1 conversion (S/ 569, S/ 937) aplastarian al resto: se recorta la escala.
-          y2: { beginAtZero: true, display: false, grid: { drawOnChartArea: false }, max: cpaCap(rows) }
-        }
-      },
-      // Con muchas semanas las etiquetas se enciman: solo se dibujan en vistas cortas.
-      plugins: rows.length <= 6 ? [barValuesPlugin(SERIES)] : []
-    });
-  }
-
-  // Tendencia de todas las semanas; las del periodo filtrado quedan resaltadas.
-  function renderTrend() {
-    const panel = document.getElementById('daily-panel');
-    const rows = state.weeks;
-    panel.hidden = false;
-    const selected = new Set(visibleWeeks().map(({ week }) => week.start));
-    document.getElementById('daily-title').textContent = 'Evolucion semanal | todo el periodo';
-    const t = withRates(state.data.totals);
-    document.getElementById('daily-sub').textContent = `${rows.length} semanas | ${fmtMoney(t.cost)} de inversion | ${fmtCount(t.conversions)} conversiones | ${fmtMoney(t.costPerConversion)} por conversion.`;
-    const legend = document.querySelector('.daily-legend span');
-    if (legend) legend.innerHTML = TREND_METRICS.map(metric => `<i class="legend-line" style="background:${SERIES[metric].color}"></i><b>${SERIES[metric].label}</b>`).join('');
-    const note = document.getElementById('daily-note');
-    const first = rows[0];
-    note.hidden = false;
-    note.textContent = `La primera semana (${weekLabel(first)}) solo tiene ${first.days} dias dentro del informe.${state.monthId === ALL ? '' : ' Los puntos resaltados son las semanas del mes seleccionado.'} El eje del costo por conversion se recorta para que las semanas con 1 conversion (S/ 569 y S/ 937) no aplasten al resto; el valor exacto sale al pasar el cursor.`;
-    const canvas = document.getElementById('chart-daily');
-    if (typeof Chart === 'undefined') return;
-    if (state.trendChart) state.trendChart.destroy();
-    state.trendChart = new Chart(canvas, {
+    return new Chart(canvas, {
       type: 'line',
       data: {
         labels: rows.map(weekLabel),
-        datasets: TREND_METRICS.map(metric => ({
-          metricKey: metric,
-          label: SERIES[metric].label,
-          data: rows.map(row => Number.isFinite(row[metric]) ? row[metric] : null),
-          yAxisID: SERIES[metric].axis,
-          borderColor: SERIES[metric].color,
-          backgroundColor: 'transparent',
-          borderWidth: 2,
-          borderDash: metric === 'costPerConversion' ? [5, 4] : [],
-          pointRadius: rows.map(row => (state.monthId !== ALL && selected.has(row.start) ? 5 : 3)),
-          pointBackgroundColor: rows.map(row => (state.monthId === ALL || selected.has(row.start) ? SERIES[metric].color : '#fff')),
-          pointBorderColor: SERIES[metric].color,
-          pointHoverRadius: 6,
-          tension: 0.32,
-          spanGaps: true
-        }))
+        datasets: TREND_METRICS.map(metric => {
+          const series = SERIES[metric];
+          return {
+            metricKey: metric,
+            label: series.label,
+            data: rows.map(row => (Number.isFinite(row[metric]) ? row[metric] : null)),
+            yAxisID: series.axis,
+            borderColor: series.color,
+            backgroundColor: 'transparent',
+            borderWidth: 2.2,
+            borderDash: series.dashed ? [5, 4] : [],
+            pointRadius: options.pointRadius || 3,
+            pointBackgroundColor: options.pointBackground ? options.pointBackground(series) : series.color,
+            pointBorderColor: series.color,
+            pointHoverRadius: 6,
+            tension: 0.32,
+            spanGaps: true
+          };
+        })
       },
       options: {
         responsive: true,
@@ -277,13 +195,51 @@
           }
         },
         scales: {
-          x: { grid: { display: false }, border: { color: '#bfdbfe' }, ticks: { color: '#7890b5', font: { size: 10 } } },
+          x: { grid: { display: false }, border: { color: '#bfdbfe' }, ticks: { color: '#7890b5', font: { size: 10 }, maxRotation: 35, minRotation: 0 } },
           y: { beginAtZero: true, border: { display: false }, grid: { color: 'rgba(14,165,233,.16)' }, ticks: { color: '#7890b5', font: { size: 10 }, callback: value => formatValue(value, 'money', true) } },
           y1: { beginAtZero: true, position: 'right', border: { display: false }, grid: { drawOnChartArea: false }, ticks: { color: '#7c3aed', font: { size: 10 }, precision: 0 } },
+          // Ejes ocultos: el costo por conversion y el CTR conservan su forma sin aplastar al resto.
           y2: { display: false, beginAtZero: true, grid: { drawOnChartArea: false }, max: cpaCap(rows) },
           y3: { display: false, beginAtZero: true, grid: { drawOnChartArea: false } }
         }
       }
+    });
+  }
+
+  function legendHtml() {
+    return TREND_METRICS.map(metric => `<i class="legend-line${SERIES[metric].dashed ? ' dashed' : ''}" style="${SERIES[metric].dashed ? `color:${SERIES[metric].color}` : `background:${SERIES[metric].color}`}"></i><b>${SERIES[metric].label}</b>`).join('');
+  }
+
+  // Semanas del mes elegido.
+  function renderChart() {
+    const rows = visibleWeeks().map(({ week }) => week);
+    document.getElementById('chart-title').textContent = `Indicadores por semana | ${periodLabel()}`;
+    document.getElementById('chart-sub').textContent = 'Gasto, conversiones, costo por conversion y CTR de cada semana (lunes a domingo).';
+    const legend = document.querySelector('#chart-panel .chart-legend span');
+    if (legend) legend.innerHTML = legendHtml();
+    if (state.chart) state.chart.destroy();
+    state.chart = lineChart(document.getElementById('chart-monthly'), rows, {});
+  }
+
+  // Tendencia de todas las semanas; las del mes elegido quedan resaltadas.
+  function renderTrend() {
+    const panel = document.getElementById('daily-panel');
+    const rows = state.weeks;
+    panel.hidden = false;
+    const selected = new Set(visibleWeeks().map(({ week }) => week.start));
+    document.getElementById('daily-title').textContent = 'Evolucion semanal | todo el periodo';
+    const t = withRates(state.data.totals);
+    document.getElementById('daily-sub').textContent = `${rows.length} semanas | ${fmtMoney(t.cost)} de gasto | ${fmtCount(t.conversions)} conversiones | ${fmtMoney(t.costPerConversion)} por conversion | CTR ${fmtPercent(t.ctr)}.`;
+    const legend = document.querySelector('.daily-legend span');
+    if (legend) legend.innerHTML = legendHtml();
+    const note = document.getElementById('daily-note');
+    const first = rows[0];
+    note.hidden = false;
+    note.textContent = `La primera semana (${weekLabel(first)}) solo tiene ${first.days} dias dentro del informe.${state.monthId === ALL ? '' : ' Los puntos resaltados son las semanas del mes elegido.'} El eje del costo por conversion se recorta para que las semanas con 1 conversion (S/ 569 y S/ 937) no aplasten al resto; el valor exacto sale al pasar el cursor.`;
+    if (state.trendChart) state.trendChart.destroy();
+    state.trendChart = lineChart(document.getElementById('chart-daily'), rows, {
+      pointRadius: rows.map(row => (state.monthId !== ALL && selected.has(row.start) ? 5 : 3)),
+      pointBackground: series => rows.map(row => (state.monthId === ALL || selected.has(row.start) ? series.color : '#fff'))
     });
   }
 
@@ -368,7 +324,8 @@
       state.weeks = state.data.weeks.map(withRates);
       state.months = (state.data.months || []).map(withRates);
       const stored = readStoredMonth();
-      state.monthId = stored === ALL || state.months.some(month => month.id === stored) ? stored : (state.data.defaultMonth || ALL);
+      const fallback = state.data.defaultMonth || (state.months.length ? state.months[state.months.length - 1].id : ALL);
+      state.monthId = stored === ALL || state.months.some(month => month.id === stored) ? stored : fallback;
       renderAll();
       window.dispatchEvent(new CustomEvent('tierra-films:data-ready', { detail: state.data }));
     } catch (error) {

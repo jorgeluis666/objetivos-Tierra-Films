@@ -12,13 +12,14 @@ paneles de Amador y Aquarius.
 ## Modulos
 
 1. **Gasto Publicitario**: resultados semanales de Google Ads.
-   - Filtro `Periodo`: todo el periodo o un mes.
+   - Filtro por mes: `Julio`, `Agosto`, `Setiembre` o `Todo el periodo`. Arranca
+     en el ultimo mes con datos.
    - KPIs: coste, impresiones, CTR, clics (con CPC medio), conversiones y costo
      por conversion.
-   - `Resultados por semana`: barras de inversion, conversiones y costo por
-     conversion de cada semana del periodo.
-   - `Evolucion semanal`: tendencia de todas las semanas; con un mes elegido se
-     resaltan sus semanas.
+   - `Indicadores por semana`: lineas de gasto, conversiones, costo por
+     conversion y CTR de las semanas del mes elegido.
+   - `Evolucion semanal`: las mismas lineas para todo el periodo; las semanas del
+     mes elegido quedan resaltadas.
    - `Resultados semanales`: tabla con % Δ contra la semana anterior y fila de
      total. En CPC y costo por conversion, bajar es mejor.
 2. **Proyecciones**: cierre del mes en curso (el mes del ultimo dia con datos).
@@ -29,11 +30,16 @@ paneles de Amador y Aquarius.
      - `Ultimas 4 semanas`: promedio diario de los ultimos 28 dias.
      - `Presupuesto diario`: gasta el presupuesto completo cada dia, con la
        eficiencia (CTR, CPC, conversiones por sol) de las ultimas 4 semanas.
-   - Grafico acumulado (inversion, conversiones o clics) con el tope de
-     presupuesto, tabla de cierre contra el mes anterior y semanas que faltan.
-   - `Meta de conversiones`: con una meta del mes calcula cuantas conversiones
-     por dia y cuanta inversion hacen falta. La meta y el escenario se guardan en
-     el navegador.
+   - Grafico acumulado de `Gasto`, `Conversiones` o `Costo x conversion`, con el
+     tope de presupuesto, la tabla de cierre contra el mes anterior y las semanas
+     que faltan.
+   - `Simulador de cierre`: el nodo naranja del ultimo dia se arrastra (en las
+     vistas de Gasto y Conversiones) para simular otro cierre. Las conversiones
+     mandan y el gasto sale de `costo por conversion marginal`, editable: esa es
+     la relacion entre conseguir mas leads y cuanto cuestan. El simulador
+     devuelve gasto, conversiones, costo por conversion del mes y el presupuesto
+     diario necesario, y marca en rojo cuando supera el presupuesto actual.
+     La meta, el costo marginal y el escenario se guardan en el navegador.
 3. **Calculadora de Mensajes**: modulo heredado, sin cambios.
 
 ## Semanas que cruzan de mes

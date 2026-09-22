@@ -1234,3 +1234,49 @@
   color: #b91c1c;
   background: #fef2f2;
 }
+
+/* Filtro por mes */
+.filter-months {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin: 0;
+  padding: 0;
+}
+
+.filter-months .month-tab {
+  display: inline-flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  height: auto;
+  padding: 7px 13px;
+  line-height: 1.2;
+}
+
+.filter-months .month-tab small {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 600;
+}
+
+.filter-months .month-tab.active small {
+  color: #0369a1;
+}
+
+.legend-line.dashed {
+  background: repeating-linear-gradient(90deg, currentColor 0 5px, transparent 5px 9px);
+}
+
+/* Columna simulada de la tabla de proyeccion */
+.projection-sim-value {
+  color: #c2410c;
+  font-weight: 700;
+  background: #fff7ed;
+}
+
+.projection-sim-field {
+  width: 190px;
+}

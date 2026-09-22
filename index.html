@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
-<link rel="stylesheet" href="css/dashboard.css?v=1.6.0">
+<link rel="stylesheet" href="css/dashboard.css?v=1.6.2">
 <style>
   .reservations-total-row td { height: auto !important; padding: 10px 12px !important; border-top: 2px solid #cbd5e1 !important; color: #0f172a !important; background: #f8fafc; font-size: 13px; font-weight: 800; vertical-align: middle; }
   .reservations-total-row .total-label { text-align: right; }
@@ -33,7 +33,7 @@
 <body>
 <div class="shell">
   <aside class="sidebar" id="tierra-films-sidebar">
-    <div class="s-brand"><div class="s-title">Tierra Films</div><div class="s-sub">BI Agencia Lima Retail <span class="app-version">v1.6.0</span></div></div>
+    <div class="s-brand"><div class="s-title">Tierra Films</div><div class="s-sub">BI Agencia Lima Retail <span class="app-version">v1.6.2</span></div></div>
     <div class="s-group-lbl">Modulos activos</div>
     <button class="s-item active" type="button" data-view-target="view-obj">
       <div class="s-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg></div>
@@ -75,8 +75,8 @@
         <div class="retail-filters" id="retail-filters"></div>
         <div class="kpi-strip" id="kpi-strip" aria-label="KPIs generales"></div>
         <div class="panel chart-panel" id="chart-panel">
-          <div class="panel-head chart-panel-head"><div><div class="panel-title" id="chart-title">Resultados por semana</div><div class="panel-sub" id="chart-sub">Indicadores reales del informe de Google Ads</div></div><div class="chart-controls"><div class="chart-legend"><span></span></div></div></div>
-          <div class="chart-wrap h-360"><canvas id="chart-monthly"></canvas></div>
+          <div class="panel-head chart-panel-head"><div><div class="panel-title" id="chart-title">Indicadores por semana</div><div class="panel-sub" id="chart-sub">Indicadores reales del informe de Google Ads</div></div><div class="chart-controls"><div class="chart-legend"><span></span></div></div></div>
+          <div class="chart-wrap h-300"><canvas id="chart-monthly" aria-label="Indicadores semanales del mes elegido"></canvas></div>
         </div>
         <div class="data-notice" id="records-empty" hidden></div>
         <div class="panel chart-panel daily-panel" id="daily-panel" hidden>
@@ -84,7 +84,6 @@
           <div class="chart-wrap h-300"><canvas id="chart-daily"></canvas></div>
           <div class="panel-note" id="daily-note" hidden></div>
         </div>
-        <div class="month-tabs" id="month-tabs"></div>
         <div class="panel campaigns-panel"><div class="panel-head"><div><div class="panel-title" id="campaigns-title">Tabla de resultados</div><div class="panel-sub" id="campaigns-sub"></div></div></div><div class="campaigns-note" id="campaigns-note"></div><div class="table-scroll"><table class="data-table campaigns-table"><thead><tr><th>Semana</th><th class="num">Inversion</th><th class="num">% Δ</th><th class="num">Impresiones</th><th class="num">CTR</th><th class="num">Clics</th><th class="num">% Δ</th><th class="num">CPC medio</th><th class="num">% Δ</th><th class="num">Conversiones</th><th class="num">% Δ</th><th class="num">Costo x conversion</th><th class="num">% Δ</th></tr></thead><tbody id="campaigns-body"></tbody></table></div></div>
       </section>
 
@@ -111,19 +110,24 @@
           <div class="projection-sim">
             <div class="projection-sim-head">
               <div>
-                <div class="panel-title">Meta de conversiones</div>
-                <div class="panel-sub">Calcula el ritmo y la inversion que faltan para llegar a la meta del mes.</div>
+                <div class="panel-title">Simulador de cierre</div>
+                <div class="panel-sub">Arrastra el nodo naranja del grafico o escribe la meta: se recalcula cuanto gasto exigen esas conversiones.</div>
               </div>
               <div class="projection-sim-actions">
                 <label class="messages-field projection-sim-field" for="projection-goal">
-                  <span>Meta del mes</span>
-                  <span class="messages-input-wrap"><b>#</b><input id="projection-goal" type="number" min="0" step="1" placeholder="Ej. 300"></span>
+                  <span>Conversiones al cierre</span>
+                  <span class="messages-input-wrap"><b>#</b><input id="projection-goal" type="number" min="0" step="1"></span>
                 </label>
-                <button class="messages-btn secondary" id="projection-goal-prev" type="button">Igualar mes anterior</button>
+                <label class="messages-field projection-sim-field" for="projection-cpa">
+                  <span>Costo x conversion marginal</span>
+                  <span class="messages-input-wrap"><b>S/</b><input id="projection-cpa" type="number" min="0" step="0.5"></span>
+                </label>
+                <button class="messages-btn secondary" id="projection-sim-prev" type="button">Igualar mes anterior</button>
+                <button class="messages-btn secondary" id="projection-sim-reset" type="button">Restablecer</button>
               </div>
             </div>
-            <div class="projection-sim-grid" id="projection-goal-grid"></div>
-            <p class="projection-note" id="projection-goal-note"></p>
+            <div class="projection-sim-grid" id="projection-sim-grid"></div>
+            <p class="projection-note" id="projection-sim-note"></p>
           </div>
         </div>
 
@@ -136,8 +140,8 @@
           </div>
           <div class="table-scroll">
             <table class="data-table projection-table">
-              <thead><tr><th>Indicador</th><th class="num" id="projection-actual-head">Real</th><th class="num">Ritmo diario</th><th class="num" id="projection-close-head">Proyeccion al cierre</th><th class="num" id="projection-ref-head">Mes anterior</th><th>Vs mes anterior</th></tr></thead>
-              <tbody id="projection-body"><tr><td class="table-empty" colspan="6">Cargando proyeccion...</td></tr></tbody>
+              <thead><tr><th>Indicador</th><th class="num" id="projection-actual-head">Real</th><th class="num">Ritmo diario</th><th class="num" id="projection-close-head">Proyeccion al cierre</th><th class="num" id="projection-sim-head">Simulacion</th><th class="num" id="projection-ref-head">Mes anterior</th><th>Vs mes anterior</th></tr></thead>
+              <tbody id="projection-body"><tr><td class="table-empty" colspan="7">Cargando proyeccion...</td></tr></tbody>
             </table>
           </div>
         </div>
@@ -146,12 +150,12 @@
           <div class="panel-head projection-table-head">
             <div>
               <div class="panel-title">Semanas que faltan</div>
-              <div class="panel-sub">Lo que aportaria cada semana restante del mes con el escenario elegido.</div>
+              <div class="panel-sub" id="projection-weeks-sub">Lo que aportaria cada semana restante del mes con el escenario elegido.</div>
             </div>
           </div>
           <div class="table-scroll">
             <table class="data-table projection-table">
-              <thead><tr><th>Semana</th><th class="num">Inversion</th><th class="num">Impresiones</th><th class="num">Clics</th><th class="num">Conversiones</th><th class="num">Costo x conversion</th></tr></thead>
+              <thead><tr><th>Semana</th><th class="num">Gasto</th><th class="num">Gasto x dia</th><th class="num">Impresiones</th><th class="num">Clics</th><th class="num">Conversiones</th><th class="num">Costo x conversion</th></tr></thead>
               <tbody id="projection-weeks-body"></tbody>
             </table>
           </div>
@@ -239,12 +243,12 @@
     </div>
   </main>
 </div>
-<script src="js/objectives.js?v=1.6.0"></script>
-<script src="js/reservation-goals.js?v=1.6.0"></script>
-<script src="js/projections.js?v=1.6.0"></script>
-<script src="js/messages-calculator.js?v=1.6.0"></script>
-<script src="js/navigation.js?v=1.6.0"></script>
-<script src="js/sidebar.js?v=1.6.0"></script>
+<script src="js/objectives.js?v=1.6.2"></script>
+<script src="js/reservation-goals.js?v=1.6.2"></script>
+<script src="js/projections.js?v=1.6.2"></script>
+<script src="js/messages-calculator.js?v=1.6.2"></script>
+<script src="js/navigation.js?v=1.6.2"></script>
+<script src="js/sidebar.js?v=1.6.2"></script>
 <script src="auth-login.js?v=1.5.1"></script>
 <script>
   AuthLogin.init({ password: 'TF2026', brand: 'Tierra Films', title: 'Dashboard\nRetail 2026', accent: '#0284c7', accentDark: '#075985', sessionKey: 'tierra_films_auth' });
