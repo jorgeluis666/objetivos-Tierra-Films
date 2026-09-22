@@ -47,15 +47,6 @@
       <div class="s-icon"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.5" y2="16.5"/></svg></div>
       <div class="s-text"><div class="s-title-nav">Palabras Clave</div><div class="s-desc-nav">Cuota, ranking y calidad</div></div>
     </button>
-    <button class="s-item" type="button" data-view-target="view-messages">
-      <div class="s-icon"><svg viewBox="0 0 24 24"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="13" x2="13" y2="13"/></svg></div>
-      <div class="s-text"><div class="s-title-nav">Calculadora de Mensajes</div><div class="s-desc-nav">Modulo heredado</div></div>
-    </button>
-    <div class="s-group-lbl paused-label">Modulos pausados</div>
-    <button class="s-item disabled" type="button" disabled aria-disabled="true"><div class="s-icon"><svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></div><div class="s-text"><div class="s-title-nav">Comparativo YoY</div><div class="s-desc-nav">Evolucion interanual</div></div><span class="module-status">Proximamente</span></button>
-    <button class="s-item disabled" type="button" disabled aria-disabled="true"><div class="s-icon"><svg viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></div><div class="s-text"><div class="s-title-nav">Distribucion</div><div class="s-desc-nav">Cobertura por cadena</div></div><span class="module-status">Proximamente</span></button>
-    <button class="s-item disabled" type="button" disabled aria-disabled="true"><div class="s-icon"><svg viewBox="0 0 24 24"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg></div><div class="s-text"><div class="s-title-nav">Portafolio</div><div class="s-desc-nav">Ranking y ventas</div></div><span class="module-status">Proximamente</span></button>
-    <button class="s-item disabled" type="button" disabled aria-disabled="true"><div class="s-icon"><svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div><div class="s-text"><div class="s-title-nav">Usuarios y Claves</div><div class="s-desc-nav">Accesos y alertas</div></div><span class="module-status">Proximamente</span></button>
     <div class="s-modulo-activo"><div class="s-ma-label">CUENTA</div><div class="s-ma-name">Tierra Films</div><div class="s-ma-desc">Google Ads | Búsqueda</div></div>
   </aside>
   <button
@@ -94,7 +85,7 @@
       <section class="view" id="view-projection">
         <div class="sec-lbl">02 - Proyecciones</div>
         <h1 class="section-title">Proyecciones</h1>
-        <p class="section-desc">Proyeccion al cierre de mes calculada con los datos reales del modulo Gasto Publicitario. Elige el ritmo con el que se proyectan los dias que faltan.</p>
+        <p class="section-desc">Proyeccion al cierre de mes calculada con los datos reales del modulo Gasto Publicitario. Los dias que faltan se proyectan con el ritmo del mes.</p>
         <div class="kpi-strip projection-kpis" id="projection-kpis" aria-label="KPIs de proyeccion"></div>
         <div class="panel projection-panel" id="projection-panel">
           <div class="panel-head projection-panel-head">
@@ -209,83 +200,6 @@
         </div>
       </section>
 
-      <section class="view" id="view-messages">
-        <div class="sec-lbl">04 - Planificacion de mensajes</div>
-        <h1 class="section-title">Calculadora de Mensajes</h1>
-        <p class="section-desc">Proyecta la inversion necesaria para campañas de WhatsApp según la facturación pendiente, el ticket promedio y el costo por lead de cada conjunto de anuncios.</p>
-
-        <div class="messages-layout">
-          <div class="panel messages-planner">
-            <div class="panel-head messages-panel-head">
-              <div>
-                <div class="messages-kicker">Campaña de Mensajes / WhatsApp</div>
-                <div class="panel-title">Objetivo comercial e inversión por CPL</div>
-                <div class="panel-sub">Los resultados se actualizan y guardan automáticamente.</div>
-              </div>
-              <button class="messages-btn secondary" id="messages-reset" type="button">Restablecer valores</button>
-            </div>
-
-            <div class="messages-controls">
-              <label class="messages-field" for="messages-target">
-                <span>Facturación objetivo</span>
-                <span class="messages-input-wrap"><b>S/</b><input id="messages-target" type="number" min="0" step="100"></span>
-              </label>
-              <label class="messages-field" for="messages-actual">
-                <span>Facturación ya realizada</span>
-                <span class="messages-input-wrap"><b>S/</b><input id="messages-actual" type="number" min="0" step="100"></span>
-              </label>
-              <label class="messages-field" for="messages-ticket">
-                <span>Ticket promedio</span>
-                <span class="messages-input-wrap"><b>S/</b><input id="messages-ticket" type="number" min="0.01" step="10"></span>
-              </label>
-              <label class="messages-field" for="messages-cpl">
-                <span>CPL promedio</span>
-                <span class="messages-input-wrap"><b>S/</b><input id="messages-cpl" type="number" min="0" step="0.01"></span>
-              </label>
-            </div>
-
-            <div class="messages-kpis">
-              <div class="messages-kpi"><span>Facturación restante</span><strong id="messages-remaining">S/ 0.00</strong></div>
-              <div class="messages-kpi"><span>Ventas necesarias</span><strong id="messages-sales">0</strong></div>
-              <div class="messages-kpi investment"><span>Inversión total en Mensajes</span><strong id="messages-investment">S/ 0.00</strong></div>
-            </div>
-
-            <div class="messages-table-head">
-              <div><div class="panel-title">Conjuntos de anuncios</div><div class="panel-sub">Edita el nombre, los mensajes objetivo y el CPL de cada conjunto.</div></div>
-              <button class="messages-btn secondary" id="messages-add-set" type="button">+ Agregar conjunto</button>
-            </div>
-            <div class="messages-table-wrap">
-              <table class="messages-table">
-                <thead><tr><th>Conjunto</th><th class="num">Mensajes / Reservas Objetivo</th><th class="num">Costo por lead</th><th class="num">Inversión</th><th><span class="sr-only">Acciones</span></th></tr></thead>
-                <tbody id="messages-sets"></tbody>
-              </table>
-              <div class="messages-add-row">
-                <button class="messages-btn secondary" id="messages-add-row" type="button">+ Agregar fila</button>
-              </div>
-            </div>
-          </div>
-
-          <aside class="panel messages-summary">
-            <div>
-              <div class="messages-kicker">Resumen</div>
-              <div class="panel-title">Propuesta de inversión</div>
-              <div class="panel-sub">Lista para compartir o descargar.</div>
-            </div>
-            <div class="messages-summary-total"><span>Inversión total</span><strong id="messages-summary-total">S/ 0.00</strong></div>
-            <div class="messages-formula">
-              <span>Fórmulas aplicadas</span>
-              <p>Ventas necesarias = facturación restante ÷ ticket promedio</p>
-              <p>Inversión = mensajes objetivo × costo por lead</p>
-            </div>
-            <div class="messages-actions">
-              <button class="messages-btn secondary" id="messages-copy" type="button">Copiar resumen</button>
-              <button class="messages-btn primary" id="messages-export" type="button">Exportar a Excel</button>
-            </div>
-            <div class="messages-feedback" id="messages-feedback" aria-live="polite"></div>
-          </aside>
-        </div>
-      </section>
-
       <div class="site-footer"><span id="footer-source">Fuente: data/tierra-films-lima-retail-2026.json</span><span id="footer-status">Resultados de Google Ads</span></div>
     </div>
   </main>
@@ -294,7 +208,6 @@
 <script src="js/reservation-goals.js?v=1.8.1"></script>
 <script src="js/projections.js?v=1.8.1"></script>
 <script src="js/keywords.js?v=1.8.1"></script>
-<script src="js/messages-calculator.js?v=1.8.1"></script>
 <script src="js/navigation.js?v=1.8.1"></script>
 <script src="js/sidebar.js?v=1.8.1"></script>
 <script src="auth-login.js?v=1.5.1"></script>

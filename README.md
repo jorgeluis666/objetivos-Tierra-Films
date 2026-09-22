@@ -55,7 +55,6 @@ paneles de Amador y Aquarius.
      `Pagina destino` muestran los componentes del nivel de calidad.
    - Se pueden importar varios informes de palabras clave: uno largo sin las
      columnas de calidad y otro corto con ellas se fusionan por semana y palabra.
-4. **Calculadora de Mensajes**: modulo heredado, sin cambios.
 
 ## Semanas que cruzan de mes
 
