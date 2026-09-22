@@ -59,11 +59,20 @@ Cada mes usa la mejor fuente disponible, y el dashboard lo dice debajo de la
 tabla:
 
 - **Informe mensual** (un CSV por mes, sin segmento): total exacto del mes.
-- **Semanas prorrateadas**: sin informe propio, el mes suma las semanas que lo
-  cruzan repartidas por dias. Es una aproximacion.
+- **Serie diaria** (`Gráfico_de_serie_temporal(...).csv`, columnas `Fecha` y
+  `Coste`): total exacto de las metricas que traiga el archivo y curva real por
+  dia.
+- **Semanas prorrateadas**: sin nada de lo anterior, el mes suma las semanas que
+  lo cruzan repartidas por dias. Es una aproximacion.
 
-Hoy estan cargados los informes mensuales de junio, julio y setiembre (al 21).
-Agosto sigue estimado desde las semanas: falta su informe mensual.
+Hoy estan cargados los informes mensuales de junio, julio y setiembre (al 21) y
+la serie diaria de coste de agosto. De agosto falta el informe mensual: sus
+conversiones, clics e impresiones siguen estimados desde las semanas.
+
+En el grafico por dia, cada indicador se dibuja con linea llena si es dato real y
+punteada con `(est.)` si sale de repartir la semana. Cuando hay coste diario
+real, el reparto de los demas indicadores usa ese coste como peso en vez de
+dividir la semana en partes iguales.
 
 Junio no tiene detalle semanal (el informe por semana arranca el 1 de julio), asi
 que su mes muestra solo los KPIs.
@@ -95,14 +104,15 @@ campaña.
 
 1. En Google Ads: Campañas, Descargar > CSV. Conviene bajar:
    - un informe por mes, con el rango del mes y sin segmento (total exacto);
-   - el informe del periodo completo con Segmento > Tiempo > Semana.
+   - el informe del periodo completo con Segmento > Tiempo > Semana;
+   - opcional: el grafico de serie temporal de un mes (curva diaria real).
    Para la curva diaria real, descarga el mismo informe otra vez con
    Segmento > Tiempo > **Día**.
 2. Importar (reemplaza todo el JSON con el nuevo rango y guarda los CSV en
    `data/csv-backups/`). Acepta uno o los dos archivos:
 
 ```bash
-python scripts/import-google-ads-weekly.py "Mensual junio.csv" "Mensual julio.csv" "Informe semanal.csv"
+python scripts/import-google-ads-weekly.py "Mensual junio.csv" "Informe semanal.csv" "Serie diaria agosto.csv"
 ```
 
 Con el export diario, los totales de cada mes salen exactos (sin prorratear las

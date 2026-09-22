@@ -16,6 +16,8 @@ Se pueden pasar varios archivos a la vez:
 - Sin segmento (un informe por mes): manda como total del mes.
 - Segmentado por Semana: llena la tabla y los graficos semanales.
 - Segmentado por Dia: dibuja la curva real dia a dia.
+- Grafico de serie temporal ("Fecha,Coste"): curva diaria de las columnas que
+  traiga, con fechas en español ("sáb, 1 ago 2026") e importes con moneda.
 
 Los meses sin informe propio se calculan repartiendo por dias las semanas que
 los cruzan, y quedan marcados como estimados.
@@ -44,10 +46,31 @@ MONTHS_ES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio",
 MONTH_LABELS = [m.capitalize() for m in MONTHS_ES]
 METRICS = ("cost", "impressions", "clicks", "conversions")
 DATE_COLUMNS = {"Semana": "week", "Día": "day", "Dia": "day", "Day": "day", "Week": "week"}
+MONTH_ABBR = {"ene": 1, "feb": 2, "mar": 3, "abr": 4, "may": 5, "jun": 6, "jul": 7,
+              "ago": 8, "sep": 9, "set": 9, "oct": 10, "nov": 11, "dic": 12}
+# Nombres de columna de la serie temporal -> metrica del dashboard.
+SERIES_COLUMNS = {
+    "cost": ("coste", "costo", "inversion", "inversión", "importe gastado", "gasto"),
+    "impressions": ("impr.", "impresiones", "impresion", "impresión"),
+    "clicks": ("clics", "clics.", "clicks"),
+    "conversions": ("conversiones", "conv.", "conversion", "conversión", "resultados"),
+}
+
+
+def parse_es_date(value: str) -> date | None:
+    """'sáb, 1 ago 2026' o '2026-08-01' -> date."""
+    text = str(value or "").strip().strip('"')
+    if re.match(r"^\d{4}-\d{2}-\d{2}$", text):
+        return date.fromisoformat(text)
+    match = re.search(r"(\d{1,2})\s+([a-záéíóúñ]+)\.?\s+(\d{4})", text.lower())
+    if not match:
+        return None
+    month = MONTH_ABBR.get(match.group(2)[:3])
+    return date(int(match.group(3)), month, int(match.group(1))) if month else None
 
 
 def parse_number(value: str | None) -> float | None:
-    text = str(value or "").strip().replace("%", "").replace(" ", "")
+    text = re.sub(r"[A-Za-z$€]+", "", str(value or "")).strip().replace("%", "").replace(" ", "")
     if not text or text == "--":
         return None
     # "1.247" es mil doscientos cuarenta y siete; "8651,95" usa coma decimal.
@@ -90,6 +113,10 @@ def read_table(path: Path) -> tuple[str, list[str], list[dict[str, str]], str]:
     for index, line in enumerate(lines):
         if line.startswith("Estado de la campaña,"):
             return "period", lines[:index], list(csv.DictReader(lines[index:])), ""
+    for index, line in enumerate(lines):
+        first = line.split(",")[0].strip().strip('"').lower()
+        if first in ("fecha", "día", "dia", "date") and "," in line:
+            return "series", lines[:index], list(csv.DictReader(lines[index:])), line.split(",")[0].strip().strip('"')
     raise SystemExit(f"[tf-import] {path.name}: no se reconocio la cabecera del informe.")
 
 
@@ -114,9 +141,35 @@ def month_label(mid: str) -> str:
     return f"{MONTH_LABELS[int(month) - 1]} {year}"
 
 
+def parse_series(path: Path, rows: list[dict[str, str]], date_column: str) -> dict:
+    """Serie temporal: una fila por fecha con las columnas que traiga el export."""
+    columns: dict[str, str] = {}
+    for header in (rows[0].keys() if rows else []):
+        name = str(header or "").strip().strip('"').lower()
+        for metric, aliases in SERIES_COLUMNS.items():
+            if name in aliases and metric not in columns:
+                columns[metric] = header
+    series: dict[date, dict[str, float]] = {}
+    for row in rows:
+        stamp = parse_es_date(row.get(date_column))
+        if not stamp:
+            continue
+        values = {metric: parse_number(row.get(column)) for metric, column in columns.items()}
+        values = {k: v for k, v in values.items() if v is not None}
+        if values:
+            series[stamp] = values
+    if not series:
+        raise SystemExit(f"[tf-import] {path.name}: la serie temporal no tiene fechas legibles.")
+    return {"kind": "series", "file": path.name, "period": (min(series), max(series)),
+            "entries": {}, "series": series, "metrics": sorted(columns),
+            "campaigns": {}, "accountTotal": None}
+
+
 def parse_source(path: Path) -> dict:
     """Lee un export y devuelve sus filas por fecha y campaña."""
     kind, preamble, rows, date_column = read_table(path)
+    if kind == "series":
+        return parse_series(path, rows, date_column)
     period = next((parse_range(line) for line in preamble if parse_range(line)), None)
     entries: dict[date, dict[str, dict]] = {}
     campaigns: dict[str, dict] = {}
@@ -167,7 +220,8 @@ def build(paths: list[Path]) -> dict:
     weekly = next((s for s in sources if s["kind"] == "week"), None)
     daily = next((s for s in sources if s["kind"] == "day"), None)
     periods = [s for s in sources if s["kind"] == "period"]
-    if not weekly and not daily and not periods:
+    series_sources = [s for s in sources if s["kind"] == "series"]
+    if not weekly and not daily and not periods and not series_sources:
         raise SystemExit("[tf-import] hace falta al menos un informe.")
 
     campaigns: dict[str, dict] = {}
@@ -227,6 +281,15 @@ def build(paths: list[Path]) -> dict:
             "campaigns": [derived({"campaign": name, **values}) for name, values in week_entries[start].items()],
         }))
 
+    series_days: dict[date, dict[str, float]] = {}
+    series_metrics: set[str] = set()
+    series_files: list[str] = []
+    for source in series_sources:
+        series_files.append(source["file"])
+        series_metrics.update(source["metrics"])
+        for stamp, values in source["series"].items():
+            series_days.setdefault(stamp, {}).update(values)
+
     day_list = []
     if daily:
         for stamp in sorted(daily["entries"]):
@@ -236,6 +299,19 @@ def build(paths: list[Path]) -> dict:
                 "campaigns": [derived({"campaign": name, **values}) for name, values in daily["entries"][stamp].items()],
             }))
 
+    if not day_list and series_days:
+        day_list = [derived({"date": stamp.isoformat(), **series_days[stamp]})
+                    for stamp in sorted(series_days)]
+
+    # Meses cubiertos de punta a punta por la serie: su total es exacto para las
+    # metricas que trae el archivo (aqui, el coste).
+    series_months: dict[str, dict] = {}
+    for stamp, values in series_days.items():
+        bucket = series_months.setdefault(month_id(stamp), {"days": 0, **{k: 0.0 for k in series_metrics}})
+        bucket["days"] += 1
+        for k in series_metrics:
+            bucket[k] += values.get(k, 0.0)
+
     # Totales mensuales: exactos con data diaria; con solo semanas, las que
     # cruzan de mes se reparten por dias.
     months: dict[str, dict] = {}
@@ -244,13 +320,13 @@ def build(paths: list[Path]) -> dict:
         return months.setdefault(mid, {"id": mid, "label": month_label(mid), "weeks": [], "days": 0,
                                        **{k: 0.0 for k in METRICS}, "campaigns": {}})
 
-    if day_list:
+    if daily and day_list:
         for day in day_list:
             bucket = month_bucket(day["date"][:7])
             bucket["days"] += 1
             for k in METRICS:
-                bucket[k] += day[k]
-            for camp in day["campaigns"]:
+                bucket[k] += day.get(k, 0.0)
+            for camp in day.get("campaigns", []):
                 target = bucket["campaigns"].setdefault(camp["campaign"], {k: 0.0 for k in METRICS})
                 for k in METRICS:
                     target[k] += camp[k]
@@ -295,19 +371,32 @@ def build(paths: list[Path]) -> dict:
         export = exports.get(mid)
         year, mon = map(int, mid.split("-"))
         next_month = date(year + (mon == 12), mon % 12 + 1, 1)
-        source_values = export if export else month
+        source_values = dict(export) if export else dict(month)
         source_campaigns = export["campaigns"] if export else month["campaigns"]
+        days_in_month = (next_month - date(year, mon, 1)).days
+        # Sin informe mensual, la serie diaria completa manda en sus metricas.
+        from_series = series_months.get(mid)
+        series_exact = []
+        if not export and from_series and from_series["days"] >= min(days_in_month, month["days"] or days_in_month):
+            for metric in series_metrics:
+                source_values[metric] = from_series[metric]
+                series_exact.append(metric)
         month_list.append(derived({
             "id": mid,
             "label": month["label"],
             "sourceFile": export["file"] if export else base["file"],
-            "source": "informe mensual" if export else ("dias" if day_list else "semanas prorrateadas"),
-            "exact": bool(export) or bool(day_list),
-            "rangeStart": (export["start"].isoformat() if export else None),
-            "rangeEnd": (export["end"].isoformat() if export else None),
-            "daysWithData": export["days"] if export else month["days"],
+            "source": ("informe mensual" if export
+                       else ("serie diaria" if series_exact else "semanas prorrateadas")),
+            "exact": bool(export),
+            "exactMetrics": ([] if export else series_exact),
+            "rangeStart": (export["start"].isoformat() if export
+                           else (f"{mid}-01" if from_series and series_exact else None)),
+            "rangeEnd": (export["end"].isoformat() if export
+                         else (f"{mid}-{from_series['days']:02d}" if from_series and series_exact else None)),
+            "daysWithData": (export["days"] if export
+                             else (from_series["days"] if series_exact else month["days"])),
             "weekDays": month["days"],
-            "daysInMonth": (next_month - date(year, mon, 1)).days,
+            "daysInMonth": days_in_month,
             "weeks": month["weeks"],
             **{k: round(source_values[k], 2) for k in METRICS},
             "records": [derived({"campaign": name, **{k: round(v, 2) for k, v in values.items()}})
@@ -325,6 +414,7 @@ def build(paths: list[Path]) -> dict:
         "currency": "PEN",
         "sourceFile": base["file"],
         "sourceFiles": [source["file"] for source in sources],
+        "dayMetrics": sorted(series_metrics) if (series_days and not daily) else list(METRICS) if day_list else [],
         "period": {"start": period_start.isoformat(), "end": period_end.isoformat()},
         "defaultMonth": month_list[-1]["id"],
         "campaigns": list(campaigns.values()),

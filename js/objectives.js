@@ -11,7 +11,7 @@
   const TREND_METRICS = ['cost', 'conversions', 'costPerConversion', 'ctr'];
   const MONTH_NAMES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Setiembre', 'Octubre', 'Noviembre', 'Diciembre'];
   const MONTH_SHORT = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'set', 'oct', 'nov', 'dic'];
-  const state = { data: null, months: [], weeks: [], days: [], estimatedDays: false, monthId: ALL, chart: null, trendChart: null };
+  const state = { data: null, months: [], weeks: [], days: [], monthId: ALL, chart: null, trendChart: null };
 
   const fmtMoney = value => Number.isFinite(Number(value)) && value !== null ? `S/ ${Number(value).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-';
   const fmtCount = value => Number.isFinite(Number(value)) && value !== null ? Number(value).toLocaleString('es-PE', { maximumFractionDigits: 0 }) : '-';
@@ -90,30 +90,66 @@
       .map(week => ({ week, share: week.daysByMonth[state.monthId] / week.days }));
   }
 
-  // Serie diaria: la real del export por dia o, si no hay, la semana repartida
-  // en partes iguales entre sus dias (queda marcada como estimada).
+  // Serie diaria. Cada dia toma los indicadores reales que traiga el export
+  // diario; los que falten se estiman repartiendo el total de la semana, con el
+  // peso del gasto real de cada dia cuando se conoce.
   function buildDays(data) {
-    if (Array.isArray(data.days) && data.days.length) {
-      state.estimatedDays = false;
-      return data.days.map(withRates);
-    }
-    state.estimatedDays = true;
+    const real = new Map((data.days || []).map(day => [day.date, day]));
     const rows = [];
+    const used = new Set();
     (data.weeks || []).forEach(week => {
+      const dates = [];
       for (let i = 0; i < week.days; i += 1) {
         const date = new Date(`${week.dataStart}T00:00:00Z`);
         date.setUTCDate(date.getUTCDate() + i);
-        rows.push(withRates({
-          date: date.toISOString().slice(0, 10),
-          week: week.start,
-          cost: week.cost / week.days,
-          impressions: week.impressions / week.days,
-          clicks: week.clicks / week.days,
-          conversions: week.conversions / week.days
-        }));
+        dates.push(date.toISOString().slice(0, 10));
       }
+      const costs = dates.map(date => Number(real.get(date) ? real.get(date).cost : NaN));
+      const costTotal = costs.reduce((total, value) => total + (Number.isFinite(value) ? value : 0), 0);
+      const weighted = costs.every(Number.isFinite) && costTotal > 0;
+      dates.forEach((date, index) => {
+        const source = real.get(date);
+        const share = weighted ? costs[index] / costTotal : 1 / week.days;
+        const row = { date, week: week.start, estimated: {} };
+        ['cost', 'impressions', 'clicks', 'conversions'].forEach(metric => {
+          const value = source ? Number(source[metric]) : NaN;
+          if (Number.isFinite(value)) {
+            row[metric] = value;
+          } else {
+            row[metric] = Number(week[metric] || 0) * share;
+            row.estimated[metric] = true;
+          }
+        });
+        used.add(date);
+        rows.push(withRates(row));
+      });
     });
+    // Dias del export que ninguna semana cubre (por ejemplo, un mes sin informe semanal).
+    (data.days || []).forEach(day => {
+      if (used.has(day.date)) return;
+      const row = Object.assign({ estimated: {} }, day);
+      ['cost', 'impressions', 'clicks', 'conversions'].forEach(metric => {
+        if (!Number.isFinite(Number(day[metric]))) row[metric] = null;
+      });
+      rows.push(withRates(row));
+    });
+    rows.sort((a, b) => a.date.localeCompare(b.date));
     return rows;
+  }
+
+  // Indicadores estimados dentro de las filas visibles.
+  function estimatedMetrics(rows) {
+    const set = new Set();
+    rows.forEach(row => {
+      TREND_METRICS.forEach(metric => {
+        if (metric === 'costPerConversion' || metric === 'ctr') {
+          if (row.estimated && (row.estimated.cost || row.estimated.conversions || row.estimated.clicks || row.estimated.impressions)) set.add(metric);
+        } else if (row.estimated && row.estimated[metric]) {
+          set.add(metric);
+        }
+      });
+    });
+    return set;
   }
 
   function visibleDays() {
@@ -132,19 +168,26 @@
     return month ? month.daysWithData : 0;
   }
 
-  // De donde sale el total del mes: informe mensual propio o prorrateo de semanas.
+  // De donde sale el total del mes: informe mensual, serie diaria o prorrateo.
   function monthSourceNote() {
     const month = currentMonth();
     if (!month) {
       const exact = state.months.filter(item => item.exact).length;
-      return `Totales por mes: ${exact} de ${state.months.length} vienen de su informe mensual; el resto se calcula repartiendo por dias las semanas que cruzan de mes.`;
+      const partial = state.months.filter(item => !item.exact && item.exactMetrics && item.exactMetrics.length).length;
+      const partialNote = partial ? `, ${partial} tiene el gasto real de la serie diaria` : '';
+      return `Totales por mes: ${exact} de ${state.months.length} vienen de su informe mensual${partialNote}; el resto se calcula repartiendo por dias las semanas que cruzan de mes.`;
     }
     const range = month.rangeStart && month.rangeEnd ? ` (${shortDate(month.rangeStart)} - ${shortDate(month.rangeEnd)})` : '';
+    const weeksNote = month.weekDays && month.weekDays !== month.daysWithData
+      ? ` El detalle semanal cubre ${month.weekDays} dias, asi que puede no sumar exactamente el total del mes.`
+      : '';
     if (month.exact) {
-      const weeksNote = month.weekDays && month.weekDays !== month.daysWithData
-        ? ` El detalle semanal cubre ${month.weekDays} dias, asi que puede no sumar exactamente el total del mes.`
-        : '';
       return `Total de ${month.label} tomado del informe mensual${range}: ${escapeHtml(month.sourceFile)}.${weeksNote}`;
+    }
+    if (month.exactMetrics && month.exactMetrics.length) {
+      const exactLabels = month.exactMetrics.map(metric => (SERIES[metric] ? SERIES[metric].label.toLowerCase() : metric));
+      const head = exactLabels.join(' y ');
+      return `${head.charAt(0).toUpperCase()}${head.slice(1)} de ${month.label}: dato real de la serie diaria${range}. Conversiones, clics e impresiones siguen prorrateados desde las semanas; para el dato exacto, importa el informe mensual de ${month.label.split(' ')[0].toLowerCase()}.${weeksNote}`;
     }
     return `Total de ${month.label} calculado repartiendo por dias las semanas que cruzan de mes. Para el dato exacto, importa el informe mensual de ${month.label.split(' ')[0].toLowerCase()}.`;
   }
@@ -229,8 +272,8 @@
             yAxisID: series.axis,
             borderColor: series.color,
             backgroundColor: 'transparent',
-            borderWidth: options.dashed ? 1.8 : 2.2,
-            borderDash: series.dashed || options.dashed ? [5, 4] : [],
+            borderWidth: options.estimated && options.estimated.has(metric) ? 1.8 : 2.2,
+            borderDash: series.dashed || (options.estimated && options.estimated.has(metric)) ? [5, 4] : [],
             pointRadius: options.pointRadius === undefined ? 3 : options.pointRadius,
             pointBackgroundColor: options.pointBackground ? options.pointBackground(series) : series.color,
             pointBorderColor: series.color,
@@ -249,7 +292,11 @@
           tooltip: {
             callbacks: {
               title: items => (options.tooltipTitle ? options.tooltipTitle(items[0].dataIndex) : `Semana ${weekLabel(rows[items[0].dataIndex])}`),
-              label: context => ` ${SERIES[context.dataset.metricKey].label}: ${formatValue(context.raw, SERIES[context.dataset.metricKey].unit)}${options.suffix || ''}`
+              label: context => {
+                const metric = context.dataset.metricKey;
+                const suffix = typeof options.suffix === 'function' ? options.suffix(metric) : (options.suffix || '');
+                return ` ${SERIES[metric].label}: ${formatValue(context.raw, SERIES[metric].unit)}${suffix}`;
+              }
             }
           }
         },
@@ -265,8 +312,12 @@
     });
   }
 
-  function legendHtml(estimated = false) {
-    return TREND_METRICS.map(metric => `<i class="legend-line${SERIES[metric].dashed || estimated ? ' dashed' : ''}" style="${SERIES[metric].dashed || estimated ? `color:${SERIES[metric].color}` : `background:${SERIES[metric].color}`}"></i><b>${SERIES[metric].label}${estimated ? ' (est.)' : ''}</b>`).join('');
+  function legendHtml(estimated = null) {
+    return TREND_METRICS.map(metric => {
+      const isEstimated = estimated instanceof Set ? estimated.has(metric) : Boolean(estimated);
+      const dashed = SERIES[metric].dashed || isEstimated;
+      return `<i class="legend-line${dashed ? ' dashed' : ''}" style="${dashed ? `color:${SERIES[metric].color}` : `background:${SERIES[metric].color}`}"></i><b>${SERIES[metric].label}${isEstimated ? ' (est.)' : ''}</b>`;
+    }).join('');
   }
 
   // Dia a dia del mes elegido.
@@ -283,19 +334,23 @@
       if (state.chart) { state.chart.destroy(); state.chart = null; }
       return;
     }
+    const estimated = estimatedMetrics(rows);
+    const realLabels = TREND_METRICS.filter(metric => !estimated.has(metric)).map(metric => SERIES[metric].label.toLowerCase());
+    const estLabels = TREND_METRICS.filter(metric => estimated.has(metric)).map(metric => SERIES[metric].label.toLowerCase());
     document.getElementById('chart-title').textContent = `Indicadores por dia | ${periodLabel()}`;
-    document.getElementById('chart-sub').textContent = state.estimatedDays
-      ? 'Gasto, conversiones, costo por conversion y CTR estimados por dia: Google Ads entrega totales semanales y cada semana se reparte en partes iguales entre sus dias.'
-      : 'Gasto, conversiones, costo por conversion y CTR de cada dia.';
+    document.getElementById('chart-sub').textContent = [
+      realLabels.length ? `Dato real por dia: ${realLabels.join(', ')}.` : '',
+      estLabels.length ? `Estimado repartiendo la semana: ${estLabels.join(', ')} (linea punteada).` : ''
+    ].filter(Boolean).join(' ');
     const legend = document.querySelector('#chart-panel .chart-legend span');
-    if (legend) legend.innerHTML = legendHtml(state.estimatedDays);
+    if (legend) legend.innerHTML = legendHtml(estimated);
     if (state.chart) state.chart.destroy();
     state.chart = lineChart(document.getElementById('chart-monthly'), rows, {
       labels: rows.map(row => (perMonth ? String(parseDate(row.date).d) : shortDate(row.date))),
       tooltipTitle: index => formatLongDate(rows[index].date),
       pointRadius: rows.length > 40 ? 0 : 2.5,
-      dashed: state.estimatedDays,
-      suffix: state.estimatedDays ? ' (estimado)' : ''
+      estimated,
+      suffix: metric => (estimated.has(metric) ? ' (estimado)' : '')
     });
   }
 
@@ -317,8 +372,9 @@
     const note = document.getElementById('daily-note');
     const first = rows[0];
     note.hidden = false;
-    const missingDaily = state.estimatedDays
-      ? ' El detalle por dia del panel de arriba es estimado: para la curva real, descarga el mismo informe con Segmento > Tiempo > Dia y vuelve a importar.'
+    const withDaily = new Set((state.data.days || []).map(day => day.date.slice(0, 7)));
+    const missingDaily = withDaily.size < state.months.length
+      ? ` Solo ${withDaily.size} de ${state.months.length} meses tienen serie diaria real; en los demas el panel de arriba reparte la semana. Para la curva real, descarga el grafico de serie temporal (o el informe con Segmento > Tiempo > Dia) de ese mes.`
       : '';
     note.textContent = `La primera semana (${weekLabel(first)}) solo tiene ${first.days} dias dentro del informe.${state.monthId === ALL ? '' : ' Los puntos resaltados son las semanas del mes elegido.'} El eje del costo por conversion se recorta para que las semanas con 1 conversion no aplasten al resto; el valor exacto sale al pasar el cursor.${missingDaily}`;
     if (state.trendChart) state.trendChart.destroy();
@@ -366,7 +422,7 @@
     }
     const totalLabel = state.monthId === ALL
       ? 'Total del periodo'
-      : `Total ${month.label}${month.exact ? '' : ' (prorrateado)'}`;
+      : `Total ${month.label}${month.exact || (month.exactMetrics && month.exactMetrics.length) ? '' : ' (prorrateado)'}`;
     body.innerHTML = rowsHtml + `
       <tr class="reservations-total-row">
         <td class="total-label">${totalLabel}</td>

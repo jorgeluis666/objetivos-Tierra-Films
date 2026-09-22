@@ -4,14 +4,18 @@
   "moduleSubtitle": "Google Ads | Búsqueda",
   "schemaVersion": 4,
   "status": "ok",
-  "granularity": "week",
+  "granularity": "day",
   "currency": "PEN",
   "sourceFile": "Informe de campaña (1).csv",
   "sourceFiles": [
     "Informe de campaña (1).csv",
     "Mensual junio 2026.csv",
     "Mensual julio 2026.csv",
-    "Mensual setiembre 2026.csv"
+    "Mensual setiembre 2026.csv",
+    "Serie diaria agosto 2026 - coste.csv"
+  ],
+  "dayMetrics": [
+    "cost"
   ],
   "period": {
     "start": "2026-06-01",
@@ -30,13 +34,13 @@
     }
   ],
   "totals": {
-    "cost": 13093.83,
+    "cost": 13133.81,
     "impressions": 34324.29,
     "clicks": 3035.43,
     "conversions": 485.82,
     "ctr": 0.088434,
-    "cpc": 4.31,
-    "costPerConversion": 26.95
+    "cpc": 4.33,
+    "costPerConversion": 27.03
   },
   "accountTotal": {
     "cost": 8776.83,
@@ -411,7 +415,225 @@
       "costPerConversion": 41.72
     }
   ],
-  "days": [],
+  "days": [
+    {
+      "date": "2026-08-01",
+      "cost": 147.84,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-08-02",
+      "cost": 143.41,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-08-03",
+      "cost": 96.01,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-08-04",
+      "cost": 149.95,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-08-05",
+      "cost": 124.61,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-08-06",
+      "cost": 108.75,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-08-07",
+      "cost": 97.0,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-08-08",
+      "cost": 77.06,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-08-09",
+      "cost": 72.96,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-08-10",
+      "cost": 145.01,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-08-11",
+      "cost": 132.99,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-08-12",
+      "cost": 127.91,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-08-13",
+      "cost": 114.71,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-08-14",
+      "cost": 91.9,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-08-15",
+      "cost": 72.85,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-08-16",
+      "cost": 98.17,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-08-17",
+      "cost": 98.82,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-08-18",
+      "cost": 0.0,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-08-19",
+      "cost": 0.0,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-08-20",
+      "cost": 0.0,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-08-21",
+      "cost": 83.65,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-08-22",
+      "cost": 174.07,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-08-23",
+      "cost": 156.85,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-08-24",
+      "cost": 174.33,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-08-25",
+      "cost": 167.67,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-08-26",
+      "cost": 162.45,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-08-27",
+      "cost": 154.93,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-08-28",
+      "cost": 142.72,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-08-29",
+      "cost": 134.81,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-08-30",
+      "cost": 141.6,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-08-31",
+      "cost": 105.55,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    }
+  ],
   "months": [
     {
       "id": "2026-06",
@@ -419,6 +641,7 @@
       "sourceFile": "Mensual junio 2026.csv",
       "source": "informe mensual",
       "exact": true,
+      "exactMetrics": [],
       "rangeStart": "2026-06-01",
       "rangeEnd": "2026-06-30",
       "daysWithData": 30,
@@ -451,6 +674,7 @@
       "sourceFile": "Mensual julio 2026.csv",
       "source": "informe mensual",
       "exact": true,
+      "exactMetrics": [],
       "rangeStart": "2026-07-01",
       "rangeEnd": "2026-07-31",
       "daysWithData": 31,
@@ -487,10 +711,13 @@
       "id": "2026-08",
       "label": "Agosto 2026",
       "sourceFile": "Informe de campaña (1).csv",
-      "source": "semanas prorrateadas",
+      "source": "serie diaria",
       "exact": false,
-      "rangeStart": null,
-      "rangeEnd": null,
+      "exactMetrics": [
+        "cost"
+      ],
+      "rangeStart": "2026-08-01",
+      "rangeEnd": "2026-08-31",
       "daysWithData": 31,
       "weekDays": 31,
       "daysInMonth": 31,
@@ -502,7 +729,7 @@
         "2026-08-24",
         "2026-08-31"
       ],
-      "cost": 3458.6,
+      "cost": 3498.58,
       "impressions": 13066.29,
       "clicks": 1184.43,
       "conversions": 316.86,
@@ -519,8 +746,8 @@
         }
       ],
       "ctr": 0.090648,
-      "cpc": 2.92,
-      "costPerConversion": 10.92
+      "cpc": 2.95,
+      "costPerConversion": 11.04
     },
     {
       "id": "2026-09",
@@ -528,6 +755,7 @@
       "sourceFile": "Mensual setiembre 2026.csv",
       "source": "informe mensual",
       "exact": true,
+      "exactMetrics": [],
       "rangeStart": "2026-09-01",
       "rangeEnd": "2026-09-21",
       "daysWithData": 21,
