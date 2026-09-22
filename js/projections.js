@@ -20,7 +20,7 @@
     budget: { label: 'Presupuesto diario', color: '#64748b', desc: 'Gasta el presupuesto completo cada dia, con la eficiencia de las ultimas 4 semanas' }
   };
   const SIM_COLOR = '#ea580c';
-  const state = { ready: false, data: null, metric: 'cost', scenario: 'month', goal: null, marginalCpa: null, chart: null, model: null, dragging: false };
+  const state = { ready: false, data: null, metric: 'cost', scenario: 'month', goal: null, marginalCpa: null, chart: null, model: null, dragging: false, dragScale: null };
 
   const F = () => window.TierraFilmsFormat;
 
@@ -338,7 +338,7 @@
         },
         scales: {
           x: { grid: { display: false }, border: { color: '#bfdbfe' }, ticks: { color: '#7890b5', font: { size: 10 } } },
-          y: { beginAtZero: metric !== 'costPerConversion', border: { display: false }, grid: { color: 'rgba(14,165,233,.16)' }, ticks: { color: '#7890b5', font: { size: 10 }, callback: value => f.formatValue(value, meta.unit, true) } }
+          y: { beginAtZero: metric !== 'costPerConversion', ...(state.dragScale || {}), border: { display: false }, grid: { color: 'rgba(14,165,233,.16)' }, ticks: { color: '#7890b5', font: { size: 10 }, callback: value => f.formatValue(value, meta.unit, true) } }
         }
       }
     });
@@ -378,9 +378,13 @@
       return Math.hypot(point.x - x, point.y - y) < 26;
     };
 
+    // El eje Y queda fijo mientras se arrastra: si se reescalara en cada
+    // movimiento, el mismo pixel valdria cada vez mas y el valor se dispararia.
     const valueAt = event => {
       const rect = canvas.getBoundingClientRect();
-      return state.chart.scales.y.getValueForPixel(event.clientY - rect.top);
+      const { min, max } = state.dragScale;
+      const value = state.chart.scales.y.getValueForPixel(event.clientY - rect.top);
+      return Math.min(max, Math.max(min, value));
     };
 
     const apply = event => {
@@ -412,6 +416,7 @@
     canvas.addEventListener('pointerdown', event => {
       if (!CHART_METRICS[state.metric].drag || !near(event)) return;
       state.dragging = true;
+      state.dragScale = { min: state.chart.scales.y.min, max: state.chart.scales.y.max };
       canvas.style.cursor = 'grabbing';
       try { canvas.setPointerCapture(event.pointerId); } catch (error) { /* el navegador no soporta captura */ }
       event.preventDefault();
@@ -419,9 +424,12 @@
     const stop = event => {
       if (!state.dragging) return;
       state.dragging = false;
+      state.dragScale = null;
       canvas.style.cursor = 'grab';
       try { canvas.releasePointerCapture(event.pointerId); } catch (error) { /* el puntero ya se solto */ }
       writeStorage(GOAL_KEY, state.goal === null ? null : String(state.goal));
+      // Al soltar, el eje se ajusta al nuevo cierre y se puede seguir arrastrando.
+      renderChart();
     };
     canvas.addEventListener('pointerup', stop);
     canvas.addEventListener('pointercancel', stop);
