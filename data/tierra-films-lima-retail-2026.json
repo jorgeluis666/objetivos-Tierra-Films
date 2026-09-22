@@ -12,7 +12,7 @@
     "Mensual junio 2026.csv",
     "Mensual julio 2026.csv",
     "Mensual setiembre 2026.csv",
-    "Serie diaria agosto 2026 - coste.csv"
+    "Serie diaria jun-set 2026 - coste.csv"
   ],
   "dayMetrics": [
     "cost"
@@ -417,6 +417,433 @@
   ],
   "days": [
     {
+      "date": "2026-06-01",
+      "cost": 175.49,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-06-02",
+      "cost": 145.46,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-06-03",
+      "cost": 144.33,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-06-04",
+      "cost": 163.76,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-06-05",
+      "cost": 166.49,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-06-06",
+      "cost": 92.35,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-06-07",
+      "cost": 38.02,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-06-08",
+      "cost": 299.71,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-06-09",
+      "cost": 223.0,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-06-10",
+      "cost": 174.95,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-06-11",
+      "cost": 164.5,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-06-12",
+      "cost": 171.15,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-06-13",
+      "cost": 102.38,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-06-14",
+      "cost": 104.85,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-06-15",
+      "cost": 223.31,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-06-16",
+      "cost": 158.8,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-06-17",
+      "cost": 177.16,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-06-18",
+      "cost": 163.62,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-06-19",
+      "cost": 138.04,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-06-20",
+      "cost": 91.15,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-06-21",
+      "cost": 49.27,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-06-22",
+      "cost": 231.94,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-06-23",
+      "cost": 200.19,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-06-24",
+      "cost": 168.52,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-06-25",
+      "cost": 154.62,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-06-26",
+      "cost": 149.23,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-06-27",
+      "cost": 12.94,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-06-28",
+      "cost": 66.97,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-06-29",
+      "cost": 144.1,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-06-30",
+      "cost": 156.71,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-07-01",
+      "cost": 142.37,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-07-02",
+      "cost": 164.63,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-07-03",
+      "cost": 145.23,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-07-04",
+      "cost": 54.02,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-07-05",
+      "cost": 62.93,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-07-06",
+      "cost": 297.56,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-07-07",
+      "cost": 175.95,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-07-08",
+      "cost": 169.08,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-07-09",
+      "cost": 127.52,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-07-10",
+      "cost": 32.86,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-07-11",
+      "cost": 41.47,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-07-12",
+      "cost": 55.17,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-07-13",
+      "cost": 303.31,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-07-14",
+      "cost": 232.53,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-07-15",
+      "cost": 104.36,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-07-16",
+      "cost": 118.24,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-07-17",
+      "cost": 41.99,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-07-18",
+      "cost": 61.39,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-07-19",
+      "cost": 75.54,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-07-20",
+      "cost": 114.53,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-07-21",
+      "cost": 101.12,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-07-22",
+      "cost": 100.41,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-07-23",
+      "cost": 20.9,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-07-24",
+      "cost": 70.74,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-07-25",
+      "cost": 86.59,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-07-26",
+      "cost": 91.01,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-07-27",
+      "cost": 104.26,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-07-28",
+      "cost": 88.62,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-07-29",
+      "cost": 84.01,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-07-30",
+      "cost": 94.35,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-07-31",
+      "cost": 119.19,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
       "date": "2026-08-01",
       "cost": 147.84,
       "ctr": null,
@@ -629,6 +1056,146 @@
     {
       "date": "2026-08-31",
       "cost": 105.55,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-09-01",
+      "cost": 168.98,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-09-02",
+      "cost": 163.96,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-09-03",
+      "cost": 139.84,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-09-04",
+      "cost": 122.06,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-09-05",
+      "cost": 115.88,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-09-06",
+      "cost": 118.06,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-09-07",
+      "cost": 115.94,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-09-08",
+      "cost": 118.59,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-09-09",
+      "cost": 7.39,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-09-10",
+      "cost": 61.96,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-09-11",
+      "cost": 144.53,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-09-12",
+      "cost": 123.86,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-09-13",
+      "cost": 103.58,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-09-14",
+      "cost": 86.38,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-09-15",
+      "cost": 39.97,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-09-16",
+      "cost": 22.07,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-09-17",
+      "cost": 6.36,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-09-18",
+      "cost": 6.83,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-09-19",
+      "cost": 2.97,
+      "ctr": null,
+      "cpc": null,
+      "costPerConversion": null
+    },
+    {
+      "date": "2026-09-20",
+      "cost": 2.28,
       "ctr": null,
       "cpc": null,
       "costPerConversion": null

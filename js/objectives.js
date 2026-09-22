@@ -335,12 +335,16 @@
       return;
     }
     const estimated = estimatedMetrics(rows);
-    const realLabels = TREND_METRICS.filter(metric => !estimated.has(metric)).map(metric => SERIES[metric].label.toLowerCase());
-    const estLabels = TREND_METRICS.filter(metric => estimated.has(metric)).map(metric => SERIES[metric].label.toLowerCase());
+    const label = metric => SERIES[metric].label.toLowerCase();
+    const hasData = metric => rows.some(row => row[metric] !== null && row[metric] !== undefined && Number.isFinite(Number(row[metric])));
+    const missingLabels = TREND_METRICS.filter(metric => !hasData(metric)).map(label);
+    const realLabels = TREND_METRICS.filter(metric => hasData(metric) && !estimated.has(metric)).map(label);
+    const estLabels = TREND_METRICS.filter(metric => hasData(metric) && estimated.has(metric)).map(label);
     document.getElementById('chart-title').textContent = `Indicadores por dia | ${periodLabel()}`;
     document.getElementById('chart-sub').textContent = [
       realLabels.length ? `Dato real por dia: ${realLabels.join(', ')}.` : '',
-      estLabels.length ? `Estimado repartiendo la semana: ${estLabels.join(', ')} (linea punteada).` : ''
+      estLabels.length ? `Estimado repartiendo la semana: ${estLabels.join(', ')} (linea punteada).` : '',
+      missingLabels.length ? `Sin detalle diario: ${missingLabels.join(', ')} (solo el total del mes).` : ''
     ].filter(Boolean).join(' ');
     const legend = document.querySelector('#chart-panel .chart-legend span');
     if (legend) legend.innerHTML = legendHtml(estimated);
@@ -473,6 +477,8 @@
       window.TIERRA_FILMS_RETAIL_DATA = state.data;
       state.weeks = state.data.weeks.map(withRates);
       state.days = buildDays(state.data);
+      // Proyecciones reutiliza la misma serie diaria (real donde exista).
+      window.TierraFilmsDays = state.days;
       state.months = (state.data.months || []).map(withRates);
       const stored = readStoredMonth();
       const fallback = state.data.defaultMonth || (state.months.length ? state.months[state.months.length - 1].id : ALL);

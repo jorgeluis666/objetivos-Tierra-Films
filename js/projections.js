@@ -42,10 +42,20 @@
     } catch (error) { /* sin almacenamiento: el valor vive solo en la sesion */ }
   }
 
-  // Serie diaria: cada semana repartida entre sus dias dentro del informe.
-  function dailySeries(weeks) {
+  // Serie diaria: la que arma el modulo Gasto Publicitario (coste real donde el
+  // export diario lo trae, el resto repartido desde la semana). Si todavia no
+  // esta lista, se reparte cada semana entre sus dias.
+  function dailySeries(data) {
+    const shared = window.TierraFilmsDays;
+    if (Array.isArray(shared) && shared.length) {
+      return shared.map(row => {
+        const out = { date: row.date, week: row.week };
+        METRICS.forEach(metric => { out[metric] = Number.isFinite(Number(row[metric])) ? Number(row[metric]) : 0; });
+        return out;
+      });
+    }
     const days = [];
-    weeks.forEach(week => {
+    (data.weeks || []).forEach(week => {
       for (let i = 0; i < week.days; i += 1) {
         const row = { date: addDays(week.dataStart, i), week: week.start };
         METRICS.forEach(metric => { row[metric] = Number(week[metric] || 0) / week.days; });
@@ -68,7 +78,7 @@
   }
 
   function buildModel(data) {
-    const daily = dailySeries(data.weeks);
+    const daily = dailySeries(data);
     const lastDate = data.period.end;
     let [year, month] = lastDate.split('-').map(Number);
     let daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();

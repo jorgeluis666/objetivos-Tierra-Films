@@ -66,8 +66,10 @@ tabla:
   lo cruzan repartidas por dias. Es una aproximacion.
 
 Hoy estan cargados los informes mensuales de junio, julio y setiembre (al 21) y
-la serie diaria de coste de agosto. De agosto falta el informe mensual: sus
-conversiones, clics e impresiones siguen estimados desde las semanas.
+la serie diaria de coste de todo el periodo (1 jun - 20 set). De agosto falta el
+informe mensual: sus conversiones, clics e impresiones siguen estimados desde las
+semanas. El detalle semanal existe desde el 1 de julio, asi que junio solo tiene
+la curva de gasto diario y su total mensual.
 
 En el grafico por dia, cada indicador se dibuja con linea llena si es dato real y
 punteada con `(est.)` si sale de repartir la semana. Cuando hay coste diario
