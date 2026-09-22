@@ -80,8 +80,12 @@
     }
     const monthId = `${year}-${String(month).padStart(2, '0')}`;
     const monthRows = daily.filter(row => row.date.startsWith(monthId));
-    const actual = totals(monthRows);
-    const daysWithData = monthRows.length;
+    const record = (data.months || []).find(item => item.id === monthId);
+    // El informe mensual manda: puede cubrir mas dias que las semanas cargadas.
+    const actual = record ? F().withRates({
+      cost: record.cost, impressions: record.impressions, clicks: record.clicks, conversions: record.conversions
+    }) : totals(monthRows);
+    const daysWithData = record ? record.daysWithData : monthRows.length;
     const remaining = daysInMonth - daysWithData;
 
     const recentRows = daily.slice(-28);
@@ -112,6 +116,18 @@
       conversions += row.conversions;
       cumulative.push({ cost, conversions });
     });
+    // Los dias del mes que el detalle semanal no cubre se completan con el
+    // resto del total mensual, repartido en partes iguales.
+    const missing = daysWithData - cumulative.length;
+    if (missing > 0) {
+      const restCost = (actual.cost - cost) / missing;
+      const restConversions = (actual.conversions - conversions) / missing;
+      for (let i = 0; i < missing; i += 1) {
+        cost += restCost;
+        conversions += restConversions;
+        cumulative.push({ cost, conversions });
+      }
+    }
     return {
       monthId,
       monthLabel: `${F().MONTH_NAMES[month - 1]} ${year}`,
@@ -126,7 +142,8 @@
       closes,
       budget,
       previous: previous ? F().withRates(previous) : null,
-      lastWeek: data.weeks[data.weeks.length - 1]
+      lastWeek: data.weeks[data.weeks.length - 1],
+      record
     };
   }
 
@@ -185,7 +202,7 @@
     const cards = [
       [`Gasto al ${f.shortDate(m.lastDate)}`, f.fmtMoney(m.actual.cost), `${m.daysWithData} de ${m.daysInMonth} dias`],
       ['Gasto proyectado', f.fmtMoney(close.cost), monthlyBudget ? `${f.fmtPercent(close.cost / monthlyBudget)} del presupuesto (${f.fmtMoney(monthlyBudget)})` : 'Al cierre del mes'],
-      ['Conversiones proyectadas', f.fmtCount(close.conversions), prevConv ? `${f.fmtCount(prevConv)} en ${m.previous.label.split(' ')[0].toLowerCase()}` : `${f.fmtCount(m.actual.conversions)} reales`],
+      ['Conversiones proyectadas', f.fmtCount(close.conversions), prevConv ? `${f.fmtCount(prevConv)} en ${m.previous.label.split(' ')[0].toLowerCase()}${m.previous.exact ? '' : ' (est.)'}` : `${f.fmtCount(m.actual.conversions)} reales`],
       ['Costo x conversion', f.fmtMoney(close.costPerConversion), `Real a la fecha ${f.fmtMoney(m.actual.costPerConversion)}`],
       ['Clics proyectados', f.fmtCount(close.clicks), `CPC ${f.fmtMoney(close.cpc)}`],
       ['Dias restantes', String(m.remaining), `Del ${f.shortDate(addDays(m.lastDate, 1))} al ${m.daysInMonth} ${m.monthName.slice(0, 3)}`]
@@ -425,7 +442,7 @@
     const sim = simClose();
     const simulated = isSimulated();
     const prev = m.previous;
-    const prevName = prev ? prev.label.split(' ')[0] : 'Mes anterior';
+    const prevName = prev ? `${prev.label.split(' ')[0]}${prev.exact ? '' : ' (est.)'}` : 'Mes anterior';
     document.getElementById('projection-actual-head').textContent = `Real al ${f.shortDate(m.lastDate)}`;
     document.getElementById('projection-close-head').textContent = `Cierre ${m.monthName}`;
     document.getElementById('projection-sim-head').textContent = simulated ? 'Simulacion' : 'Simulacion (=)';

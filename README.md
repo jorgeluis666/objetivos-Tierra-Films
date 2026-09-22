@@ -53,6 +53,21 @@ completas con la etiqueta de cuantos dias caen en el mes, y la fila de total dic
 `(prorrateado)`. La vista `Todo el periodo` no prorratea nada y cuadra exacto con
 Google Ads.
 
+## De donde sale cada total
+
+Cada mes usa la mejor fuente disponible, y el dashboard lo dice debajo de la
+tabla:
+
+- **Informe mensual** (un CSV por mes, sin segmento): total exacto del mes.
+- **Semanas prorrateadas**: sin informe propio, el mes suma las semanas que lo
+  cruzan repartidas por dias. Es una aproximacion.
+
+Hoy estan cargados los informes mensuales de junio, julio y setiembre (al 21).
+Agosto sigue estimado desde las semanas: falta su informe mensual.
+
+Junio no tiene detalle semanal (el informe por semana arranca el 1 de julio), asi
+que su mes muestra solo los KPIs.
+
 ## Fuente de datos
 
 `data/tierra-films-lima-retail-2026.json` (schema 3), generado a partir del
@@ -78,15 +93,16 @@ campaña.
 
 ## Actualizar la data
 
-1. En Google Ads: Campañas, rango desde el 1 de julio hasta hoy, Segmento >
-   Tiempo > Semana, Descargar > CSV.
+1. En Google Ads: Campañas, Descargar > CSV. Conviene bajar:
+   - un informe por mes, con el rango del mes y sin segmento (total exacto);
+   - el informe del periodo completo con Segmento > Tiempo > Semana.
    Para la curva diaria real, descarga el mismo informe otra vez con
    Segmento > Tiempo > **Día**.
 2. Importar (reemplaza todo el JSON con el nuevo rango y guarda los CSV en
    `data/csv-backups/`). Acepta uno o los dos archivos:
 
 ```bash
-python scripts/import-google-ads-weekly.py "ruta/Informe semanal.csv" "ruta/Informe diario.csv"
+python scripts/import-google-ads-weekly.py "Mensual junio.csv" "Mensual julio.csv" "Informe semanal.csv"
 ```
 
 Con el export diario, los totales de cada mes salen exactos (sin prorratear las

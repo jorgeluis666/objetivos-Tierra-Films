@@ -8,11 +8,14 @@
   "currency": "PEN",
   "sourceFile": "Informe de campaña (1).csv",
   "sourceFiles": [
-    "Informe de campaña (1).csv"
+    "Informe de campaña (1).csv",
+    "Mensual junio 2026.csv",
+    "Mensual julio 2026.csv",
+    "Mensual setiembre 2026.csv"
   ],
   "period": {
-    "start": "2026-07-01",
-    "end": "2026-09-20"
+    "start": "2026-06-01",
+    "end": "2026-09-21"
   },
   "defaultMonth": "2026-09",
   "campaigns": [
@@ -27,13 +30,13 @@
     }
   ],
   "totals": {
-    "cost": 8651.95,
-    "impressions": 27011.0,
-    "clicks": 2403.0,
-    "conversions": 434.0,
-    "ctr": 0.088964,
-    "cpc": 3.6,
-    "costPerConversion": 19.94
+    "cost": 13093.83,
+    "impressions": 34324.29,
+    "clicks": 3035.43,
+    "conversions": 485.82,
+    "ctr": 0.088434,
+    "cpc": 4.31,
+    "costPerConversion": 26.95
   },
   "accountTotal": {
     "cost": 8776.83,
@@ -411,10 +414,47 @@
   "days": [],
   "months": [
     {
+      "id": "2026-06",
+      "label": "Junio 2026",
+      "sourceFile": "Mensual junio 2026.csv",
+      "source": "informe mensual",
+      "exact": true,
+      "rangeStart": "2026-06-01",
+      "rangeEnd": "2026-06-30",
+      "daysWithData": 30,
+      "weekDays": 0,
+      "daysInMonth": 30,
+      "weeks": [],
+      "cost": 4453.01,
+      "impressions": 7127.0,
+      "clicks": 625.0,
+      "conversions": 54.96,
+      "records": [
+        {
+          "campaign": "VIDEOS CORPORATIVOS",
+          "cost": 4453.01,
+          "impressions": 7127.0,
+          "clicks": 625.0,
+          "conversions": 54.96,
+          "ctr": 0.087695,
+          "cpc": 7.12,
+          "costPerConversion": 81.02
+        }
+      ],
+      "ctr": 0.087695,
+      "cpc": 7.12,
+      "costPerConversion": 81.02
+    },
+    {
       "id": "2026-07",
       "label": "Julio 2026",
-      "sourceFile": "Informe de campaña (1).csv",
+      "sourceFile": "Mensual julio 2026.csv",
+      "source": "informe mensual",
+      "exact": true,
+      "rangeStart": "2026-07-01",
+      "rangeEnd": "2026-07-31",
       "daysWithData": 31,
+      "weekDays": 31,
       "daysInMonth": 31,
       "weeks": [
         "2026-06-29",
@@ -423,31 +463,36 @@
         "2026-07-20",
         "2026-07-27"
       ],
-      "cost": 3549.78,
-      "impressions": 6303.14,
-      "clicks": 617.14,
-      "conversions": 68.0,
+      "cost": 3481.86,
+      "impressions": 6216.0,
+      "clicks": 600.0,
+      "conversions": 63.0,
       "records": [
         {
           "campaign": "VIDEOS CORPORATIVOS",
-          "cost": 3549.78,
-          "impressions": 6303.14,
-          "clicks": 617.14,
-          "conversions": 68.0,
-          "ctr": 0.09791,
-          "cpc": 5.75,
-          "costPerConversion": 52.2
+          "cost": 3481.86,
+          "impressions": 6216.0,
+          "clicks": 600.0,
+          "conversions": 63.0,
+          "ctr": 0.096525,
+          "cpc": 5.8,
+          "costPerConversion": 55.27
         }
       ],
-      "ctr": 0.09791,
-      "cpc": 5.75,
-      "costPerConversion": 52.2
+      "ctr": 0.096525,
+      "cpc": 5.8,
+      "costPerConversion": 55.27
     },
     {
       "id": "2026-08",
       "label": "Agosto 2026",
       "sourceFile": "Informe de campaña (1).csv",
+      "source": "semanas prorrateadas",
+      "exact": false,
+      "rangeStart": null,
+      "rangeEnd": null,
       "daysWithData": 31,
+      "weekDays": 31,
       "daysInMonth": 31,
       "weeks": [
         "2026-07-27",
@@ -480,33 +525,38 @@
     {
       "id": "2026-09",
       "label": "Setiembre 2026",
-      "sourceFile": "Informe de campaña (1).csv",
-      "daysWithData": 20,
+      "sourceFile": "Mensual setiembre 2026.csv",
+      "source": "informe mensual",
+      "exact": true,
+      "rangeStart": "2026-09-01",
+      "rangeEnd": "2026-09-21",
+      "daysWithData": 21,
+      "weekDays": 20,
       "daysInMonth": 30,
       "weeks": [
         "2026-08-31",
         "2026-09-07",
         "2026-09-14"
       ],
-      "cost": 1643.57,
-      "impressions": 7641.57,
-      "clicks": 601.43,
-      "conversions": 49.14,
+      "cost": 1700.36,
+      "impressions": 7915.0,
+      "clicks": 626.0,
+      "conversions": 51.0,
       "records": [
         {
           "campaign": "VIDEOS CORPORATIVOS",
-          "cost": 1643.57,
-          "impressions": 7641.57,
-          "clicks": 601.43,
-          "conversions": 49.14,
-          "ctr": 0.078705,
-          "cpc": 2.73,
-          "costPerConversion": 33.45
+          "cost": 1700.36,
+          "impressions": 7915.0,
+          "clicks": 626.0,
+          "conversions": 51.0,
+          "ctr": 0.07909,
+          "cpc": 2.72,
+          "costPerConversion": 33.34
         }
       ],
-      "ctr": 0.078705,
-      "cpc": 2.73,
-      "costPerConversion": 33.45
+      "ctr": 0.07909,
+      "cpc": 2.72,
+      "costPerConversion": 33.34
     }
   ]
 }

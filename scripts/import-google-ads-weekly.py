@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Importa el "Informe de campaña" de Google Ads segmentado por semana o por dia.
+"""Importa el "Informe de campaña" de Google Ads: mensual, semanal o diario.
 
 Los export traen un titulo, una linea con el rango de fechas y luego la tabla:
 
@@ -11,11 +11,17 @@ las filas "Total: ..." se ignoran salvo "Total: Cuenta" sin fecha, que se guarda
 como referencia. Los numeros vienen en formato es-PE: coma decimal y punto de
 miles ("1.247", "8651,95", "10,34%").
 
-Se pueden pasar los dos archivos a la vez. Con el export diario el dashboard
-dibuja la curva dia a dia; sin el, estima cada dia repartiendo la semana.
+Se pueden pasar varios archivos a la vez:
+
+- Sin segmento (un informe por mes): manda como total del mes.
+- Segmentado por Semana: llena la tabla y los graficos semanales.
+- Segmentado por Dia: dibuja la curva real dia a dia.
+
+Los meses sin informe propio se calculan repartiendo por dias las semanas que
+los cruzan, y quedan marcados como estimados.
 
 Uso:
-    python scripts/import-google-ads-weekly.py "Informe semanal.csv" "Informe diario.csv"
+    python scripts/import-google-ads-weekly.py "Junio.csv" "Julio.csv" "Semanal.csv"
 """
 
 from __future__ import annotations
@@ -81,7 +87,10 @@ def read_table(path: Path) -> tuple[str, list[str], list[dict[str, str]], str]:
         if column in DATE_COLUMNS and "," in line:
             rows = list(csv.DictReader(lines[index:]))
             return DATE_COLUMNS[column], lines[:index], rows, column
-    raise SystemExit(f"[tf-import] {path.name}: no se encontro una cabecera 'Semana,...' o 'Día,...'.")
+    for index, line in enumerate(lines):
+        if line.startswith("Estado de la campaña,"):
+            return "period", lines[:index], list(csv.DictReader(lines[index:])), ""
+    raise SystemExit(f"[tf-import] {path.name}: no se reconocio la cabecera del informe.")
 
 
 def round2(value: float | None) -> float | None:
@@ -113,14 +122,20 @@ def parse_source(path: Path) -> dict:
     campaigns: dict[str, dict] = {}
     account_total = None
     for row in rows:
-        stamp = (row.get(date_column) or "").strip()
+        stamp = (row.get(date_column) or "").strip() if date_column else ""
         campaign = (row.get("Campaña") or "").strip()
         status = (row.get("Estado de la campaña") or "").strip()
         if status == "Total: Cuenta" and not stamp:
             account_total = derived({k: parse_number(row.get(col)) for k, col in
                                      zip(METRICS, ("Coste", "Impr.", "Clics", "Conversiones"))})
             continue
-        if not re.match(r"^\d{4}-\d{2}-\d{2}$", stamp) or not campaign or campaign == "--":
+        if not campaign or campaign == "--":
+            continue
+        if kind == "period":
+            if not period:
+                raise SystemExit(f"[tf-import] {path.name}: el informe no trae el rango de fechas en la cabecera.")
+            stamp = period[0].isoformat()
+        elif not re.match(r"^\d{4}-\d{2}-\d{2}$", stamp):
             continue
         campaigns.setdefault(campaign, {
             "name": campaign,
@@ -138,7 +153,7 @@ def parse_source(path: Path) -> dict:
             "conversions": parse_number(row.get("Conversiones")) or 0.0,
         }
     if not entries:
-        raise SystemExit(f"[tf-import] {path.name}: no tiene filas por campaña con fecha.")
+        raise SystemExit(f"[tf-import] {path.name}: no tiene filas por campaña.")
     return {"kind": kind, "file": path.name, "period": period, "entries": entries,
             "campaigns": campaigns, "accountTotal": account_total}
 
@@ -151,8 +166,9 @@ def build(paths: list[Path]) -> dict:
     sources = [parse_source(path) for path in paths]
     weekly = next((s for s in sources if s["kind"] == "week"), None)
     daily = next((s for s in sources if s["kind"] == "day"), None)
-    if not weekly and not daily:
-        raise SystemExit("[tf-import] hace falta al menos un export con fechas.")
+    periods = [s for s in sources if s["kind"] == "period"]
+    if not weekly and not daily and not periods:
+        raise SystemExit("[tf-import] hace falta al menos un informe.")
 
     campaigns: dict[str, dict] = {}
     for source in sources:
@@ -161,9 +177,11 @@ def build(paths: list[Path]) -> dict:
 
     # Rango del informe: el del preambulo o el que cubran las fechas leidas.
     stamps = [stamp for source in sources for stamp in source["entries"]]
-    base = weekly or daily
-    if base["period"]:
-        period_start, period_end = base["period"]
+    base = weekly or daily or periods[0]
+    ranges = [source["period"] for source in sources if source["period"]]
+    if ranges:
+        period_start = min(r[0] for r in ranges)
+        period_end = max(r[1] for r in ranges)
     else:
         period_start = min(stamps)
         period_end = max(stamps) + (timedelta(days=6) if base["kind"] == "week" else timedelta())
@@ -181,13 +199,20 @@ def build(paths: list[Path]) -> dict:
                 for k in METRICS:
                     acc[k] += values[k]
 
+    # Las semanas se recortan con el rango de SU informe, no con el del periodo
+    # completo: la primera semana (29 jun) solo trae datos desde el 1 de julio
+    # aunque otro informe agregue junio al dashboard.
+    week_source = weekly or daily
+    if week_source["period"]:
+        week_start_limit, week_end_limit = week_source["period"]
+    else:
+        week_start_limit, week_end_limit = period_start, period_end
+
     week_list = []
     for start in sorted(week_entries):
         end = start + timedelta(days=6)
-        # Dias de la semana dentro del rango del informe: la primera semana
-        # (29 jun) solo trae datos desde el 1 de julio.
         days = [start + timedelta(days=i) for i in range(7)
-                if period_start <= start + timedelta(days=i) <= period_end]
+                if week_start_limit <= start + timedelta(days=i) <= week_end_limit]
         by_month: dict[str, int] = {}
         for day in days:
             by_month[month_id(day)] = by_month.get(month_id(day), 0) + 1
@@ -246,31 +271,57 @@ def build(paths: list[Path]) -> dict:
                     for k in METRICS:
                         target[k] += camp[k] * share
 
+    # Informes sin segmento: cada uno manda como total real de su mes.
+    exports: dict[str, dict] = {}
+    for source in periods:
+        start, end = source["period"]
+        if month_id(start) != month_id(end):
+            print(f"[tf-import] aviso: {source['file']} cruza de mes ({start} a {end}); se ignora.")
+            continue
+        by_campaign = next(iter(source["entries"].values()))
+        exports[month_id(start)] = {
+            "file": source["file"],
+            "start": start,
+            "end": end,
+            "days": (end - start).days + 1,
+            "campaigns": by_campaign,
+            **totals_of(by_campaign),
+        }
+        month_bucket(month_id(start))
+
     month_list = []
     for mid in sorted(months):
         month = months[mid]
+        export = exports.get(mid)
         year, mon = map(int, mid.split("-"))
         next_month = date(year + (mon == 12), mon % 12 + 1, 1)
+        source_values = export if export else month
+        source_campaigns = export["campaigns"] if export else month["campaigns"]
         month_list.append(derived({
             "id": mid,
             "label": month["label"],
-            "sourceFile": base["file"],
-            "daysWithData": month["days"],
+            "sourceFile": export["file"] if export else base["file"],
+            "source": "informe mensual" if export else ("dias" if day_list else "semanas prorrateadas"),
+            "exact": bool(export) or bool(day_list),
+            "rangeStart": (export["start"].isoformat() if export else None),
+            "rangeEnd": (export["end"].isoformat() if export else None),
+            "daysWithData": export["days"] if export else month["days"],
+            "weekDays": month["days"],
             "daysInMonth": (next_month - date(year, mon, 1)).days,
             "weeks": month["weeks"],
-            **{k: round(month[k], 2) for k in METRICS},
+            **{k: round(source_values[k], 2) for k in METRICS},
             "records": [derived({"campaign": name, **{k: round(v, 2) for k, v in values.items()}})
-                        for name, values in month["campaigns"].items()],
+                        for name, values in source_campaigns.items()],
         }))
 
-    totals = {k: round(sum(w[k] for w in week_list), 2) for k in METRICS}
+    totals = {k: round(sum(m[k] for m in month_list), 2) for k in METRICS}
     return {
         "brand": "Tierra Films",
         "dashboard": "Gasto Publicitario",
         "moduleSubtitle": "Google Ads | Búsqueda",
         "schemaVersion": 4,
         "status": "ok",
-        "granularity": "day" if day_list else "week",
+        "granularity": "day" if day_list else ("week" if week_list else "month"),
         "currency": "PEN",
         "sourceFile": base["file"],
         "sourceFiles": [source["file"] for source in sources],
@@ -306,10 +357,12 @@ def main() -> int:
                 shutil.copyfile(source, target)
     t = data["totals"]
     detail = f"{len(data['days'])} dias" if data["days"] else "sin detalle diario"
-    print(f"[tf-import] {len(data['weeks'])} semanas, {detail} ({data['period']['start']} a {data['period']['end']}): "
+    print(f"[tf-import] {len(data['months'])} meses, {len(data['weeks'])} semanas, {detail} "
+          f"({data['period']['start']} a {data['period']['end']}): "
           f"S/ {t['cost']:.2f} | {t['clicks']:.0f} clics | {t['conversions']:.0f} conv. -> {args.output}")
     for m in data["months"]:
-        print(f"   {m['label']}: {m['daysWithData']}/{m['daysInMonth']} dias | S/ {m['cost']:.2f} | {m['conversions']:.1f} conv.")
+        print(f"   {m['label']}: {m['daysWithData']}/{m['daysInMonth']} dias | S/ {m['cost']:.2f} | "
+              f"{m['conversions']:.1f} conv. | {m['source']}")
     return 0
 
 

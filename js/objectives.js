@@ -126,6 +126,29 @@
     return withRates(currentMonth());
   }
 
+  function periodDays() {
+    if (state.monthId === ALL) return state.months.reduce((total, month) => total + month.daysWithData, 0);
+    const month = currentMonth();
+    return month ? month.daysWithData : 0;
+  }
+
+  // De donde sale el total del mes: informe mensual propio o prorrateo de semanas.
+  function monthSourceNote() {
+    const month = currentMonth();
+    if (!month) {
+      const exact = state.months.filter(item => item.exact).length;
+      return `Totales por mes: ${exact} de ${state.months.length} vienen de su informe mensual; el resto se calcula repartiendo por dias las semanas que cruzan de mes.`;
+    }
+    const range = month.rangeStart && month.rangeEnd ? ` (${shortDate(month.rangeStart)} - ${shortDate(month.rangeEnd)})` : '';
+    if (month.exact) {
+      const weeksNote = month.weekDays && month.weekDays !== month.daysWithData
+        ? ` El detalle semanal cubre ${month.weekDays} dias, asi que puede no sumar exactamente el total del mes.`
+        : '';
+      return `Total de ${month.label} tomado del informe mensual${range}: ${escapeHtml(month.sourceFile)}.${weeksNote}`;
+    }
+    return `Total de ${month.label} calculado repartiendo por dias las semanas que cruzan de mes. Para el dato exacto, importa el informe mensual de ${month.label.split(' ')[0].toLowerCase()}.`;
+  }
+
   function periodLabel() {
     if (state.monthId === ALL) {
       const { start, end } = state.data.period;
@@ -153,7 +176,7 @@
       </div>
       <div class="retail-filter filter-hint">
         <span>Cuenta Google Ads</span>
-        <p>${state.data.campaigns.length} ${state.data.campaigns.length === 1 ? 'campaña' : 'campañas'} de ${escapeHtml(campaign ? campaign.type : 'Búsqueda')}${campaign && campaign.dailyBudget ? ` | presupuesto ${fmtMoney(campaign.dailyBudget)}/dia` : ''} | ${state.weeks.length} semanas cargadas.<br>Fuente: ${escapeHtml(state.data.sourceFile)}</p>
+        <p>${state.data.campaigns.length} ${state.data.campaigns.length === 1 ? 'campaña' : 'campañas'} de ${escapeHtml(campaign ? campaign.type : 'Búsqueda')}${campaign && campaign.dailyBudget ? ` | presupuesto ${fmtMoney(campaign.dailyBudget)}/dia` : ''} | ${state.months.length} meses y ${state.weeks.length} semanas cargadas.<br>${monthSourceNote()}</p>
       </div>
     `;
     host.querySelectorAll('[data-month]').forEach(button => {
@@ -168,7 +191,7 @@
   function renderKpis() {
     const host = document.getElementById('kpi-strip');
     const t = periodTotals();
-    const days = state.monthId === ALL ? state.weeks.reduce((total, week) => total + week.days, 0) : currentMonth().daysWithData;
+    const days = periodDays();
     const cards = [
       ['Gasto total', fmtMoney(t.cost), `Promedio ${fmtMoney(t.cost / days)} x dia`],
       ['Impresiones', fmtCount(t.impressions), `${days} dias con datos`],
@@ -250,6 +273,16 @@
   function renderChart() {
     const rows = visibleDays();
     const perMonth = state.monthId !== ALL;
+    const panel = document.getElementById('chart-panel');
+    const notice = document.getElementById('records-empty');
+    panel.hidden = !rows.length;
+    notice.hidden = rows.length > 0;
+    if (!rows.length) {
+      const month = currentMonth();
+      notice.innerHTML = `<strong>Sin detalle por semana ni por dia para ${escapeHtml(month ? month.label : 'este periodo')}.</strong>Los KPIs de arriba vienen del informe mensual. Para ver la curva, descarga el informe de ese mes con Segmento > Tiempo > Semana (o Dia) y vuelve a importarlo.`;
+      if (state.chart) { state.chart.destroy(); state.chart = null; }
+      return;
+    }
     document.getElementById('chart-title').textContent = `Indicadores por dia | ${periodLabel()}`;
     document.getElementById('chart-sub').textContent = state.estimatedDays
       ? 'Gasto, conversiones, costo por conversion y CTR estimados por dia: Google Ads entrega totales semanales y cada semana se reparte en partes iguales entre sus dias.'
@@ -270,7 +303,11 @@
   function renderTrend() {
     const panel = document.getElementById('daily-panel');
     const rows = state.weeks;
-    panel.hidden = false;
+    panel.hidden = !rows.length;
+    if (!rows.length) {
+      if (state.trendChart) { state.trendChart.destroy(); state.trendChart = null; }
+      return;
+    }
     const selected = new Set(visibleWeeks().map(({ week }) => week.start));
     document.getElementById('daily-title').textContent = 'Evolucion semanal | todo el periodo';
     const t = withRates(state.data.totals);
@@ -296,13 +333,16 @@
     const items = visibleWeeks();
     const month = currentMonth();
     document.getElementById('campaigns-title').textContent = `Resultados semanales | ${periodLabel()}`;
-    document.getElementById('campaigns-sub').textContent = `${items.length} semanas. % Δ compara cada semana con la anterior; en CPC y costo por conversion, bajar es mejor.`;
+    document.getElementById('campaigns-sub').textContent = items.length
+      ? `${items.length} semanas. % Δ compara cada semana con la anterior; en CPC y costo por conversion, bajar es mejor.`
+      : 'Sin semanas cargadas para este periodo.';
     const note = document.getElementById('campaigns-note');
     const partial = items.filter(({ share }) => share < 1);
-    note.classList.toggle('visible', partial.length > 0);
-    note.textContent = partial.length
-      ? `Las semanas marcadas cruzan de mes: se muestran completas, pero el total de ${month.label} solo suma sus dias dentro del mes.`
+    const partialNote = partial.length && month
+      ? `Las semanas marcadas cruzan de mes: se muestran completas, pero el total de ${month.label} solo cuenta sus dias dentro del mes. `
       : '';
+    note.classList.add('visible');
+    note.textContent = `${partialNote}${monthSourceNote()}`;
     const byStart = new Map(state.weeks.map((week, index) => [week.start, index]));
     const rowsHtml = items.map(({ week, share }) => {
       const prev = state.weeks[byStart.get(week.start) - 1];
@@ -320,7 +360,13 @@
       </tr>`;
     }).join('');
     const t = periodTotals();
-    const totalLabel = state.monthId === ALL ? 'Total del periodo' : `Total ${month.label}${partial.length ? ' (prorrateado)' : ''}`;
+    if (!items.length) {
+      body.innerHTML = `<tr><td colspan="13" class="table-empty">Sin detalle semanal para ${escapeHtml(month ? month.label : 'este periodo')}. El total del mes sigue en los KPIs de arriba.</td></tr>`;
+      return;
+    }
+    const totalLabel = state.monthId === ALL
+      ? 'Total del periodo'
+      : `Total ${month.label}${month.exact ? '' : ' (prorrateado)'}`;
     body.innerHTML = rowsHtml + `
       <tr class="reservations-total-row">
         <td class="total-label">${totalLabel}</td>
