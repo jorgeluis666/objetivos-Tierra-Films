@@ -1,1240 +1,508 @@
 {
   "brand": "Tierra Films",
   "dashboard": "Gasto Publicitario",
-  "moduleSubtitle": "Branding y ventas",
-  "schemaVersion": 2,
+  "moduleSubtitle": "Google Ads | Búsqueda",
+  "schemaVersion": 3,
   "status": "ok",
-  "defaultMonth": "2026-08",
+  "granularity": "week",
+  "currency": "PEN",
+  "sourceFile": "Informe de campaña (1).csv",
+  "period": {
+    "start": "2026-07-01",
+    "end": "2026-09-20"
+  },
+  "defaultMonth": "all",
+  "campaigns": [
+    {
+      "name": "VIDEOS CORPORATIVOS",
+      "status": "Habilitada",
+      "type": "Búsqueda",
+      "dailyBudget": 110.0,
+      "budgetType": "Diario",
+      "currency": "PEN",
+      "optimizationScore": 0.9671
+    }
+  ],
+  "totals": {
+    "cost": 8651.95,
+    "impressions": 27011.0,
+    "clicks": 2403.0,
+    "conversions": 434.0,
+    "ctr": 0.088964,
+    "cpc": 3.6,
+    "costPerConversion": 19.94
+  },
+  "accountTotal": {
+    "cost": 8776.83,
+    "impressions": 27070.0,
+    "clicks": 2419.0,
+    "conversions": 434.0,
+    "ctr": 0.089361,
+    "cpc": 3.63,
+    "costPerConversion": 20.22
+  },
+  "records": [
+    {
+      "campaign": "VIDEOS CORPORATIVOS",
+      "cost": 8651.95,
+      "impressions": 27011.0,
+      "clicks": 2403.0,
+      "conversions": 434.0,
+      "ctr": 0.088964,
+      "cpc": 3.6,
+      "costPerConversion": 19.94
+    }
+  ],
+  "weeks": [
+    {
+      "start": "2026-06-29",
+      "end": "2026-07-05",
+      "dataStart": "2026-07-01",
+      "dataEnd": "2026-07-05",
+      "days": 5,
+      "daysByMonth": {
+        "2026-07": 5
+      },
+      "cost": 569.18,
+      "impressions": 919.0,
+      "clicks": 95.0,
+      "conversions": 1.0,
+      "campaigns": [
+        {
+          "campaign": "VIDEOS CORPORATIVOS",
+          "cost": 569.18,
+          "impressions": 919.0,
+          "clicks": 95.0,
+          "conversions": 1.0,
+          "ctr": 0.103373,
+          "cpc": 5.99,
+          "costPerConversion": 569.18
+        }
+      ],
+      "ctr": 0.103373,
+      "cpc": 5.99,
+      "costPerConversion": 569.18
+    },
+    {
+      "start": "2026-07-06",
+      "end": "2026-07-12",
+      "dataStart": "2026-07-06",
+      "dataEnd": "2026-07-12",
+      "days": 7,
+      "daysByMonth": {
+        "2026-07": 7
+      },
+      "cost": 899.6,
+      "impressions": 1247.0,
+      "clicks": 141.0,
+      "conversions": 6.0,
+      "campaigns": [
+        {
+          "campaign": "VIDEOS CORPORATIVOS",
+          "cost": 899.6,
+          "impressions": 1247.0,
+          "clicks": 141.0,
+          "conversions": 6.0,
+          "ctr": 0.113071,
+          "cpc": 6.38,
+          "costPerConversion": 149.93
+        }
+      ],
+      "ctr": 0.113071,
+      "cpc": 6.38,
+      "costPerConversion": 149.93
+    },
+    {
+      "start": "2026-07-13",
+      "end": "2026-07-19",
+      "dataStart": "2026-07-13",
+      "dataEnd": "2026-07-19",
+      "days": 7,
+      "daysByMonth": {
+        "2026-07": 7
+      },
+      "cost": 937.36,
+      "impressions": 1409.0,
+      "clicks": 127.0,
+      "conversions": 1.0,
+      "campaigns": [
+        {
+          "campaign": "VIDEOS CORPORATIVOS",
+          "cost": 937.36,
+          "impressions": 1409.0,
+          "clicks": 127.0,
+          "conversions": 1.0,
+          "ctr": 0.090135,
+          "cpc": 7.38,
+          "costPerConversion": 937.36
+        }
+      ],
+      "ctr": 0.090135,
+      "cpc": 7.38,
+      "costPerConversion": 937.36
+    },
+    {
+      "start": "2026-07-20",
+      "end": "2026-07-26",
+      "dataStart": "2026-07-20",
+      "dataEnd": "2026-07-26",
+      "days": 7,
+      "daysByMonth": {
+        "2026-07": 7
+      },
+      "cost": 585.3,
+      "impressions": 1326.0,
+      "clicks": 107.0,
+      "conversions": 20.0,
+      "campaigns": [
+        {
+          "campaign": "VIDEOS CORPORATIVOS",
+          "cost": 585.3,
+          "impressions": 1326.0,
+          "clicks": 107.0,
+          "conversions": 20.0,
+          "ctr": 0.080694,
+          "cpc": 5.47,
+          "costPerConversion": 29.26
+        }
+      ],
+      "ctr": 0.080694,
+      "cpc": 5.47,
+      "costPerConversion": 29.26
+    },
+    {
+      "start": "2026-07-27",
+      "end": "2026-08-02",
+      "dataStart": "2026-07-27",
+      "dataEnd": "2026-08-02",
+      "days": 7,
+      "daysByMonth": {
+        "2026-07": 5,
+        "2026-08": 2
+      },
+      "cost": 781.68,
+      "impressions": 1963.0,
+      "clicks": 206.0,
+      "conversions": 56.0,
+      "campaigns": [
+        {
+          "campaign": "VIDEOS CORPORATIVOS",
+          "cost": 781.68,
+          "impressions": 1963.0,
+          "clicks": 206.0,
+          "conversions": 56.0,
+          "ctr": 0.104941,
+          "cpc": 3.79,
+          "costPerConversion": 13.96
+        }
+      ],
+      "ctr": 0.104941,
+      "cpc": 3.79,
+      "costPerConversion": 13.96
+    },
+    {
+      "start": "2026-08-03",
+      "end": "2026-08-09",
+      "dataStart": "2026-08-03",
+      "dataEnd": "2026-08-09",
+      "days": 7,
+      "daysByMonth": {
+        "2026-08": 7
+      },
+      "cost": 726.34,
+      "impressions": 2967.0,
+      "clicks": 251.0,
+      "conversions": 74.0,
+      "campaigns": [
+        {
+          "campaign": "VIDEOS CORPORATIVOS",
+          "cost": 726.34,
+          "impressions": 2967.0,
+          "clicks": 251.0,
+          "conversions": 74.0,
+          "ctr": 0.084597,
+          "cpc": 2.89,
+          "costPerConversion": 9.82
+        }
+      ],
+      "ctr": 0.084597,
+      "cpc": 2.89,
+      "costPerConversion": 9.82
+    },
+    {
+      "start": "2026-08-10",
+      "end": "2026-08-16",
+      "dataStart": "2026-08-10",
+      "dataEnd": "2026-08-16",
+      "days": 7,
+      "daysByMonth": {
+        "2026-08": 7
+      },
+      "cost": 783.54,
+      "impressions": 3320.0,
+      "clicks": 324.0,
+      "conversions": 103.0,
+      "campaigns": [
+        {
+          "campaign": "VIDEOS CORPORATIVOS",
+          "cost": 783.54,
+          "impressions": 3320.0,
+          "clicks": 324.0,
+          "conversions": 103.0,
+          "ctr": 0.09759,
+          "cpc": 2.42,
+          "costPerConversion": 7.61
+        }
+      ],
+      "ctr": 0.09759,
+      "cpc": 2.42,
+      "costPerConversion": 7.61
+    },
+    {
+      "start": "2026-08-17",
+      "end": "2026-08-23",
+      "dataStart": "2026-08-17",
+      "dataEnd": "2026-08-23",
+      "days": 7,
+      "daysByMonth": {
+        "2026-08": 7
+      },
+      "cost": 513.39,
+      "impressions": 1958.0,
+      "clicks": 165.0,
+      "conversions": 34.0,
+      "campaigns": [
+        {
+          "campaign": "VIDEOS CORPORATIVOS",
+          "cost": 513.39,
+          "impressions": 1958.0,
+          "clicks": 165.0,
+          "conversions": 34.0,
+          "ctr": 0.08427,
+          "cpc": 3.11,
+          "costPerConversion": 15.1
+        }
+      ],
+      "ctr": 0.08427,
+      "cpc": 3.11,
+      "costPerConversion": 15.1
+    },
+    {
+      "start": "2026-08-24",
+      "end": "2026-08-30",
+      "dataStart": "2026-08-24",
+      "dataEnd": "2026-08-30",
+      "days": 7,
+      "daysByMonth": {
+        "2026-08": 7
+      },
+      "cost": 1078.52,
+      "impressions": 3781.0,
+      "clicks": 344.0,
+      "conversions": 84.0,
+      "campaigns": [
+        {
+          "campaign": "VIDEOS CORPORATIVOS",
+          "cost": 1078.52,
+          "impressions": 3781.0,
+          "clicks": 344.0,
+          "conversions": 84.0,
+          "ctr": 0.090981,
+          "cpc": 3.14,
+          "costPerConversion": 12.84
+        }
+      ],
+      "ctr": 0.090981,
+      "cpc": 3.14,
+      "costPerConversion": 12.84
+    },
+    {
+      "start": "2026-08-31",
+      "end": "2026-09-06",
+      "dataStart": "2026-08-31",
+      "dataEnd": "2026-09-06",
+      "days": 7,
+      "daysByMonth": {
+        "2026-08": 1,
+        "2026-09": 6
+      },
+      "cost": 934.32,
+      "impressions": 3356.0,
+      "clicks": 291.0,
+      "conversions": 41.0,
+      "campaigns": [
+        {
+          "campaign": "VIDEOS CORPORATIVOS",
+          "cost": 934.32,
+          "impressions": 3356.0,
+          "clicks": 291.0,
+          "conversions": 41.0,
+          "ctr": 0.08671,
+          "cpc": 3.21,
+          "costPerConversion": 22.79
+        }
+      ],
+      "ctr": 0.08671,
+      "cpc": 3.21,
+      "costPerConversion": 22.79
+    },
+    {
+      "start": "2026-09-07",
+      "end": "2026-09-13",
+      "dataStart": "2026-09-07",
+      "dataEnd": "2026-09-13",
+      "days": 7,
+      "daysByMonth": {
+        "2026-09": 7
+      },
+      "cost": 675.85,
+      "impressions": 3824.0,
+      "clicks": 281.0,
+      "conversions": 10.0,
+      "campaigns": [
+        {
+          "campaign": "VIDEOS CORPORATIVOS",
+          "cost": 675.85,
+          "impressions": 3824.0,
+          "clicks": 281.0,
+          "conversions": 10.0,
+          "ctr": 0.073483,
+          "cpc": 2.41,
+          "costPerConversion": 67.59
+        }
+      ],
+      "ctr": 0.073483,
+      "cpc": 2.41,
+      "costPerConversion": 67.59
+    },
+    {
+      "start": "2026-09-14",
+      "end": "2026-09-20",
+      "dataStart": "2026-09-14",
+      "dataEnd": "2026-09-20",
+      "days": 7,
+      "daysByMonth": {
+        "2026-09": 7
+      },
+      "cost": 166.87,
+      "impressions": 941.0,
+      "clicks": 71.0,
+      "conversions": 4.0,
+      "campaigns": [
+        {
+          "campaign": "VIDEOS CORPORATIVOS",
+          "cost": 166.87,
+          "impressions": 941.0,
+          "clicks": 71.0,
+          "conversions": 4.0,
+          "ctr": 0.075452,
+          "cpc": 2.35,
+          "costPerConversion": 41.72
+        }
+      ],
+      "ctr": 0.075452,
+      "cpc": 2.35,
+      "costPerConversion": 41.72
+    }
+  ],
   "months": [
-    {
-      "id": "2026-01",
-      "label": "Enero 2026",
-      "records": [],
-      "daily": {
-        "sourceFiles": [
-          "Gráfico_de_serie_temporal(2026.01.01-2026.01.31).csv"
-        ],
-        "rows": [
-          {
-            "date": "2026-01-01",
-            "impressions": 309
-          },
-          {
-            "date": "2026-01-02",
-            "impressions": 770
-          },
-          {
-            "date": "2026-01-03",
-            "impressions": 535
-          },
-          {
-            "date": "2026-01-04",
-            "impressions": 638
-          },
-          {
-            "date": "2026-01-05",
-            "impressions": 800
-          },
-          {
-            "date": "2026-01-06",
-            "impressions": 749
-          },
-          {
-            "date": "2026-01-07",
-            "impressions": 636
-          },
-          {
-            "date": "2026-01-08",
-            "impressions": 692
-          },
-          {
-            "date": "2026-01-09",
-            "impressions": 1099
-          },
-          {
-            "date": "2026-01-10",
-            "impressions": 533
-          },
-          {
-            "date": "2026-01-11",
-            "impressions": 587
-          },
-          {
-            "date": "2026-01-12",
-            "impressions": 701
-          },
-          {
-            "date": "2026-01-13",
-            "impressions": 691
-          },
-          {
-            "date": "2026-01-14",
-            "impressions": 820
-          },
-          {
-            "date": "2026-01-15",
-            "impressions": 676
-          },
-          {
-            "date": "2026-01-16",
-            "impressions": 974
-          },
-          {
-            "date": "2026-01-17",
-            "impressions": 634
-          },
-          {
-            "date": "2026-01-18",
-            "impressions": 689
-          },
-          {
-            "date": "2026-01-19",
-            "impressions": 666
-          },
-          {
-            "date": "2026-01-20",
-            "impressions": 527
-          },
-          {
-            "date": "2026-01-21",
-            "impressions": 424
-          },
-          {
-            "date": "2026-01-22",
-            "impressions": 456
-          },
-          {
-            "date": "2026-01-23",
-            "impressions": 425
-          },
-          {
-            "date": "2026-01-24",
-            "impressions": 489
-          },
-          {
-            "date": "2026-01-25",
-            "impressions": 389
-          },
-          {
-            "date": "2026-01-26",
-            "impressions": 607
-          },
-          {
-            "date": "2026-01-27",
-            "impressions": 527
-          },
-          {
-            "date": "2026-01-28",
-            "impressions": 499
-          },
-          {
-            "date": "2026-01-29",
-            "impressions": 555
-          },
-          {
-            "date": "2026-01-30",
-            "impressions": 520
-          },
-          {
-            "date": "2026-01-31",
-            "impressions": 524
-          }
-        ]
-      }
-    },
-    {
-      "id": "2026-02",
-      "label": "Febrero 2026",
-      "records": [],
-      "daily": {
-        "sourceFiles": [
-          "Gráfico_de_serie_temporal(2026.02.01-2026.02.28).csv"
-        ],
-        "rows": [
-          {
-            "date": "2026-02-01",
-            "impressions": 506
-          },
-          {
-            "date": "2026-02-02",
-            "impressions": 527
-          },
-          {
-            "date": "2026-02-03",
-            "impressions": 544
-          },
-          {
-            "date": "2026-02-04",
-            "impressions": 460
-          },
-          {
-            "date": "2026-02-05",
-            "impressions": 453
-          },
-          {
-            "date": "2026-02-06",
-            "impressions": 632
-          },
-          {
-            "date": "2026-02-07",
-            "impressions": 465
-          },
-          {
-            "date": "2026-02-08",
-            "impressions": 466
-          },
-          {
-            "date": "2026-02-09",
-            "impressions": 466
-          },
-          {
-            "date": "2026-02-10",
-            "impressions": 572
-          },
-          {
-            "date": "2026-02-11",
-            "impressions": 517
-          },
-          {
-            "date": "2026-02-12",
-            "impressions": 342
-          },
-          {
-            "date": "2026-02-13",
-            "impressions": 382
-          },
-          {
-            "date": "2026-02-14",
-            "impressions": 388
-          },
-          {
-            "date": "2026-02-15",
-            "impressions": 448
-          },
-          {
-            "date": "2026-02-16",
-            "impressions": 176
-          },
-          {
-            "date": "2026-02-17",
-            "impressions": 97
-          },
-          {
-            "date": "2026-02-18",
-            "impressions": 122
-          },
-          {
-            "date": "2026-02-19",
-            "impressions": 65
-          },
-          {
-            "date": "2026-02-20",
-            "impressions": 77
-          },
-          {
-            "date": "2026-02-21",
-            "impressions": 55
-          },
-          {
-            "date": "2026-02-22",
-            "impressions": 263
-          },
-          {
-            "date": "2026-02-23",
-            "impressions": 305
-          },
-          {
-            "date": "2026-02-24",
-            "impressions": 348
-          },
-          {
-            "date": "2026-02-25",
-            "impressions": 396
-          },
-          {
-            "date": "2026-02-26",
-            "impressions": 357
-          },
-          {
-            "date": "2026-02-27",
-            "impressions": 298
-          },
-          {
-            "date": "2026-02-28",
-            "impressions": 405
-          }
-        ]
-      }
-    },
-    {
-      "id": "2026-03",
-      "label": "Marzo 2026",
-      "records": [],
-      "daily": {
-        "sourceFiles": [
-          "Gráfico_de_serie_temporal(2026.03.01-2026.03.31).csv"
-        ],
-        "rows": [
-          {
-            "date": "2026-03-01",
-            "impressions": 382
-          },
-          {
-            "date": "2026-03-02",
-            "impressions": 549
-          },
-          {
-            "date": "2026-03-03",
-            "impressions": 401
-          },
-          {
-            "date": "2026-03-04",
-            "impressions": 440
-          },
-          {
-            "date": "2026-03-05",
-            "impressions": 421
-          },
-          {
-            "date": "2026-03-06",
-            "impressions": 325
-          },
-          {
-            "date": "2026-03-07",
-            "impressions": 231
-          },
-          {
-            "date": "2026-03-08",
-            "impressions": 279
-          },
-          {
-            "date": "2026-03-09",
-            "impressions": 350
-          },
-          {
-            "date": "2026-03-10",
-            "impressions": 395
-          },
-          {
-            "date": "2026-03-11",
-            "impressions": 490
-          },
-          {
-            "date": "2026-03-12",
-            "impressions": 589
-          },
-          {
-            "date": "2026-03-13",
-            "impressions": 465
-          },
-          {
-            "date": "2026-03-14",
-            "impressions": 295
-          },
-          {
-            "date": "2026-03-15",
-            "impressions": 345
-          },
-          {
-            "date": "2026-03-16",
-            "impressions": 449
-          },
-          {
-            "date": "2026-03-17",
-            "impressions": 380
-          },
-          {
-            "date": "2026-03-18",
-            "impressions": 373
-          },
-          {
-            "date": "2026-03-19",
-            "impressions": 361
-          },
-          {
-            "date": "2026-03-20",
-            "impressions": 406
-          },
-          {
-            "date": "2026-03-21",
-            "impressions": 236
-          },
-          {
-            "date": "2026-03-22",
-            "impressions": 401
-          },
-          {
-            "date": "2026-03-23",
-            "impressions": 498
-          },
-          {
-            "date": "2026-03-24",
-            "impressions": 309
-          },
-          {
-            "date": "2026-03-25",
-            "impressions": 407
-          },
-          {
-            "date": "2026-03-26",
-            "impressions": 438
-          },
-          {
-            "date": "2026-03-27",
-            "impressions": 281
-          },
-          {
-            "date": "2026-03-28",
-            "impressions": 203
-          },
-          {
-            "date": "2026-03-29",
-            "impressions": 359
-          },
-          {
-            "date": "2026-03-30",
-            "impressions": 381
-          },
-          {
-            "date": "2026-03-31",
-            "impressions": 274
-          }
-        ]
-      }
-    },
-    {
-      "id": "2026-04",
-      "label": "Abril 2026",
-      "records": [],
-      "daily": {
-        "sourceFiles": [
-          "Gráfico_de_serie_temporal(2026.04.01-2026.04.30).csv"
-        ],
-        "rows": [
-          {
-            "date": "2026-04-01",
-            "impressions": 364
-          },
-          {
-            "date": "2026-04-02",
-            "impressions": 268
-          },
-          {
-            "date": "2026-04-03",
-            "impressions": 314
-          },
-          {
-            "date": "2026-04-04",
-            "impressions": 277
-          },
-          {
-            "date": "2026-04-05",
-            "impressions": 415
-          },
-          {
-            "date": "2026-04-06",
-            "impressions": 514
-          },
-          {
-            "date": "2026-04-07",
-            "impressions": 287
-          },
-          {
-            "date": "2026-04-08",
-            "impressions": 634
-          },
-          {
-            "date": "2026-04-09",
-            "impressions": 540
-          },
-          {
-            "date": "2026-04-10",
-            "impressions": 368
-          },
-          {
-            "date": "2026-04-11",
-            "impressions": 502
-          },
-          {
-            "date": "2026-04-12",
-            "impressions": 185
-          },
-          {
-            "date": "2026-04-13",
-            "impressions": 633
-          },
-          {
-            "date": "2026-04-14",
-            "impressions": 482
-          },
-          {
-            "date": "2026-04-15",
-            "impressions": 560
-          },
-          {
-            "date": "2026-04-16",
-            "impressions": 411
-          },
-          {
-            "date": "2026-04-17",
-            "impressions": 391
-          },
-          {
-            "date": "2026-04-18",
-            "impressions": 265
-          },
-          {
-            "date": "2026-04-19",
-            "impressions": 262
-          },
-          {
-            "date": "2026-04-20",
-            "impressions": 413
-          },
-          {
-            "date": "2026-04-21",
-            "impressions": 430
-          },
-          {
-            "date": "2026-04-22",
-            "impressions": 369
-          },
-          {
-            "date": "2026-04-23",
-            "impressions": 446
-          },
-          {
-            "date": "2026-04-24",
-            "impressions": 407
-          },
-          {
-            "date": "2026-04-25",
-            "impressions": 391
-          },
-          {
-            "date": "2026-04-26",
-            "impressions": 370
-          },
-          {
-            "date": "2026-04-27",
-            "impressions": 353
-          },
-          {
-            "date": "2026-04-28",
-            "impressions": 331
-          },
-          {
-            "date": "2026-04-29",
-            "impressions": 362
-          },
-          {
-            "date": "2026-04-30",
-            "impressions": 274
-          }
-        ]
-      }
-    },
-    {
-      "id": "2026-05",
-      "label": "Mayo 2026",
-      "records": [],
-      "daily": {
-        "sourceFiles": [
-          "Gráfico_de_serie_temporal(2026.05.01-2026.05.31).csv"
-        ],
-        "rows": [
-          {
-            "date": "2026-05-01",
-            "impressions": 271
-          },
-          {
-            "date": "2026-05-02",
-            "impressions": 364
-          },
-          {
-            "date": "2026-05-03",
-            "impressions": 238
-          },
-          {
-            "date": "2026-05-04",
-            "impressions": 272
-          },
-          {
-            "date": "2026-05-05",
-            "impressions": 285
-          },
-          {
-            "date": "2026-05-06",
-            "impressions": 363
-          },
-          {
-            "date": "2026-05-07",
-            "impressions": 347
-          },
-          {
-            "date": "2026-05-08",
-            "impressions": 343
-          },
-          {
-            "date": "2026-05-09",
-            "impressions": 251
-          },
-          {
-            "date": "2026-05-10",
-            "impressions": 257
-          },
-          {
-            "date": "2026-05-11",
-            "impressions": 374
-          },
-          {
-            "date": "2026-05-12",
-            "impressions": 386
-          },
-          {
-            "date": "2026-05-13",
-            "impressions": 352
-          },
-          {
-            "date": "2026-05-14",
-            "impressions": 342
-          },
-          {
-            "date": "2026-05-15",
-            "impressions": 426
-          },
-          {
-            "date": "2026-05-16",
-            "impressions": 257
-          },
-          {
-            "date": "2026-05-17",
-            "impressions": 231
-          },
-          {
-            "date": "2026-05-18",
-            "impressions": 363
-          },
-          {
-            "date": "2026-05-19",
-            "impressions": 367
-          },
-          {
-            "date": "2026-05-20",
-            "impressions": 414
-          },
-          {
-            "date": "2026-05-21",
-            "impressions": 373
-          },
-          {
-            "date": "2026-05-22",
-            "impressions": 411
-          },
-          {
-            "date": "2026-05-23",
-            "impressions": 275
-          },
-          {
-            "date": "2026-05-24",
-            "impressions": 299
-          },
-          {
-            "date": "2026-05-25",
-            "impressions": 396
-          },
-          {
-            "date": "2026-05-26",
-            "impressions": 291
-          },
-          {
-            "date": "2026-05-27",
-            "impressions": 247
-          },
-          {
-            "date": "2026-05-28",
-            "impressions": 242
-          },
-          {
-            "date": "2026-05-29",
-            "impressions": 274
-          },
-          {
-            "date": "2026-05-30",
-            "impressions": 179
-          },
-          {
-            "date": "2026-05-31",
-            "impressions": 188
-          }
-        ]
-      }
-    },
-    {
-      "id": "2026-06",
-      "label": "Junio 2026",
-      "records": [],
-      "daily": {
-        "sourceFiles": [
-          "Gráfico_de_serie_temporal(2026.06.01-2026.06.30).csv"
-        ],
-        "rows": [
-          {
-            "date": "2026-06-01",
-            "impressions": 452
-          },
-          {
-            "date": "2026-06-02",
-            "impressions": 490
-          },
-          {
-            "date": "2026-06-03",
-            "impressions": 367
-          },
-          {
-            "date": "2026-06-04",
-            "impressions": 298
-          },
-          {
-            "date": "2026-06-05",
-            "impressions": 349
-          },
-          {
-            "date": "2026-06-06",
-            "impressions": 213
-          },
-          {
-            "date": "2026-06-07",
-            "impressions": 170
-          },
-          {
-            "date": "2026-06-08",
-            "impressions": 420
-          },
-          {
-            "date": "2026-06-09",
-            "impressions": 449
-          },
-          {
-            "date": "2026-06-10",
-            "impressions": 339
-          },
-          {
-            "date": "2026-06-11",
-            "impressions": 333
-          },
-          {
-            "date": "2026-06-12",
-            "impressions": 401
-          },
-          {
-            "date": "2026-06-13",
-            "impressions": 222
-          },
-          {
-            "date": "2026-06-14",
-            "impressions": 251
-          },
-          {
-            "date": "2026-06-15",
-            "impressions": 310
-          },
-          {
-            "date": "2026-06-16",
-            "impressions": 382
-          },
-          {
-            "date": "2026-06-17",
-            "impressions": 396
-          },
-          {
-            "date": "2026-06-18",
-            "impressions": 316
-          },
-          {
-            "date": "2026-06-19",
-            "impressions": 343
-          },
-          {
-            "date": "2026-06-20",
-            "impressions": 245
-          },
-          {
-            "date": "2026-06-21",
-            "impressions": 227
-          },
-          {
-            "date": "2026-06-22",
-            "impressions": 321
-          },
-          {
-            "date": "2026-06-23",
-            "impressions": 536
-          },
-          {
-            "date": "2026-06-24",
-            "impressions": 459
-          },
-          {
-            "date": "2026-06-25",
-            "impressions": 291
-          },
-          {
-            "date": "2026-06-26",
-            "impressions": 413
-          },
-          {
-            "date": "2026-06-27",
-            "impressions": 187
-          },
-          {
-            "date": "2026-06-28",
-            "impressions": 240
-          },
-          {
-            "date": "2026-06-29",
-            "impressions": 154
-          },
-          {
-            "date": "2026-06-30",
-            "impressions": 348
-          }
-        ]
-      }
-    },
     {
       "id": "2026-07",
       "label": "Julio 2026",
-      "records": [],
-      "daily": {
-        "sourceFiles": [
-          "Gráfico_de_serie_temporal(2026.07.01-2026.07.31).csv"
-        ],
-        "rows": [
-          {
-            "date": "2026-07-01",
-            "impressions": 301
-          },
-          {
-            "date": "2026-07-02",
-            "impressions": 288
-          },
-          {
-            "date": "2026-07-03",
-            "impressions": 322
-          },
-          {
-            "date": "2026-07-04",
-            "impressions": 165
-          },
-          {
-            "date": "2026-07-05",
-            "impressions": 177
-          },
-          {
-            "date": "2026-07-06",
-            "impressions": 303
-          },
-          {
-            "date": "2026-07-07",
-            "impressions": 239
-          },
-          {
-            "date": "2026-07-08",
-            "impressions": 368
-          },
-          {
-            "date": "2026-07-09",
-            "impressions": 199
-          },
-          {
-            "date": "2026-07-10",
-            "impressions": 226
-          },
-          {
-            "date": "2026-07-11",
-            "impressions": 157
-          },
-          {
-            "date": "2026-07-12",
-            "impressions": 170
-          },
-          {
-            "date": "2026-07-13",
-            "impressions": 239
-          },
-          {
-            "date": "2026-07-14",
-            "impressions": 455
-          },
-          {
-            "date": "2026-07-15",
-            "impressions": 582
-          },
-          {
-            "date": "2026-07-16",
-            "impressions": 647
-          },
-          {
-            "date": "2026-07-17",
-            "impressions": 481
-          },
-          {
-            "date": "2026-07-18",
-            "impressions": 1035
-          },
-          {
-            "date": "2026-07-19",
-            "impressions": 408
-          },
-          {
-            "date": "2026-07-20",
-            "impressions": 735
-          },
-          {
-            "date": "2026-07-21",
-            "impressions": 999
-          },
-          {
-            "date": "2026-07-22",
-            "impressions": 716
-          },
-          {
-            "date": "2026-07-23",
-            "impressions": 645
-          },
-          {
-            "date": "2026-07-24",
-            "impressions": 800
-          },
-          {
-            "date": "2026-07-25",
-            "impressions": 761
-          },
-          {
-            "date": "2026-07-26",
-            "impressions": 291
-          },
-          {
-            "date": "2026-07-27",
-            "impressions": 773
-          },
-          {
-            "date": "2026-07-28",
-            "impressions": 658
-          },
-          {
-            "date": "2026-07-29",
-            "impressions": 782
-          },
-          {
-            "date": "2026-07-30",
-            "impressions": 966
-          },
-          {
-            "date": "2026-07-31",
-            "impressions": 600
-          }
-        ]
-      }
+      "sourceFile": "Informe de campaña (1).csv",
+      "daysWithData": 31,
+      "daysInMonth": 31,
+      "weeks": [
+        "2026-06-29",
+        "2026-07-06",
+        "2026-07-13",
+        "2026-07-20",
+        "2026-07-27"
+      ],
+      "cost": 3549.78,
+      "impressions": 6303.14,
+      "clicks": 617.14,
+      "conversions": 68.0,
+      "records": [
+        {
+          "campaign": "VIDEOS CORPORATIVOS",
+          "cost": 3549.78,
+          "impressions": 6303.14,
+          "clicks": 617.14,
+          "conversions": 68.0,
+          "ctr": 0.09791,
+          "cpc": 5.75,
+          "costPerConversion": 52.2
+        }
+      ],
+      "ctr": 0.09791,
+      "cpc": 5.75,
+      "costPerConversion": 52.2
     },
     {
       "id": "2026-08",
       "label": "Agosto 2026",
-      "sourceFile": "Reporte_Aquarius_Agosto2026_tabla.csv",
-      "receivedHeaders": [
-        "Campaña",
-        "Coste",
-        "% Δ",
-        "CTR",
-        "% Δ",
-        "Clics",
-        "% Δ",
-        "Conv",
-        "% Δ",
-        "Cos/con",
-        "% Δ"
+      "sourceFile": "Informe de campaña (1).csv",
+      "daysWithData": 31,
+      "daysInMonth": 31,
+      "weeks": [
+        "2026-07-27",
+        "2026-08-03",
+        "2026-08-10",
+        "2026-08-17",
+        "2026-08-24",
+        "2026-08-31"
       ],
+      "cost": 3458.6,
+      "impressions": 13066.29,
+      "clicks": 1184.43,
+      "conversions": 316.86,
       "records": [
         {
-          "campaign": "IDG_AQUARIUSCONSULTING_PE_SKAG-ACTIVOSFIJOS",
-          "cost": 1113.19,
-          "costDelta": 1.729,
-          "ctr": 0.065,
-          "ctrDelta": -0.725,
-          "clicks": 1885,
-          "clicksDelta": 1.118,
-          "conversions": 69,
-          "conversionsDelta": 0.255,
-          "costPerConversion": 16.13,
-          "costPerConversionDelta": 1.175
-        },
-        {
-          "campaign": "IDG_AQUARIUSCONSULTING_PE_SKAG-ALMACENAMIENTO",
-          "cost": 527.8,
-          "costDelta": 1.892,
-          "ctr": 0.0959,
-          "ctrDelta": 0.168,
-          "clicks": 297,
-          "clicksDelta": -0.029,
-          "conversions": 38,
-          "conversionsDelta": 0.583,
-          "costPerConversion": 13.89,
-          "costPerConversionDelta": 0.826
-        },
-        {
-          "campaign": "IDG_AQUARIUSCONSULTING_PE_SKAG-VALUACIONESCOMERCIALES",
-          "cost": 91.09,
-          "costDelta": 0.122,
-          "ctr": 0.0764,
-          "ctrDelta": 0.086,
-          "clicks": 68,
-          "clicksDelta": -0.299,
-          "conversions": 6,
-          "conversionsDelta": -0.455,
-          "costPerConversion": 15.18,
-          "costPerConversionDelta": 1.057
-        },
-        {
-          "campaign": "IDG_AQUARIUSCONSULTING_PE_SKAG-OUTSOURCINGDEALMACENES",
-          "cost": 74.16,
-          "costDelta": -0.8,
-          "ctr": 0.0909,
-          "ctrDelta": -0.294,
-          "clicks": 40,
-          "clicksDelta": -0.923,
-          "conversions": 12,
-          "conversionsDelta": -0.333,
-          "costPerConversion": 6.18,
-          "costPerConversionDelta": -0.7
-        },
-        {
-          "campaign": "IDG_AQUARIUSCONSULTING_PE_SKAG-GESTIONLOGISTICA",
-          "cost": 48.61,
-          "costDelta": -0.806,
-          "ctr": 0.0919,
-          "ctrDelta": -0.038,
-          "clicks": 35,
-          "clicksDelta": -0.917,
-          "conversions": 4,
-          "conversionsDelta": -0.907,
-          "costPerConversion": 12.15,
-          "costPerConversionDelta": 1.084
+          "campaign": "VIDEOS CORPORATIVOS",
+          "cost": 3458.6,
+          "impressions": 13066.29,
+          "clicks": 1184.43,
+          "conversions": 316.86,
+          "ctr": 0.090648,
+          "cpc": 2.92,
+          "costPerConversion": 10.92
         }
       ],
-      "daily": {
-        "sourceFiles": [
-          "Gráfico_de_serie_temporal(2026.08.01-2026.08.31).csv"
-        ],
-        "rows": [
-          {
-            "date": "2026-08-01",
-            "impressions": 1234
-          },
-          {
-            "date": "2026-08-02",
-            "impressions": 1164
-          },
-          {
-            "date": "2026-08-03",
-            "impressions": 1323
-          },
-          {
-            "date": "2026-08-04",
-            "impressions": 1136
-          },
-          {
-            "date": "2026-08-05",
-            "impressions": 1392
-          },
-          {
-            "date": "2026-08-06",
-            "impressions": 832
-          },
-          {
-            "date": "2026-08-07",
-            "impressions": 1235
-          },
-          {
-            "date": "2026-08-08",
-            "impressions": 1172
-          },
-          {
-            "date": "2026-08-09",
-            "impressions": 1058
-          },
-          {
-            "date": "2026-08-10",
-            "impressions": 1341
-          },
-          {
-            "date": "2026-08-11",
-            "impressions": 1446
-          },
-          {
-            "date": "2026-08-12",
-            "impressions": 1924
-          },
-          {
-            "date": "2026-08-13",
-            "impressions": 1568
-          },
-          {
-            "date": "2026-08-14",
-            "impressions": 1202
-          },
-          {
-            "date": "2026-08-15",
-            "impressions": 593
-          },
-          {
-            "date": "2026-08-16",
-            "impressions": 500
-          },
-          {
-            "date": "2026-08-17",
-            "impressions": 1386
-          },
-          {
-            "date": "2026-08-18",
-            "impressions": 1044
-          },
-          {
-            "date": "2026-08-19",
-            "impressions": 880
-          },
-          {
-            "date": "2026-08-20",
-            "impressions": 755
-          },
-          {
-            "date": "2026-08-21",
-            "impressions": 759
-          },
-          {
-            "date": "2026-08-22",
-            "impressions": 993
-          },
-          {
-            "date": "2026-08-23",
-            "impressions": 599
-          },
-          {
-            "date": "2026-08-24",
-            "impressions": 677
-          },
-          {
-            "date": "2026-08-25",
-            "impressions": 664
-          },
-          {
-            "date": "2026-08-26",
-            "impressions": 1623
-          },
-          {
-            "date": "2026-08-27",
-            "impressions": 992
-          },
-          {
-            "date": "2026-08-28",
-            "impressions": 1289
-          },
-          {
-            "date": "2026-08-29",
-            "impressions": 923
-          },
-          {
-            "date": "2026-08-30",
-            "impressions": 933
-          },
-          {
-            "date": "2026-08-31",
-            "impressions": 1191
-          }
-        ]
-      }
-    }
-  ],
-  "month": "2026-08",
-  "sourceFile": "Reporte_Aquarius_Agosto2026_tabla.csv",
-  "receivedHeaders": [
-    "Campaña",
-    "Coste",
-    "% Δ",
-    "CTR",
-    "% Δ",
-    "Clics",
-    "% Δ",
-    "Conv",
-    "% Δ",
-    "Cos/con",
-    "% Δ"
-  ],
-  "records": [
-    {
-      "campaign": "IDG_AQUARIUSCONSULTING_PE_SKAG-ACTIVOSFIJOS",
-      "cost": 1113.19,
-      "costDelta": 1.729,
-      "ctr": 0.065,
-      "ctrDelta": -0.725,
-      "clicks": 1885,
-      "clicksDelta": 1.118,
-      "conversions": 69,
-      "conversionsDelta": 0.255,
-      "costPerConversion": 16.13,
-      "costPerConversionDelta": 1.175
+      "ctr": 0.090648,
+      "cpc": 2.92,
+      "costPerConversion": 10.92
     },
     {
-      "campaign": "IDG_AQUARIUSCONSULTING_PE_SKAG-ALMACENAMIENTO",
-      "cost": 527.8,
-      "costDelta": 1.892,
-      "ctr": 0.0959,
-      "ctrDelta": 0.168,
-      "clicks": 297,
-      "clicksDelta": -0.029,
-      "conversions": 38,
-      "conversionsDelta": 0.583,
-      "costPerConversion": 13.89,
-      "costPerConversionDelta": 0.826
-    },
-    {
-      "campaign": "IDG_AQUARIUSCONSULTING_PE_SKAG-VALUACIONESCOMERCIALES",
-      "cost": 91.09,
-      "costDelta": 0.122,
-      "ctr": 0.0764,
-      "ctrDelta": 0.086,
-      "clicks": 68,
-      "clicksDelta": -0.299,
-      "conversions": 6,
-      "conversionsDelta": -0.455,
-      "costPerConversion": 15.18,
-      "costPerConversionDelta": 1.057
-    },
-    {
-      "campaign": "IDG_AQUARIUSCONSULTING_PE_SKAG-OUTSOURCINGDEALMACENES",
-      "cost": 74.16,
-      "costDelta": -0.8,
-      "ctr": 0.0909,
-      "ctrDelta": -0.294,
-      "clicks": 40,
-      "clicksDelta": -0.923,
-      "conversions": 12,
-      "conversionsDelta": -0.333,
-      "costPerConversion": 6.18,
-      "costPerConversionDelta": -0.7
-    },
-    {
-      "campaign": "IDG_AQUARIUSCONSULTING_PE_SKAG-GESTIONLOGISTICA",
-      "cost": 48.61,
-      "costDelta": -0.806,
-      "ctr": 0.0919,
-      "ctrDelta": -0.038,
-      "clicks": 35,
-      "clicksDelta": -0.917,
-      "conversions": 4,
-      "conversionsDelta": -0.907,
-      "costPerConversion": 12.15,
-      "costPerConversionDelta": 1.084
+      "id": "2026-09",
+      "label": "Setiembre 2026",
+      "sourceFile": "Informe de campaña (1).csv",
+      "daysWithData": 20,
+      "daysInMonth": 30,
+      "weeks": [
+        "2026-08-31",
+        "2026-09-07",
+        "2026-09-14"
+      ],
+      "cost": 1643.57,
+      "impressions": 7641.57,
+      "clicks": 601.43,
+      "conversions": 49.14,
+      "records": [
+        {
+          "campaign": "VIDEOS CORPORATIVOS",
+          "cost": 1643.57,
+          "impressions": 7641.57,
+          "clicks": 601.43,
+          "conversions": 49.14,
+          "ctr": 0.078705,
+          "cpc": 2.73,
+          "costPerConversion": 33.45
+        }
+      ],
+      "ctr": 0.078705,
+      "cpc": 2.73,
+      "costPerConversion": 33.45
     }
   ]
 }
