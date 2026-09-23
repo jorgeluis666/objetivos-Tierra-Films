@@ -169,6 +169,7 @@
   }
 
   // De donde sale el total del mes: informe mensual, serie diaria o prorrateo.
+  // Texto plano: se usa con textContent y, en renderFilters, pasa por escapeHtml.
   function monthSourceNote() {
     const month = currentMonth();
     if (!month) {
@@ -182,7 +183,7 @@
       ? ` El detalle semanal cubre ${month.weekDays} dias, asi que puede no sumar exactamente el total del mes.`
       : '';
     if (month.exact) {
-      return `Total de ${month.label} tomado del informe mensual${range}: ${escapeHtml(month.sourceFile)}.${weeksNote}`;
+      return `Total de ${month.label} tomado del informe mensual${range}: ${month.sourceFile}.${weeksNote}`;
     }
     if (month.exactMetrics && month.exactMetrics.length) {
       const exactLabels = month.exactMetrics.map(metric => (SERIES[metric] ? SERIES[metric].label.toLowerCase() : metric));
@@ -219,7 +220,7 @@
       </div>
       <div class="retail-filter filter-hint">
         <span>Cuenta Google Ads</span>
-        <p>${state.data.campaigns.length} ${state.data.campaigns.length === 1 ? 'campaña' : 'campañas'} de ${escapeHtml(campaign ? campaign.type : 'Búsqueda')}${campaign && campaign.dailyBudget ? ` | presupuesto ${fmtMoney(campaign.dailyBudget)}/dia` : ''} | ${state.months.length} meses y ${state.weeks.length} semanas cargadas.<br>${monthSourceNote()}</p>
+        <p>${state.data.campaigns.length} ${state.data.campaigns.length === 1 ? 'campaña' : 'campañas'} de ${escapeHtml(campaign ? campaign.type : 'Búsqueda')}${campaign && campaign.dailyBudget ? ` | presupuesto ${fmtMoney(campaign.dailyBudget)}/dia` : ''} | ${state.months.length} meses y ${state.weeks.length} semanas cargadas.<br>${escapeHtml(monthSourceNote())}</p>
       </div>
     `;
     host.querySelectorAll('[data-month]').forEach(button => {
@@ -406,7 +407,7 @@
     const byStart = new Map(state.weeks.map((week, index) => [week.start, index]));
     const rowsHtml = items.map(({ week, share }) => {
       const prev = state.weeks[byStart.get(week.start) - 1];
-      const tag = share < 1 ? `<small>${week.daysByMonth[state.monthId]} de ${week.days} dias en ${month.label.split(' ')[0].toLowerCase()}</small>` : (week.days < 7 ? `<small>${week.days} dias con datos</small>` : '');
+      const tag = share < 1 ? `<small>${escapeHtml(`${week.daysByMonth[state.monthId]} de ${week.days} dias en ${month.label.split(' ')[0].toLowerCase()}`)}</small>` : (week.days < 7 ? `<small>${escapeHtml(week.days)} dias con datos</small>` : '');
       return `
       <tr>
         <td class="campaign-name"><span>${escapeHtml(weekLabel(week))}</span>${tag}</td>
@@ -429,7 +430,7 @@
       : `Total ${month.label}${month.exact || (month.exactMetrics && month.exactMetrics.length) ? '' : ' (prorrateado)'}`;
     body.innerHTML = rowsHtml + `
       <tr class="reservations-total-row">
-        <td class="total-label">${totalLabel}</td>
+        <td class="total-label">${escapeHtml(totalLabel)}</td>
         <td class="num">${fmtMoney(t.cost)}</td><td></td>
         <td class="num">${fmtCount(t.impressions)}</td>
         <td class="num">${fmtPercent(t.ctr)}</td>

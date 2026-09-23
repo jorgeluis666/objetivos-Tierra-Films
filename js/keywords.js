@@ -162,7 +162,7 @@
 
   function renderFilters() {
     const host = document.getElementById('keywords-filters');
-    const buttons = state.months.map(month => `<button type="button" class="month-tab${month.id === state.periodId ? ' active' : ''}" data-kw-period="${month.id}">${F().escapeHtml(month.label.split(' ')[0])}</button>`).join('');
+    const buttons = state.months.map(month => `<button type="button" class="month-tab${month.id === state.periodId ? ' active' : ''}" data-kw-period="${F().escapeHtml(month.id)}">${F().escapeHtml(month.label.split(' ')[0])}</button>`).join('');
     const period = state.data.period;
     host.innerHTML = `
       <div class="retail-filter">

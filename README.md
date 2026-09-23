@@ -5,9 +5,9 @@ paneles de Amador y Aquarius.
 
 ## Acceso
 
-- Password del login: `TF2026`
 - Entrada local: `index.html`
-- Build publicado: `dist/index.html`
+- Build publicado: `dist/index.html`, en el hosting de Lima Retail (ver abajo).
+- No hay contraseña en el HTML: el acceso lo controla el servidor con HTTP Basic Auth.
 
 ## Modulos
 
@@ -143,4 +143,25 @@ semanas que cruzan de mes) y los graficos muestran el detalle dia a dia.
 npm.cmd run build
 ```
 
-El build incrusta los assets en `dist/index.html`. Si Windows bloquea `dist/data`, el script mantiene actualizado el HTML y muestra una advertencia.
+El resultado se genera en `dist/`: `index.html` (CSS, JS y datos incrustados), `assets/` y `.htaccess`.
+Nada mas: `data/` (incluido `data/csv-backups`), `scripts/` y el resto del repo nunca se publican.
+
+## Publicacion en el hosting de Lima Retail
+
+El acceso lo controla Apache con HTTP Basic Auth (una cuenta por cliente). No hay contraseña en el HTML.
+`dist/.htaccess` se genera desde `deploy/.htaccess` con la ruta del archivo de claves y una CSP con el hash de cada script.
+
+Configuracion unica en cPanel:
+
+1. **Dominios** > activar **Forzar redireccion HTTPS** para el dominio o subdominio del cliente.
+2. **Privacidad de directorios** > carpeta del cliente > activar proteccion y crear el usuario del cliente
+   con una contraseña larga y aleatoria. cPanel crea el archivo de claves en
+   `/home/<usuario_cpanel>/.htpasswds/<ruta_de_la_carpeta>/passwd`.
+3. En GitHub > Settings > Secrets and variables > Actions, crear:
+   - `HTPASSWD_PATH`: la ruta absoluta del paso 2.
+   - `FTP_SERVER`, `FTP_USERNAME`, `FTP_PASSWORD`: una cuenta FTP limitada a la carpeta del cliente.
+   - `FTP_SERVER_DIR`: carpeta destino relativa a esa cuenta, terminada en `/` (por ejemplo `./`).
+4. Desactivar GitHub Pages (Settings > Pages) y dejar el repositorio en privado: los datos del cliente no deben quedar publicos.
+
+Cada push a `main` ejecuta `.github/workflows/deploy-hosting.yml`, que compila y sube `dist/` por FTPS.
+Si falta `HTPASSWD_PATH` el build falla; si la ruta es incorrecta Apache responde 500 en vez de mostrar el tablero sin clave.

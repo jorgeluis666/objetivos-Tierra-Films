@@ -211,7 +211,7 @@
     const cards = [
       [`Gasto al ${f.shortDate(m.lastDate)}`, f.fmtMoney(m.actual.cost), `${m.daysWithData} de ${m.daysInMonth} dias`],
       ['Gasto proyectado', f.fmtMoney(close.cost), monthlyBudget ? `${f.fmtPercent(close.cost / monthlyBudget)} del presupuesto (${f.fmtMoney(monthlyBudget)})` : 'Al cierre del mes'],
-      ['Conversiones proyectadas', f.fmtCount(close.conversions), prevConv ? `${f.fmtCount(prevConv)} en ${m.previous.label.split(' ')[0].toLowerCase()}${m.previous.exact ? '' : ' (est.)'}` : `${f.fmtCount(m.actual.conversions)} reales`],
+      ['Conversiones proyectadas', f.fmtCount(close.conversions), prevConv ? `${f.fmtCount(prevConv)} en ${f.escapeHtml(m.previous.label.split(' ')[0].toLowerCase())}${m.previous.exact ? '' : ' (est.)'}` : `${f.fmtCount(m.actual.conversions)} reales`],
       ['Costo x conversion', f.fmtMoney(close.costPerConversion), `Real a la fecha ${f.fmtMoney(m.actual.costPerConversion)}`],
       ['Clics proyectados', f.fmtCount(close.clicks), `CPC ${f.fmtMoney(close.cpc)}`],
       ['Dias restantes', String(m.remaining), `Del ${f.shortDate(addDays(m.lastDate, 1))} al ${m.daysInMonth} ${m.monthName.slice(0, 3)}`]
