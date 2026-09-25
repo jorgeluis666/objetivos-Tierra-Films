@@ -447,6 +447,8 @@
     const footerStatus = document.getElementById('footer-status');
     const caption = document.getElementById('topbar-caption');
     if (!document.getElementById('view-obj').classList.contains('visible')) return;
+    // La navegacion puede llamar antes de que termine la carga; renderAll() lo vuelve a hacer despues.
+    if (!state.data) return;
     if (status) status.textContent = `Datos al ${shortDate(state.data.period.end)} | ${state.weeks.length} semanas`;
     if (source) source.textContent = `Fuente: ${state.data.sourceFile}`;
     if (footerStatus) footerStatus.textContent = `Periodo ${periodLabel()}`;
