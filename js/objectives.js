@@ -11,7 +11,7 @@
   const TREND_METRICS = ['cost', 'conversions', 'costPerConversion', 'ctr'];
   const MONTH_NAMES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Setiembre', 'Octubre', 'Noviembre', 'Diciembre'];
   const MONTH_SHORT = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'set', 'oct', 'nov', 'dic'];
-  const state = { data: null, months: [], weeks: [], days: [], monthId: ALL, chart: null, trendChart: null };
+  const state = { data: null, months: [], weeks: [], days: [], monthId: null, base: null, chart: null, trendChart: null };
 
   const fmtMoney = value => Number.isFinite(Number(value)) && value !== null ? `S/ ${Number(value).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-';
   const fmtCount = value => Number.isFinite(Number(value)) && value !== null ? Number(value).toLocaleString('es-PE', { maximumFractionDigits: 0 }) : '-';
@@ -181,6 +181,9 @@
     const weeksNote = month.weekDays && month.weekDays !== month.daysWithData
       ? ` El detalle semanal cubre ${month.weekDays} dias, asi que puede no sumar exactamente el total del mes.`
       : '';
+    if (month.source === 'Drive') {
+      return `Total de ${month.label} leido de Google Drive${range}: ${month.sourceFile}.${weeksNote}`;
+    }
     if (month.exact) {
       return `Total de ${month.label} tomado del informe mensual${range}: ${escapeHtml(month.sourceFile)}.${weeksNote}`;
     }
@@ -206,7 +209,7 @@
     const campaign = state.data.campaigns && state.data.campaigns[0];
     const options = state.months.map(month => {
       const partial = month.daysWithData < month.daysInMonth;
-      const label = `${month.label.split(' ')[0]}${partial ? ` (al ${parseDate(state.data.period.end).d})` : ''}`;
+      const label = `${month.label.split(' ')[0]}${partial ? ` (al ${parseDate(month.rangeEnd || state.data.period.end).d})` : ''}`;
       return `<button type="button" class="month-tab${month.id === state.monthId ? ' active' : ''}" data-month="${escapeHtml(month.id)}">${escapeHtml(label)}</button>`;
     }).join('');
     host.innerHTML = `
@@ -495,30 +498,74 @@
     document.getElementById('view-obj').innerHTML = `<div class="data-notice error"><strong>No se pudo cargar la data de Google Ads.</strong>${escapeHtml(message)}</div>`;
   }
 
+  // Deja lista una version de la data (la del repo o la ya mezclada con Drive) y redibuja todo.
+  function applyData(data) {
+    state.data = data;
+    window.TIERRA_FILMS_RETAIL_DATA = data;
+    state.weeks = data.weeks.map(withRates);
+    state.days = buildDays(data);
+    // Proyecciones reutiliza la misma serie diaria (real donde exista).
+    window.TierraFilmsDays = state.days;
+    state.months = (data.months || []).map(withRates);
+    const stored = state.monthId && state.monthId !== ALL && state.months.some(month => month.id === state.monthId) ? state.monthId : readStoredMonth();
+    const fallback = data.defaultMonth || (state.months.length ? state.months[state.months.length - 1].id : ALL);
+    state.monthId = stored === ALL || state.months.some(month => month.id === stored) ? stored : fallback;
+    renderAll();
+    window.dispatchEvent(new CustomEvent('tierra-films:data-ready', { detail: data }));
+  }
+
+  function setSyncStatus(mode, label, detail) {
+    const button = document.getElementById('drive-sync');
+    const text = document.getElementById('drive-sync-label');
+    if (!button || !text) return;
+    button.dataset.state = mode;
+    button.disabled = mode === 'loading';
+    text.textContent = label;
+    button.title = detail;
+  }
+
+  // Lee la carpeta de Drive y la pone encima de la data del repo. Si falla, el tablero sigue con lo que tenia.
+  async function syncDrive() {
+    const drive = window.TierraFilmsDrive;
+    if (!drive || !state.base) return;
+    if (!drive.configured) {
+      setSyncStatus('off', 'Sincronizar', 'Falta conectar la carpeta de Drive: publica apps-script/drive-sync.gs y pega su URL en js/drive-sync.js.');
+      return;
+    }
+    setSyncStatus('loading', 'Sincronizando...', 'Leyendo la carpeta de Google Drive');
+    try {
+      const merged = drive.merge(state.base, await drive.fetchFolder());
+      applyData(merged);
+      const time = new Date(merged.drive.syncedAt).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' });
+      const used = merged.drive.applied.length ? `Leido: ${merged.drive.applied.join(', ')}.` : 'La carpeta no tiene informes que el tablero reconozca.';
+      const skipped = merged.drive.notes.length ? `\n${merged.drive.notes.join('\n')}` : '';
+      setSyncStatus(merged.drive.notes.length && !merged.drive.applied.length ? 'warn' : 'ok', `Drive ${time}`, `${used}${skipped}`);
+    } catch (error) {
+      console.error(error);
+      setSyncStatus('error', 'Reintentar', `No se pudo leer Drive: ${error.message}`);
+    }
+  }
+
   async function init() {
     try {
-      state.data = window.TIERRA_FILMS_RETAIL_DATA;
-      if (!state.data) {
+      let data = window.TIERRA_FILMS_RETAIL_DATA;
+      if (!data) {
         const response = await fetch(DATA_URL, { cache: 'no-store' });
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        state.data = await response.json();
+        data = await response.json();
       }
-      if (!Array.isArray(state.data.weeks) || !state.data.weeks.length) throw new Error('La fuente no contiene semanas con datos.');
-      window.TIERRA_FILMS_RETAIL_DATA = state.data;
-      state.weeks = state.data.weeks.map(withRates);
-      state.days = buildDays(state.data);
-      // Proyecciones reutiliza la misma serie diaria (real donde exista).
-      window.TierraFilmsDays = state.days;
-      state.months = (state.data.months || []).map(withRates);
-      const stored = readStoredMonth();
-      const fallback = state.data.defaultMonth || (state.months.length ? state.months[state.months.length - 1].id : ALL);
-      state.monthId = stored === ALL || state.months.some(month => month.id === stored) ? stored : fallback;
-      renderAll();
-      window.dispatchEvent(new CustomEvent('tierra-films:data-ready', { detail: state.data }));
+      if (!Array.isArray(data.weeks) || !data.weeks.length) throw new Error('La fuente no contiene semanas con datos.');
+      // La data del repo queda intacta: cada sincronizacion parte de ella.
+      state.base = JSON.parse(JSON.stringify(data));
+      applyData(data);
     } catch (error) {
       renderError(error.message);
       console.error(error);
+      return;
     }
+    const button = document.getElementById('drive-sync');
+    if (button) button.addEventListener('click', syncDrive);
+    syncDrive();
   }
 
   window.TierraFilmsFormat = { fmtMoney, fmtCount, fmtPercent, formatValue, shortDate, weekLabel, withRates, escapeHtml, MONTH_NAMES };

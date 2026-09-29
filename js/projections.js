@@ -20,7 +20,7 @@
     budget: { label: 'Presupuesto diario', color: '#64748b', desc: 'Gasta el presupuesto completo cada dia, con la eficiencia de las ultimas 4 semanas' }
   };
   const SIM_COLOR = '#ea580c';
-  const state = { ready: false, data: null, metric: 'cost', scenario: 'month', goal: null, marginalCpa: null, chart: null, model: null, dragging: false, dragScale: null };
+  const state = { ready: false, bound: false, data: null, metric: 'cost', scenario: 'month', goal: null, marginalCpa: null, chart: null, model: null, dragging: false, dragScale: null };
 
   const F = () => window.TierraFilmsFormat;
 
@@ -598,9 +598,11 @@
     const storedCpa = Number(readStorage(CPA_KEY));
     state.marginalCpa = Number.isFinite(storedCpa) && storedCpa > 0 ? storedCpa : null;
     const prevButton = document.getElementById('projection-sim-prev');
+    prevButton.hidden = !state.model.previous;
     if (state.model.previous) prevButton.textContent = `Igualar ${state.model.previous.label.split(' ')[0].toLowerCase()} (${F().fmtCount(state.model.previous.conversions)})`;
-    else prevButton.hidden = true;
-    bindInputs();
+    // Con la sincronizacion de Drive el modelo se vuelve a armar; los inputs se enlazan una sola vez.
+    if (!state.bound) bindInputs();
+    state.bound = true;
     state.ready = true;
   }
 
@@ -615,7 +617,9 @@
     }
   };
 
+  // Llega al cargar y cada vez que se sincroniza Drive: el modelo se rearma con la data nueva.
   window.addEventListener('tierra-films:data-ready', () => {
+    state.ready = false;
     if (document.getElementById('view-projection').classList.contains('visible')) window.TierraFilmsProjections.init();
   });
 })();

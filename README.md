@@ -12,6 +12,8 @@ paneles de Amador y Aquarius.
 ## Modulos
 
 1. **Gasto Publicitario**: resultados semanales de Google Ads.
+   - Boton `Sincronizar` (barra superior): lee la carpeta de Google Drive del
+     cliente; ver [Sincronizacion con Drive](#sincronizacion-con-drive).
    - Filtro por mes: `Julio`, `Agosto`, `Setiembre` o `Todo el periodo`. Arranca
      en el ultimo mes con datos.
    - `Conversiones por accion` (al costado del titulo): cuantas conversiones
@@ -118,6 +120,53 @@ inicio del rango del informe.
 S/ 124.88 mayor que el de la campaña (semana del 14 set), porque la cuenta
 incluye gasto fuera de `VIDEOS CORPORATIVOS`. El dashboard usa las filas por
 campaña.
+
+## Sincronizacion con Drive
+
+El boton **Sincronizar** de la barra superior lee la carpeta de Google Drive
+del cliente (`1Zz5WjNFy0H37n0trSjhVx90NgPmqkyrO`) y pone lo que encuentre
+encima de la data del repo. Tambien sincroniza solo al abrir el tablero. Nada se
+guarda en el repo: cada visita lee la carpeta en vivo.
+
+Que reconoce (una pestaña o CSV por informe, con el rango de fechas en la
+cabecera, igual que el export de Google Ads):
+
+- **Informe de campaña del mes** sin segmentar (`Estado de la campaña` en la
+  primera columna): su fila `Total: Cuenta` reemplaza los totales del mes.
+- **Informe por accion de conversion** (`Acción de conversión` en la primera
+  columna): da el desglose por accion y, con su fila `Total: Cuenta` sin
+  accion, tambien los totales del mes.
+- Un informe que cubre varios meses o viene segmentado por Dia/Semana se salta;
+  el motivo sale al pasar el mouse por el boton.
+
+Por cada mes manda el informe que llega mas lejos. Si Drive trae menos dias que
+el repo, se queda el del repo. `Todo el periodo`, los KPIs, `Datos al ...` y
+Proyecciones se recalculan con lo nuevo; los graficos por dia y la tabla
+semanal siguen con el detalle del repo hasta volver a importarlo.
+
+Estados del boton: `Drive hh:mm` (verde, leido), `Reintentar` (rojo, fallo;
+el tablero sigue con lo que tenia) y `Sincronizar` en amarillo (falta la
+conexion).
+
+### Conectar la carpeta (una sola vez)
+
+El tablero es una pagina fija en GitHub Pages y no puede entrar a Drive por su
+cuenta; el puente es un Apps Script que corre con tu cuenta de Google.
+
+1. Entra a <https://script.google.com> con la cuenta duena de la carpeta >
+   **Nuevo proyecto**. Borra lo que trae y pega `apps-script/drive-sync.gs`.
+2. **Implementar > Nueva implementacion** > tipo **Aplicacion web**.
+   - Ejecutar como: **Yo**.
+   - Quien tiene acceso: **Cualquier persona**.
+3. Autoriza los permisos de Drive y Hojas de calculo que pide Google.
+4. Copia la URL que termina en `/exec` y pegala en `DRIVE_SYNC_URL`, al inicio
+   de `js/drive-sync.js`. Sube el cambio a `main`.
+
+Si luego cambias el script, usa **Implementar > Gestionar implementaciones >
+Editar > Nueva version** para que la URL siga siendo la misma.
+
+Ojo: cualquiera con esa URL puede leer los informes de la carpeta. Como el repo
+es publico, la URL queda visible en `js/drive-sync.js`.
 
 ## Actualizar la data
 

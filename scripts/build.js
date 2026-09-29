@@ -42,6 +42,7 @@ function copyLoginAssets() {
 function main() {
   let html = readFile('index.html');
   const css = readFile('css/dashboard.css').replaceAll('../assets/', 'assets/');
+  const driveSync = readFile('js/drive-sync.js');
   const app = readFile('js/objectives.js');
   const reservationGoals = readFile('js/reservation-goals.js');
   const projections = readFile('js/projections.js');
@@ -56,6 +57,7 @@ function main() {
   const scriptTag = file => new RegExp('<script src="' + escapeRegExp(file) + '(?:\\?[^"]*)?"></script>');
 
   html = html.replace(styleTag('css/dashboard.css'), `<style>${css}</style>`);
+  html = html.replace(scriptTag('js/drive-sync.js'), `<script>${driveSync}</script>`);
   html = html.replace(scriptTag('js/objectives.js'), `<script>${app}</script>`);
   html = html.replace(scriptTag('js/reservation-goals.js'), `<script>${reservationGoals}</script>`);
   html = html.replace(scriptTag('js/projections.js'), `<script>${projections}</script>`);

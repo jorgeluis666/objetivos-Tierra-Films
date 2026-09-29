@@ -1502,3 +1502,77 @@
     row-gap: 8px;
   }
 }
+
+/* Boton de sincronizacion con la carpeta de Google Drive */
+.topbar-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.drive-sync {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 11px;
+  border: 1px solid #bfdbfe;
+  border-radius: 99px;
+  color: var(--brand-text);
+  background: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.drive-sync:hover:not(:disabled) {
+  border-color: var(--brand);
+  background: var(--brand-soft);
+}
+
+.drive-sync svg {
+  width: 13px;
+  height: 13px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
+}
+
+.drive-sync[data-state="loading"] {
+  cursor: progress;
+}
+
+.drive-sync[data-state="loading"] svg {
+  animation: drive-spin 1s linear infinite;
+}
+
+.drive-sync[data-state="ok"] {
+  border-color: #a7f3d0;
+  color: var(--green-text);
+}
+
+.drive-sync[data-state="warn"],
+.drive-sync[data-state="off"] {
+  border-color: #fde68a;
+  color: #92400e;
+}
+
+.drive-sync[data-state="error"] {
+  border-color: #fecaca;
+  color: #b91c1c;
+}
+
+@keyframes drive-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .drive-sync[data-state="loading"] svg {
+    animation: none;
+  }
+}
