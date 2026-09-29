@@ -22,6 +22,13 @@
       source: 'Fuente: informe de palabras clave de busqueda',
       footer: 'Cuota de impresiones y Ad Rank',
     },
+    'view-segmentation': {
+      title: 'Segmentacion',
+      caption: 'Intencion de busqueda y zona',
+      status: 'Informes de la carpeta Segmentacion',
+      source: 'Fuente: carpeta Google Ads TF Segmentacion',
+      footer: 'Terminos de busqueda y ubicaciones',
+    },
   };
 
   function storedView() {
@@ -61,6 +68,7 @@
 
     if (viewId === 'view-projection') window.TierraFilmsProjections?.init();
     if (viewId === 'view-keywords') window.TierraFilmsKeywords?.init();
+    if (viewId === 'view-segmentation') window.TierraFilmsSegmentation?.render();
     if (viewId === 'view-obj') {
       window.TierraFilmsRefreshLabels?.();
       window.setTimeout(() => window.dispatchEvent(new Event('resize')), 0);

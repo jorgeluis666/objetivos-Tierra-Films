@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
-<link rel="stylesheet" href="css/dashboard.css?v=1.11.0">
+<link rel="stylesheet" href="css/dashboard.css?v=1.12.0">
 <style>
   .reservations-total-row td { height: auto !important; padding: 10px 12px !important; border-top: 2px solid #cbd5e1 !important; color: #0f172a !important; background: #f8fafc; font-size: 13px; font-weight: 800; vertical-align: middle; }
   .reservations-total-row .total-label { text-align: right; }
@@ -33,7 +33,7 @@
 <body>
 <div class="shell">
   <aside class="sidebar" id="sidebar">
-    <div class="s-brand"><div class="s-title">Tierra Films</div><div class="s-sub">BI Agencia Lima Retail <span class="app-version">v1.11.0</span></div></div>
+    <div class="s-brand"><div class="s-title">Tierra Films</div><div class="s-sub">BI Agencia Lima Retail <span class="app-version">v1.12.0</span></div></div>
     <div class="s-group-lbl">Modulos activos</div>
     <button class="s-item active" type="button" data-view-target="view-obj">
       <div class="s-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg></div>
@@ -46,6 +46,10 @@
     <button class="s-item" type="button" data-view-target="view-keywords">
       <div class="s-icon"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.5" y2="16.5"/></svg></div>
       <div class="s-text"><div class="s-title-nav">Palabras Clave</div><div class="s-desc-nav">Cuota, ranking y calidad</div></div>
+    </button>
+    <button class="s-item" type="button" data-view-target="view-segmentation">
+      <div class="s-icon"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-9-9v9z"/><path d="M14 3.3A9 9 0 0 1 20.7 10H14z"/></svg></div>
+      <div class="s-text"><div class="s-title-nav">Segmentacion</div><div class="s-desc-nav">Intencion de busqueda y zona</div></div>
     </button>
     <div class="s-modulo-activo"><div class="s-ma-label">CUENTA</div><div class="s-ma-name">Tierra Films</div><div class="s-ma-desc">Google Ads | Búsqueda</div></div>
   </aside>
@@ -195,18 +199,83 @@
         <div class="drive-block" id="kw-drive"></div>
       </section>
 
+      <section class="view" id="view-segmentation">
+        <div class="section-head">
+          <div>
+            <div class="sec-lbl">04 - Segmentacion</div>
+            <h1 class="section-title">Segmentacion</h1>
+            <p class="section-desc">Que busca la gente que ve nuestros anuncios y desde donde convierte. Sale de los informes de la carpeta Google Ads TF Segmentacion y sirve para decidir a que intencion y a que zona apuntar la cuenta.</p>
+            <p class="seg-period" id="seg-period"></p>
+          </div>
+          <a class="drive-link" id="seg-folder" href="https://drive.google.com/drive/folders/1Ehko4amk1IjGW6H-HB4WtkF98aaNeB7U" target="_blank" rel="noopener">Carpeta Segmentacion</a>
+        </div>
+
+        <div class="data-notice" id="seg-empty" hidden><strong>Todavia no hay informes de segmentacion.</strong>Sube a la carpeta Segmentacion el informe de estadisticas de los terminos de busqueda y el de ubicaciones y aprieta Sincronizar.</div>
+
+        <div id="seg-body-wrap">
+          <div class="kpi-strip" id="seg-kpis" aria-label="KPIs de segmentacion"></div>
+
+          <div class="panel projection-table-panel diagnosis-panel">
+            <div class="panel-head"><div><div class="panel-title">Que dice la data para segmentar</div><div class="panel-sub">Hallazgos calculados con los informes de la carpeta; se actualizan al sincronizar.</div></div></div>
+            <ul class="diagnosis-list" id="seg-diagnosis"></ul>
+          </div>
+
+          <div class="panel chart-panel">
+            <div class="panel-head chart-panel-head">
+              <div><div class="panel-title">Segmentos de intencion</div><div class="panel-sub" id="seg-segments-sub"></div></div>
+              <div class="chart-legend projection-legend" id="seg-legend"></div>
+            </div>
+            <div class="seg-rows" id="seg-bars"></div>
+            <div class="table-scroll seg-table">
+              <table class="data-table campaigns-table drive-terms-table">
+                <thead><tr><th>Segmento</th><th class="num">Categorias</th><th class="num">Impresiones</th><th class="num">% impr.</th><th class="num">Clics</th><th class="num">CTR</th><th class="num">Conv.</th><th class="num">Tasa conv.</th><th class="num">Demanda % Δ</th><th>Decision</th></tr></thead>
+                <tbody id="seg-body"></tbody>
+              </table>
+            </div>
+            <div class="panel-note">Los segmentos agrupan las categorias de Google Ads por intencion con reglas del tablero (js/segmentation.js). Demanda % Δ: cambio del volumen de busquedas ponderado por el tamano de cada categoria.</div>
+          </div>
+
+          <div class="panel campaigns-panel seg-panel" id="seg-categories">
+            <div class="panel-head">
+              <div><div class="panel-title">Categorias y accion sugerida</div><div class="panel-sub" id="seg-cat-sub"></div></div>
+            </div>
+            <div class="seg-chips" id="seg-actions" role="group" aria-label="Filtrar por accion"></div>
+            <div class="table-scroll">
+              <table class="data-table campaigns-table drive-terms-table">
+                <thead><tr><th>Categoria</th><th>Segmento</th><th class="num">Impresiones</th><th class="num">% Δ</th><th class="num">Clics</th><th class="num">CTR</th><th class="num">Conv.</th><th class="num">Volumen de busquedas</th><th class="num">% Δ</th><th>Accion</th></tr></thead>
+                <tbody id="seg-cat-body"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="seg-grid">
+            <div class="panel seg-panel">
+              <div class="panel-head"><div><div class="panel-title">Demanda del mercado</div><div class="panel-sub" id="seg-demand-sub"></div></div></div>
+              <div class="demand-head"><span>Categoria</span><span>Volumen de busquedas</span><span>Cambio</span><span>Nuestras</span></div>
+              <ul class="demand-list" id="seg-demand"></ul>
+              <div class="drive-more-wrap"><button type="button" class="drive-more" id="seg-demand-more" hidden></button></div>
+            </div>
+            <div class="panel seg-panel">
+              <div class="panel-head"><div><div class="panel-title">Segmentacion geografica</div><div class="panel-sub" id="seg-geo-sub"></div></div></div>
+              <div id="seg-geo"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <div class="site-footer"><span id="footer-source">Fuente: data/tierra-films-lima-retail-2026.json</span><span id="footer-status">Resultados de Google Ads</span></div>
     </div>
   </main>
 </div>
-<script src="js/drive-sync.js?v=1.11.0"></script>
-<script src="js/objectives.js?v=1.11.0"></script>
-<script src="js/reservation-goals.js?v=1.11.0"></script>
-<script src="js/projections.js?v=1.11.0"></script>
-<script src="js/keywords.js?v=1.11.0"></script>
-<script src="js/search-insights.js?v=1.11.0"></script>
-<script src="js/navigation.js?v=1.11.0"></script>
-<script src="js/sidebar.js?v=1.11.0"></script>
+<script src="js/drive-sync.js?v=1.12.0"></script>
+<script src="js/objectives.js?v=1.12.0"></script>
+<script src="js/reservation-goals.js?v=1.12.0"></script>
+<script src="js/projections.js?v=1.12.0"></script>
+<script src="js/keywords.js?v=1.12.0"></script>
+<script src="js/search-insights.js?v=1.12.0"></script>
+<script src="js/segmentation.js?v=1.12.0"></script>
+<script src="js/navigation.js?v=1.12.0"></script>
+<script src="js/sidebar.js?v=1.12.0"></script>
 <script src="auth-login.js?v=1.5.1"></script>
 <script>
   AuthLogin.init({ password: 'TF2026', brand: 'Tierra Films', title: 'Dashboard\nRetail 2026', accent: '#0284c7', accentDark: '#075985', sessionKey: 'tierra_films_auth' });

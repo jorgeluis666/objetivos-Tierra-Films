@@ -48,6 +48,7 @@ function main() {
   const projections = readFile('js/projections.js');
   const keywords = readFile('js/keywords.js');
   const searchInsights = readFile('js/search-insights.js');
+  const segmentation = readFile('js/segmentation.js');
   const navigation = readFile('js/navigation.js');
   const sidebar = readFile('js/sidebar.js');
   const data = readFile('data/tierra-films-lima-retail-2026.json').replace(/</g, '\\u003c');
@@ -68,6 +69,7 @@ function main() {
   html = html.replace(scriptTag('js/projections.js'), `<script>${projections}</script>`);
   html = html.replace(scriptTag('js/keywords.js'), `<script>${keywords}</script>`);
   html = html.replace(scriptTag('js/search-insights.js'), `<script>${searchInsights}</script>`);
+  html = html.replace(scriptTag('js/segmentation.js'), `<script>${segmentation}</script>`);
   html = html.replace(scriptTag('js/navigation.js'), `<script>${navigation}</script>`);
   html = html.replace(scriptTag('js/sidebar.js'), `<script>${sidebar}</script>`);
   html = html.replace(

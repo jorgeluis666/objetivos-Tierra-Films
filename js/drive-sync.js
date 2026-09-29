@@ -281,7 +281,7 @@
     const bestActions = {};
     const latest = {};
     reports.forEach(report => {
-      // Palabras Clave: se muestra el informe mas reciente de cada tipo.
+      // Palabras Clave y Segmentacion: se muestra el informe mas reciente de cada tipo.
       if (report.kind === 'searchTerms' || report.kind === 'locations' || report.kind === 'keywordConversions') {
         if (newer(report, latest[report.kind])) latest[report.kind] = report;
         return;

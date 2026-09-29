@@ -48,8 +48,8 @@ paneles de Amador y Aquarius.
      diario necesario, y marca en rojo cuando supera el presupuesto actual.
      La meta, el costo marginal y el escenario se guardan en el navegador.
 3. **Palabras Clave**: informe semanal de palabras clave de busqueda.
-   - `Desde Google Drive` (al final): palabras clave que convierten, categorias
-     de busqueda y ubicaciones, leidas de las carpetas de Drive; ver
+   - `Desde Google Drive` (al final): palabras clave que convierten, leidas de
+     la carpeta Keywords; ver
      [Sincronizacion con Drive](#sincronizacion-con-drive).
    - Filtro por mes y KPIs: impresiones, clics, cuota de impresiones, perdido
      por ranking, nivel de calidad y CPC.
@@ -65,6 +65,24 @@ paneles de Amador y Aquarius.
      `Pagina destino` muestran los componentes del nivel de calidad.
    - Se pueden importar varios informes de palabras clave: uno largo sin las
      columnas de calidad y otro corto con ellas se fusionan por semana y palabra.
+4. **Segmentacion**: informes de la carpeta Google Ads TF Segmentacion, para
+   decidir a que intencion de busqueda y a que zona apuntar la cuenta
+   (`js/segmentation.js`).
+   - KPIs de la semana y `Que dice la data para segmentar`: hallazgos
+     calculados (peso de las busquedas sin clasificar, segmento mas rentable,
+     impresiones en competidores, agencias, demanda que crece y zonas).
+   - `Segmentos de intencion`: las categorias de Google Ads agrupadas por
+     intencion (marca, productoras, formatos de video, publicidad generica,
+     agencias, competidores e IA, sin clasificar) con su participacion en
+     impresiones, clics y conversiones y una decision por segmento. Las reglas
+     de agrupacion estan en `SEGMENTS`; clic en un segmento filtra la tabla.
+   - `Categorias y accion sugerida`: cada categoria con su accion (Priorizar,
+     Ampliar, Revisar intencion, Revisar anuncio, Negativa candidata, Vigilar,
+     Poca data), filtrable; el motivo sale al pasar el mouse.
+   - `Demanda del mercado`: volumen de busquedas de cada categoria y su cambio
+     contra la semana anterior, junto a nuestras impresiones.
+   - `Segmentacion geografica`: conversiones por ubicacion y accion, gasto con
+     ubicacion identificada y lo que queda sin ubicacion.
 
 ## Semanas que cruzan de mes
 
@@ -133,7 +151,7 @@ Tambien sincroniza solo al abrir el tablero; cada visita lee las carpetas en viv
 | Carpeta en Drive | ID | Modulo |
 | --- | --- | --- |
 | Google Ads TF Campañas | `1Zz5WjNFy0H37n0trSjhVx90NgPmqkyrO` | Gasto Publicitario y Proyecciones |
-| Google Ads TF Segmentacion | `1Ehko4amk1IjGW6H-HB4WtkF98aaNeB7U` | Palabras Clave (seccion `Desde Google Drive`) |
+| Google Ads TF Segmentacion | `1Ehko4amk1IjGW6H-HB4WtkF98aaNeB7U` | Segmentacion |
 | Google Ads TF Keywords | `1WSk4gc4UNeprLTWFzLtTUaSqOSWZ25yL` | Palabras Clave (seccion `Desde Google Drive`) |
 
 El tablero reconoce cada informe por su fila de encabezados, no por la carpeta
@@ -162,14 +180,15 @@ rango; el filtro de mes del modulo no lo cambia):
   impresiones, clics, gasto y costo por conversion. Las palabras sin conversiones
   se ven con un boton.
 
+Segmentacion (tambien el informe mas reciente de cada tipo):
+
 - **Estadisticas de los terminos de busqueda** (`Categoría de búsqueda`):
-  tabla de categorias con impresiones, clics, CTR, conversiones, tasa de
-  conversion y volumen de busquedas, con el % de cambio contra el periodo de
-  comparacion. `∞` de Google Ads sale como `nuevo`. Muestra las 12 categorias
-  con mas impresiones y un boton para ver todas; `Sin clasificar` va aparte.
+  categorias con impresiones, clics, CTR, conversiones, tasa de conversion y
+  volumen de busquedas, con el % de cambio contra el periodo de comparacion.
+  `∞` de Google Ads sale como `nuevo`. Alimenta segmentos, acciones y demanda.
 - **Informe de ubicaciones** (`Ubicación`): conversiones por ubicacion y por
   accion. Si viene separado por accion de conversion solo trae conversiones por
-  ubicacion; las impresiones y el costo con ubicacion salen en la nota.
+  ubicacion; el gasto con ubicacion sale de las filas de total.
 
 ### Copia local
 
