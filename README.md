@@ -14,6 +14,11 @@ paneles de Amador y Aquarius.
 1. **Gasto Publicitario**: resultados semanales de Google Ads.
    - Filtro por mes: `Julio`, `Agosto`, `Setiembre` o `Todo el periodo`. Arranca
      en el ultimo mes con datos.
+   - `Conversiones por accion` (al costado del titulo): cuantas conversiones
+     trajo cada accion (WhatsApp Plugin, Formulario, WhatsApp Clic) en el mes
+     elegido, con su propio rango de fechas. Sale del informe de campaña
+     segmentado por accion de conversion; en `Todo el periodo` muestra el mas
+     reciente y en un mes sin ese informe no aparece.
    - KPIs: coste, impresiones, CTR, clics (con CPC medio), conversiones y costo
      por conversion.
    - `Indicadores por dia`: lineas de gasto, conversiones, costo por conversion
@@ -125,6 +130,10 @@ campaña.
      perdida por ranking, nivel de calidad y sus componentes (rendimiento
      esperado del anuncio, relevancia del anuncio y experiencia en la pagina de
      destino).
+   - para el desglose de conversiones: el informe de campaña del mes con
+     Segmento > Conversiones > **Accion de conversion** (hoy viene de la hoja
+     `Campaña - Accion de conversion` en la carpeta de Drive del cliente,
+     descargada como CSV).
    Para la curva diaria real, descarga el mismo informe otra vez con
    Segmento > Tiempo > **Día**.
 2. Importar (reemplaza todo el JSON con el nuevo rango y guarda los CSV en
