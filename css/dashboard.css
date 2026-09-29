@@ -1513,22 +1513,41 @@
 .drive-sync {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  height: 30px;
-  padding: 0 11px;
-  border: 1px solid #bfdbfe;
+  gap: 7px;
+  height: 32px;
+  padding: 0 13px;
+  border: 1px solid var(--brand);
   border-radius: 99px;
-  color: var(--brand-text);
-  background: #fff;
-  font-size: 10px;
+  color: #fff;
+  background: var(--brand);
+  box-shadow: 0 1px 2px rgba(2, 132, 199, .25);
+  font-size: 11px;
   font-weight: 700;
   white-space: nowrap;
   cursor: pointer;
 }
 
 .drive-sync:hover:not(:disabled) {
-  border-color: var(--brand);
-  background: var(--brand-soft);
+  border-color: #0369a1;
+  background: #0369a1;
+}
+
+.drive-sync:focus-visible {
+  outline: 2px solid #7dd3fc;
+  outline-offset: 2px;
+}
+
+.drive-sync-meta {
+  padding: 2px 7px;
+  border-radius: 99px;
+  color: #fff;
+  background: rgba(255, 255, 255, .2);
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.drive-sync-meta:empty {
+  display: none;
 }
 
 .drive-sync svg {
@@ -1549,20 +1568,20 @@
   animation: drive-spin 1s linear infinite;
 }
 
-.drive-sync[data-state="ok"] {
-  border-color: #a7f3d0;
-  color: var(--green-text);
+.drive-sync[data-state="ok"] .drive-sync-meta {
+  color: #065f46;
+  background: #d1fae5;
 }
 
-.drive-sync[data-state="warn"],
-.drive-sync[data-state="off"] {
-  border-color: #fde68a;
+.drive-sync[data-state="warn"] .drive-sync-meta,
+.drive-sync[data-state="off"] .drive-sync-meta {
   color: #92400e;
+  background: #fef3c7;
 }
 
-.drive-sync[data-state="error"] {
-  border-color: #fecaca;
+.drive-sync[data-state="error"] .drive-sync-meta {
   color: #b91c1c;
+  background: #fee2e2;
 }
 
 @keyframes drive-spin {

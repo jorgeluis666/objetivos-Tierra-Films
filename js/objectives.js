@@ -515,13 +515,16 @@
     window.dispatchEvent(new CustomEvent('tierra-films:data-ready', { detail: data }));
   }
 
-  function setSyncStatus(mode, label, detail) {
+  // El boton siempre dice "Sincronizar"; el estado va en el texto chico de al lado.
+  function setSyncStatus(mode, meta, detail) {
     const button = document.getElementById('drive-sync');
     const text = document.getElementById('drive-sync-label');
+    const status = document.getElementById('drive-sync-meta');
     if (!button || !text) return;
     button.dataset.state = mode;
     button.disabled = mode === 'loading';
-    text.textContent = label;
+    text.textContent = mode === 'loading' ? 'Sincronizando...' : 'Sincronizar';
+    if (status) status.textContent = meta;
     button.title = detail;
   }
 
@@ -541,26 +544,28 @@
     }
   }
 
-  async function syncDrive() {
+  async function syncDrive(event) {
     const drive = window.TierraFilmsDrive;
     if (!drive || !state.base) return;
+    const clicked = Boolean(event && event.type === 'click');
     const pending = 'Falta conectar las carpetas de Drive: publica apps-script/drive-sync.gs y pega su URL en js/drive-sync.js.';
     if (!drive.configured) {
-      setSyncStatus('off', state.snapshot ? `Copia ${snapshotDate()}` : 'Sincronizar', state.snapshot ? `Mostrando la copia guardada de Drive del ${snapshotDate()}. ${pending}` : pending);
+      const meta = clicked ? 'falta conectar Drive' : state.snapshot ? `copia ${snapshotDate()}` : 'sin conexion';
+      setSyncStatus('off', meta, state.snapshot ? `Mostrando la copia guardada de Drive del ${snapshotDate()}. ${pending}` : pending);
       return;
     }
-    setSyncStatus('loading', 'Sincronizando...', 'Leyendo la carpeta de Google Drive');
+    setSyncStatus('loading', '', 'Leyendo las carpetas de Google Drive');
     try {
       const merged = drive.merge(state.base, await drive.fetchFolder());
       applyData(merged);
       const time = new Date(merged.drive.syncedAt).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' });
       const used = merged.drive.applied.length ? `Leido: ${merged.drive.applied.join(', ')}.` : 'La carpeta no tiene informes que el tablero reconozca.';
       const skipped = merged.drive.notes.length ? `\n${merged.drive.notes.join('\n')}` : '';
-      setSyncStatus(merged.drive.notes.length && !merged.drive.applied.length ? 'warn' : 'ok', `Drive ${time}`, `${used}${skipped}`);
+      setSyncStatus(merged.drive.notes.length && !merged.drive.applied.length ? 'warn' : 'ok', `leido ${time}`, `${used}${skipped}`);
     } catch (error) {
       console.error(error);
       const fallback = state.snapshot ? ` Se muestra la copia guardada del ${snapshotDate()}.` : '';
-      setSyncStatus('error', 'Reintentar', `No se pudo leer Drive: ${error.message}${fallback}`);
+      setSyncStatus('error', 'no se pudo leer', `No se pudo leer Drive: ${error.message}${fallback}`);
     }
   }
 
