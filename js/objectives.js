@@ -1,5 +1,6 @@
 (function () {
   const DATA_URL = 'data/tierra-films-lima-retail-2026.json';
+  const SNAPSHOT_URL = 'data/drive-snapshot.json';
   const MONTH_STORAGE_KEY = 'tierra_films_selected_month';
   const ALL = 'all';
   const SERIES = {
@@ -11,7 +12,7 @@
   const TREND_METRICS = ['cost', 'conversions', 'costPerConversion', 'ctr'];
   const MONTH_NAMES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Setiembre', 'Octubre', 'Noviembre', 'Diciembre'];
   const MONTH_SHORT = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'set', 'oct', 'nov', 'dic'];
-  const state = { data: null, months: [], weeks: [], days: [], monthId: null, base: null, chart: null, trendChart: null };
+  const state = { data: null, months: [], weeks: [], days: [], monthId: null, base: null, snapshot: null, chart: null, trendChart: null };
 
   const fmtMoney = value => Number.isFinite(Number(value)) && value !== null ? `S/ ${Number(value).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-';
   const fmtCount = value => Number.isFinite(Number(value)) && value !== null ? Number(value).toLocaleString('es-PE', { maximumFractionDigits: 0 }) : '-';
@@ -525,11 +526,27 @@
   }
 
   // Lee la carpeta de Drive y la pone encima de la data del repo. Si falla, el tablero sigue con lo que tenia.
+  function snapshotDate() {
+    return state.snapshot && state.snapshot.generatedAt ? shortDate(state.snapshot.generatedAt.slice(0, 10)) : '';
+  }
+
+  // Copia local de las carpetas de Drive (scripts/drive-snapshot.py). Es opcional.
+  async function loadSnapshot() {
+    if (window.TIERRA_FILMS_DRIVE_SNAPSHOT) return window.TIERRA_FILMS_DRIVE_SNAPSHOT;
+    try {
+      const response = await fetch(SNAPSHOT_URL, { cache: 'no-store' });
+      return response.ok ? await response.json() : null;
+    } catch (error) {
+      return null;
+    }
+  }
+
   async function syncDrive() {
     const drive = window.TierraFilmsDrive;
     if (!drive || !state.base) return;
+    const pending = 'Falta conectar las carpetas de Drive: publica apps-script/drive-sync.gs y pega su URL en js/drive-sync.js.';
     if (!drive.configured) {
-      setSyncStatus('off', 'Sincronizar', 'Falta conectar la carpeta de Drive: publica apps-script/drive-sync.gs y pega su URL en js/drive-sync.js.');
+      setSyncStatus('off', state.snapshot ? `Copia ${snapshotDate()}` : 'Sincronizar', state.snapshot ? `Mostrando la copia guardada de Drive del ${snapshotDate()}. ${pending}` : pending);
       return;
     }
     setSyncStatus('loading', 'Sincronizando...', 'Leyendo la carpeta de Google Drive');
@@ -542,7 +559,8 @@
       setSyncStatus(merged.drive.notes.length && !merged.drive.applied.length ? 'warn' : 'ok', `Drive ${time}`, `${used}${skipped}`);
     } catch (error) {
       console.error(error);
-      setSyncStatus('error', 'Reintentar', `No se pudo leer Drive: ${error.message}`);
+      const fallback = state.snapshot ? ` Se muestra la copia guardada del ${snapshotDate()}.` : '';
+      setSyncStatus('error', 'Reintentar', `No se pudo leer Drive: ${error.message}${fallback}`);
     }
   }
 
@@ -557,7 +575,12 @@
       if (!Array.isArray(data.weeks) || !data.weeks.length) throw new Error('La fuente no contiene semanas con datos.');
       // La data del repo queda intacta: cada sincronizacion parte de ella.
       state.base = JSON.parse(JSON.stringify(data));
-      applyData(data);
+      state.snapshot = await loadSnapshot();
+      let first = data;
+      if (state.snapshot && window.TierraFilmsDrive) {
+        try { first = window.TierraFilmsDrive.merge(state.base, state.snapshot); } catch (error) { console.error(error); }
+      }
+      applyData(first);
     } catch (error) {
       renderError(error.message);
       console.error(error);

@@ -48,6 +48,9 @@ paneles de Amador y Aquarius.
      diario necesario, y marca en rojo cuando supera el presupuesto actual.
      La meta, el costo marginal y el escenario se guardan en el navegador.
 3. **Palabras Clave**: informe semanal de palabras clave de busqueda.
+   - `Desde Google Drive` (al final): categorias de busqueda y ubicaciones,
+     leidas de la carpeta de Drive; ver
+     [Sincronizacion con Drive](#sincronizacion-con-drive).
    - Filtro por mes y KPIs: impresiones, clics, cuota de impresiones, perdido
      por ranking, nivel de calidad y CPC.
    - `Por que se movieron las impresiones y los clics`: diagnostico automatico.
@@ -123,13 +126,21 @@ campaña.
 
 ## Sincronizacion con Drive
 
-El boton **Sincronizar** de la barra superior lee la carpeta de Google Drive
-del cliente (`1Zz5WjNFy0H37n0trSjhVx90NgPmqkyrO`) y pone lo que encuentre
-encima de la data del repo. Tambien sincroniza solo al abrir el tablero. Nada se
-guarda en el repo: cada visita lee la carpeta en vivo.
+El boton **Sincronizar** de la barra superior lee dos carpetas de Google Drive
+del cliente y pone lo que encuentre encima de la data del repo. Tambien
+sincroniza solo al abrir el tablero; cada visita lee las carpetas en vivo.
 
-Que reconoce (una pestaña o CSV por informe, con el rango de fechas en la
-cabecera, igual que el export de Google Ads):
+| Carpeta | ID | Modulo |
+| --- | --- | --- |
+| Gasto | `1Zz5WjNFy0H37n0trSjhVx90NgPmqkyrO` | Gasto Publicitario y Proyecciones |
+| Palabras | `1Ehko4amk1IjGW6H-HB4WtkF98aaNeB7U` | Palabras Clave (seccion `Desde Google Drive`) |
+
+El tablero reconoce cada informe por su fila de encabezados, no por la carpeta
+ni por el nombre del archivo (una pestaña o CSV por informe, con el rango de
+fechas en la cabecera, igual que el export de Google Ads). Lee numeros en
+formato es-PE (`2461,69`) o en ingles (`1,124`), segun venga cada hoja.
+
+Gasto Publicitario:
 
 - **Informe de campaña del mes** sin segmentar (`Estado de la campaña` en la
   primera columna): su fila `Total: Cuenta` reemplaza los totales del mes.
@@ -138,6 +149,30 @@ cabecera, igual que el export de Google Ads):
   accion, tambien los totales del mes.
 - Un informe que cubre varios meses o viene segmentado por Dia/Semana se salta;
   el motivo sale al pasar el mouse por el boton.
+
+Palabras Clave (se muestra el informe mas reciente de cada tipo, con su propio
+rango; el filtro de mes del modulo no lo cambia):
+
+- **Estadisticas de los terminos de busqueda** (`Categoría de búsqueda`):
+  tabla de categorias con impresiones, clics, CTR, conversiones, tasa de
+  conversion y volumen de busquedas, con el % de cambio contra el periodo de
+  comparacion. `∞` de Google Ads sale como `nuevo`. Muestra las 12 categorias
+  con mas impresiones y un boton para ver todas; `Sin clasificar` va aparte.
+- **Informe de ubicaciones** (`Ubicación`): conversiones por ubicacion y por
+  accion. Si viene separado por accion de conversion solo trae conversiones por
+  ubicacion; las impresiones y el costo con ubicacion salen en la nota.
+
+### Copia local
+
+`data/drive-snapshot.json` guarda una copia de lo que devolvieron las carpetas
+(se arma con `scripts/drive-snapshot.py`). El tablero la usa al abrir y la
+reemplaza en cuanto Drive responde; si Drive falla o todavia no esta conectado,
+se queda con la copia y el boton dice `Copia <fecha>`. Para renovarla con CSV
+descargados de las carpetas:
+
+```bash
+python scripts/drive-snapshot.py gasto="Accion de conversion setiembre 2026.csv" palabras="Terminos de busqueda 22-28 set 2026.csv" palabras="Ubicaciones setiembre 2026.csv"
+```
 
 Por cada mes manda el informe que llega mas lejos. Si Drive trae menos dias que
 el repo, se queda el del repo. `Todo el periodo`, los KPIs, `Datos al ...` y
@@ -153,7 +188,7 @@ conexion).
 El tablero es una pagina fija en GitHub Pages y no puede entrar a Drive por su
 cuenta; el puente es un Apps Script que corre con tu cuenta de Google.
 
-1. Entra a <https://script.google.com> con la cuenta duena de la carpeta >
+1. Entra a <https://script.google.com> con la cuenta duena de las carpetas >
    **Nuevo proyecto**. Borra lo que trae y pega `apps-script/drive-sync.gs`.
 2. **Implementar > Nueva implementacion** > tipo **Aplicacion web**.
    - Ejecutar como: **Yo**.
@@ -165,7 +200,10 @@ cuenta; el puente es un Apps Script que corre con tu cuenta de Google.
 Si luego cambias el script, usa **Implementar > Gestionar implementaciones >
 Editar > Nueva version** para que la URL siga siendo la misma.
 
-Ojo: cualquiera con esa URL puede leer los informes de la carpeta. Como el repo
+Para sumar otra carpeta, agregala en `FOLDERS` (Apps Script) y en
+`FOLDER_URLS` (`js/drive-sync.js`) y publica una nueva version del script.
+
+Ojo: cualquiera con esa URL puede leer los informes de las carpetas. Como el repo
 es publico, la URL queda visible en `js/drive-sync.js`.
 
 ## Actualizar la data

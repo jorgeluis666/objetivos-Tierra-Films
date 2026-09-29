@@ -2,7 +2,11 @@
   // URL /exec de la aplicacion web de Apps Script (apps-script/drive-sync.gs).
   // Vacia: el tablero usa solo la data del repo y el boton avisa que falta la conexion.
   const DRIVE_SYNC_URL = '';
-  const DRIVE_FOLDER_URL = 'https://drive.google.com/drive/folders/1Zz5WjNFy0H37n0trSjhVx90NgPmqkyrO';
+  // Una carpeta por modulo; deben coincidir con FOLDERS en apps-script/drive-sync.gs.
+  const FOLDER_URLS = {
+    gasto: 'https://drive.google.com/drive/folders/1Zz5WjNFy0H37n0trSjhVx90NgPmqkyrO',
+    palabras: 'https://drive.google.com/drive/folders/1Ehko4amk1IjGW6H-HB4WtkF98aaNeB7U'
+  };
   const TIMEOUT_MS = 25000;
   const MONTHS = { enero: 1, febrero: 2, marzo: 3, abril: 4, mayo: 5, junio: 6, julio: 7, agosto: 8, septiembre: 9, setiembre: 9, octubre: 10, noviembre: 11, diciembre: 12 };
   const MONTH_LABELS = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Setiembre', 'Octubre', 'Noviembre', 'Diciembre'];
@@ -15,20 +19,51 @@
 
   const clean = value => String(value ?? '').trim();
 
-  // Las hojas traen numeros de verdad; los CSV, texto es-PE ("2461,69", "1.247", "8,34%").
-  function parseNumber(value) {
+  // Las hojas traen numeros de verdad; los CSV, texto. Google Ads exporta segun el idioma de la
+  // cuenta: es-PE ("2461,69", "1.247", "8,34%") o en ("1,124", "186.01%"). Cada hoja se mira entera.
+  function detectLocale(rows) {
+    let es = 0;
+    let en = 0;
+    rows.forEach(row => row.forEach(cell => {
+      if (typeof cell !== 'string') return;
+      if (/^-?\d+,\d{1,2}%?$/.test(cell)) es += 1;
+      else if (/^-?\d+\.\d{1,2}%?$/.test(cell)) en += 1;
+    }));
+    return en > es ? 'en' : 'es';
+  }
+
+  function parseNumber(value, locale = 'es') {
     if (typeof value === 'number') return Number.isFinite(value) ? value : null;
     const text = clean(value).replace(/[A-Za-z$€%\s]/g, '');
     if (!text || text === '--') return null;
-    const number = Number(text.replace(/\./g, '').replace(',', '.'));
+    const normalized = locale === 'en' ? text.replace(/,/g, '') : text.replace(/\./g, '').replace(',', '.');
+    const number = Number(normalized);
     return Number.isFinite(number) ? number : null;
   }
 
+  // Porcentajes como fraccion: "186.01%" -> 1.8601. "∞" es un valor que la semana anterior fue 0.
+  function parsePercent(value, locale = 'es') {
+    if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+    const text = clean(value);
+    if (text === '∞' || text === '+∞') return Infinity;
+    const number = parseNumber(text, locale);
+    return number === null ? null : number / 100;
+  }
+
+  function parseDates(text) {
+    return [...clean(text).toLowerCase().matchAll(/(\d{1,2}) de ([a-záéíóú]+) de (\d{4})/g)]
+      .map(([, d, m, y]) => (MONTHS[m] ? `${y}-${String(MONTHS[m]).padStart(2, '0')}-${String(d).padStart(2, '0')}` : null))
+      .filter(Boolean);
+  }
+
   function parseRange(text) {
-    const found = [...clean(text).toLowerCase().matchAll(/(\d{1,2}) de ([a-záéíóú]+) de (\d{4})/g)];
-    if (found.length !== 2) return null;
-    const dates = found.map(([, d, m, y]) => (MONTHS[m] ? `${y}-${String(MONTHS[m]).padStart(2, '0')}-${String(d).padStart(2, '0')}` : null));
-    return dates.every(Boolean) ? { start: dates[0], end: dates[1] } : null;
+    const dates = parseDates(text);
+    return dates.length === 2 ? { start: dates[0], end: dates[1] } : null;
+  }
+
+  // Fechas del preambulo (las filas antes de la cabecera): el rango y, si hay, el de comparacion.
+  function preambleDates(rows, headerIndex) {
+    return rows.slice(0, headerIndex).map(row => parseDates(row.find(cell => typeof cell === 'string' && cell) || '')).find(dates => dates.length >= 2) || [];
   }
 
   function daysBetween(start, end) {
@@ -47,6 +82,11 @@
   function parseSheet(sheet) {
     const rows = (sheet.rows || []).map(row => row.map(cell => (typeof cell === 'number' ? cell : clean(cell))));
     const name = sheet.sheet && sheet.sheet !== sheet.file ? `${sheet.file} > ${sheet.sheet}` : sheet.file;
+    const locale = detectLocale(rows);
+    const termsIndex = rows.findIndex(row => row.includes('Categoría de búsqueda'));
+    if (termsIndex >= 0) return parseSearchTerms(sheet, name, rows, termsIndex, locale);
+    const placesIndex = rows.findIndex(row => row.includes('Ubicación'));
+    if (placesIndex >= 0) return parseLocations(sheet, name, rows, placesIndex, locale);
     const headerIndex = rows.findIndex(row => row.includes('Estado de la campaña'));
     if (headerIndex < 0) return { skipped: `${name}: no parece un informe de campaña de Google Ads.` };
     const header = rows[headerIndex];
@@ -61,7 +101,7 @@
     const statusCol = header.indexOf('Estado de la campaña');
     const columns = Object.fromEntries(Object.entries(METRIC_COLUMNS).map(([metric, labels]) => [metric, col(labels)]));
     if (columns.cost === undefined || columns.conversions === undefined) return { skipped: `${name}: faltan las columnas de costo o conversiones.` };
-    const metricsOf = row => Object.fromEntries(Object.entries(columns).map(([metric, index]) => [metric, index === undefined ? null : parseNumber(row[index]) ?? 0]));
+    const metricsOf = row => Object.fromEntries(Object.entries(columns).map(([metric, index]) => [metric, index === undefined ? null : parseNumber(row[index], locale) ?? 0]));
     const body = rows.slice(headerIndex + 1);
     const accountRows = body.filter(row => row[statusCol] === 'Total: Cuenta');
     const hasLabel = row => kind === 'actions' && row[0] && row[0] !== '--';
@@ -84,6 +124,90 @@
     return { report };
   }
 
+  // "Estadisticas de los terminos de busqueda": categorias de busqueda de una semana contra la anterior.
+  function parseSearchTerms(sheet, name, rows, headerIndex, locale) {
+    const dates = preambleDates(rows, headerIndex);
+    if (dates.length < 2) return { skipped: `${name}: no trae el rango de fechas en la cabecera.` };
+    const header = rows[headerIndex];
+    const at = label => header.indexOf(label);
+    const cols = {
+      category: at('Categoría de búsqueda'), sub: at('Subcategoría de búsqueda'),
+      impressions: at('Impresiones'), impressionsChange: at('Impresiones (cambio porcentual)'),
+      clicks: at('Clics'), clicksChange: at('Clics (cambio porcentual)'),
+      conversions: at('Conversiones'), conversionsChange: at('Conversiones (cambio porcentual)'),
+      ctr: at('CTR'), ctrChange: at('CTR (cambio porcentual)'),
+      convRate: at('Porcentaje de conv.'), convRateChange: at('Porcentaje de conv. (cambio porcentual)'),
+      volume: at('Volumen de búsquedas'), volumeChange: at('Volumen de búsquedas (cambio porcentual)')
+    };
+    const cell = (row, key) => (cols[key] >= 0 ? row[cols[key]] : null);
+    const num = (row, key) => parseNumber(cell(row, key), locale);
+    const pct = (row, key) => parsePercent(cell(row, key), locale);
+    // Cada categoria trae su fila "Subcategoría - Total"; las subcategorias sueltas se ignoran.
+    const categories = rows.slice(headerIndex + 1)
+      .filter(row => cell(row, 'category') && (cols.sub < 0 || cell(row, 'sub') === 'Subcategoría - Total'))
+      .map(row => {
+        const volume = clean(cell(row, 'volume'));
+        return {
+          name: cell(row, 'category'),
+          unclassified: /sin clasificar/i.test(cell(row, 'category')),
+          impressions: num(row, 'impressions') || 0, impressionsChange: pct(row, 'impressionsChange'),
+          clicks: num(row, 'clicks') || 0, clicksChange: pct(row, 'clicksChange'),
+          conversions: num(row, 'conversions') || 0, conversionsChange: pct(row, 'conversionsChange'),
+          ctr: pct(row, 'ctr'), ctrChange: pct(row, 'ctrChange'),
+          convRate: pct(row, 'convRate'), convRateChange: pct(row, 'convRateChange'),
+          volume: volume && volume !== '--' ? volume : null, volumeChange: pct(row, 'volumeChange')
+        };
+      });
+    if (!categories.length) return { skipped: `${name}: no tiene categorias de busqueda.` };
+    return { report: {
+      kind: 'searchTerms', name, modified: sheet.modified || '', start: dates[0], end: dates[1],
+      data: { start: dates[0], end: dates[1], compareStart: dates[2] || null, compareEnd: dates[3] || null, sourceFile: name, categories }
+    } };
+  }
+
+  // "Informe de ubicaciones": conversiones (y, si no viene por accion, impresiones y costo) por ubicacion.
+  function parseLocations(sheet, name, rows, headerIndex, locale) {
+    const dates = preambleDates(rows, headerIndex);
+    if (dates.length < 2) return { skipped: `${name}: no trae el rango de fechas en la cabecera.` };
+    const header = rows[headerIndex];
+    const at = (...labels) => labels.map(label => header.indexOf(label)).find(index => index >= 0) ?? -1;
+    const cols = {
+      action: at('Acción de conversión'), place: at('Ubicación'),
+      impressions: at('Impr.', 'Impresiones'), interactions: at('Interacciones', 'Clics'),
+      cost: at('Costo', 'Coste'), conversions: at('Conversiones')
+    };
+    const num = (row, key) => (cols[key] >= 0 ? parseNumber(row[cols[key]], locale) || 0 : 0);
+    const metrics = row => ({ impressions: num(row, 'impressions'), interactions: num(row, 'interactions'), cost: num(row, 'cost'), conversions: num(row, 'conversions') });
+    const places = new Map();
+    let located = null;
+    let account = null;
+    rows.slice(headerIndex + 1).forEach(row => {
+      const place = clean(row[cols.place]);
+      const action = cols.action >= 0 ? clean(row[cols.action]) : '';
+      if (!place) return;
+      if (place.startsWith('Total')) {
+        // Solo las filas de total sin accion traen impresiones y costo.
+        if (action && action !== '--') return;
+        if (place === 'Total: Ubicaciones') located = metrics(row);
+        if (place === 'Total: Cuenta') account = metrics(row);
+        return;
+      }
+      const item = places.get(place) || { name: place.split(',')[0].trim(), full: place, impressions: 0, interactions: 0, cost: 0, conversions: 0, actions: {} };
+      const values = metrics(row);
+      ['impressions', 'interactions', 'cost', 'conversions'].forEach(key => { item[key] += values[key]; });
+      if (action && values.conversions) item.actions[action] = (item.actions[action] || 0) + values.conversions;
+      places.set(place, item);
+    });
+    if (!places.size) return { skipped: `${name}: no tiene filas por ubicacion.` };
+    const list = [...places.values()]
+      .map(item => Object.assign(item, { actions: Object.entries(item.actions).map(([action, conversions]) => ({ name: action, conversions })).sort((a, b) => b.conversions - a.conversions) }))
+      .sort((a, b) => b.conversions - a.conversions || b.impressions - a.impressions);
+    return { report: {
+      kind: 'locations', name, modified: sheet.modified || '', start: dates[0], end: dates[1],
+      data: { start: dates[0], end: dates[1], sourceFile: name, byAction: cols.action >= 0, located, account, places: list }
+    } };
+  }
+
   // Por cada mes manda el informe que llegue mas lejos (y, si empatan, el editado al ultimo).
   const newer = (a, b) => !b || a.end > b.end || (a.end === b.end && a.modified > b.modified);
 
@@ -99,7 +223,13 @@
 
     const bestTotals = {};
     const bestActions = {};
+    const latest = {};
     reports.forEach(report => {
+      // Palabras Clave: se muestra el informe mas reciente de cada tipo.
+      if (report.kind === 'searchTerms' || report.kind === 'locations') {
+        if (newer(report, latest[report.kind])) latest[report.kind] = report;
+        return;
+      }
       if (report.totals && newer(report, bestTotals[report.month])) bestTotals[report.month] = report;
       if (report.actions && newer(report, bestActions[report.month])) bestActions[report.month] = report;
     });
@@ -154,8 +284,14 @@
       if (!applied.includes(report.name)) applied.push(report.name);
     });
     data.conversionActions = blocks.sort((a, b) => a.month.localeCompare(b.month));
+    Object.values(latest).forEach(report => {
+      const current = data[report.kind];
+      if (current && current.end > report.end) return;
+      data[report.kind] = report.data;
+      applied.push(report.name);
+    });
     if (data.months.length) data.defaultMonth = data.months[data.months.length - 1].id;
-    data.drive = { folder: payload.folder || '', syncedAt: payload.generatedAt || new Date().toISOString(), applied, notes };
+    data.drive = { folders: payload.folders || {}, syncedAt: payload.generatedAt || new Date().toISOString(), applied, notes };
     return data;
   }
 
@@ -177,5 +313,5 @@
     }
   }
 
-  window.TierraFilmsDrive = { configured: Boolean(DRIVE_SYNC_URL), folderUrl: DRIVE_FOLDER_URL, fetchFolder, merge, parseSheet };
+  window.TierraFilmsDrive = { configured: Boolean(DRIVE_SYNC_URL), folderUrls: FOLDER_URLS, fetchFolder, merge, parseSheet };
 })();
