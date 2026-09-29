@@ -2,10 +2,11 @@
   // URL /exec de la aplicacion web de Apps Script (apps-script/drive-sync.gs).
   // Vacia: el tablero usa solo la data del repo y el boton avisa que falta la conexion.
   const DRIVE_SYNC_URL = '';
-  // Una carpeta por modulo; deben coincidir con FOLDERS en apps-script/drive-sync.gs.
+  // Carpetas "Google Ads TF"; deben coincidir con FOLDERS en apps-script/drive-sync.gs.
   const FOLDER_URLS = {
-    gasto: 'https://drive.google.com/drive/folders/1Zz5WjNFy0H37n0trSjhVx90NgPmqkyrO',
-    palabras: 'https://drive.google.com/drive/folders/1Ehko4amk1IjGW6H-HB4WtkF98aaNeB7U'
+    campanas: 'https://drive.google.com/drive/folders/1Zz5WjNFy0H37n0trSjhVx90NgPmqkyrO',
+    segmentacion: 'https://drive.google.com/drive/folders/1Ehko4amk1IjGW6H-HB4WtkF98aaNeB7U',
+    keywords: 'https://drive.google.com/drive/folders/1WSk4gc4UNeprLTWFzLtTUaSqOSWZ25yL'
   };
   const TIMEOUT_MS = 25000;
   const MONTHS = { enero: 1, febrero: 2, marzo: 3, abril: 4, mayo: 5, junio: 6, julio: 7, agosto: 8, septiembre: 9, setiembre: 9, octubre: 10, noviembre: 11, diciembre: 12 };
@@ -87,6 +88,8 @@
     if (termsIndex >= 0) return parseSearchTerms(sheet, name, rows, termsIndex, locale);
     const placesIndex = rows.findIndex(row => row.includes('Ubicación'));
     if (placesIndex >= 0) return parseLocations(sheet, name, rows, placesIndex, locale);
+    const keywordsIndex = rows.findIndex(row => row.includes('Palabra clave'));
+    if (keywordsIndex >= 0) return parseKeywordConversions(sheet, name, rows, keywordsIndex, locale);
     const headerIndex = rows.findIndex(row => row.includes('Estado de la campaña'));
     if (headerIndex < 0) return { skipped: `${name}: no parece un informe de campaña de Google Ads.` };
     const header = rows[headerIndex];
@@ -208,6 +211,59 @@
     } };
   }
 
+  // "Informe de palabras clave de busqueda": resultados por palabra clave. Si viene separado por
+  // accion de conversion, Google Ads deja en 0 impresiones, clics y costo de cada palabra.
+  const MATCH_TYPES = { 'Concordancia amplia': 'amplia', 'Concordancia de frase': 'frase', 'Concordancia exacta': 'exacta' };
+
+  function parseKeywordConversions(sheet, name, rows, headerIndex, locale) {
+    const dates = preambleDates(rows, headerIndex);
+    if (dates.length < 2) return { skipped: `${name}: no trae el rango de fechas en la cabecera.` };
+    const header = rows[headerIndex];
+    const at = (...labels) => labels.map(label => header.indexOf(label)).find(index => index >= 0) ?? -1;
+    const cols = {
+      action: at('Acción de conversión'), status: at('Estado de palabras clave'), keyword: at('Palabra clave'),
+      match: at('Tipo de concordancia'), impressions: at('Impr.', 'Impresiones'), clicks: at('Clics'),
+      cost: at('Costo', 'Coste'), conversions: at('Conversiones')
+    };
+    if (cols.conversions < 0) return { skipped: `${name}: falta la columna de conversiones.` };
+    const num = (row, key) => (cols[key] >= 0 ? parseNumber(row[cols[key]], locale) || 0 : 0);
+    const metrics = row => ({ impressions: num(row, 'impressions'), clicks: num(row, 'clicks'), cost: num(row, 'cost'), conversions: num(row, 'conversions') });
+    const keywords = new Map();
+    const actionTotals = {};
+    let account = null;
+    rows.slice(headerIndex + 1).forEach(row => {
+      const status = cols.status >= 0 ? clean(row[cols.status]) : '';
+      const action = cols.action >= 0 ? clean(row[cols.action]) : '';
+      const raw = clean(row[cols.keyword]);
+      if (status.startsWith('Total')) {
+        if (status === 'Total: Cuenta' && (!action || action === '--')) account = metrics(row);
+        return;
+      }
+      if (!raw || raw === '--') return;
+      const match = MATCH_TYPES[clean(row[cols.match])] || clean(row[cols.match]).replace(/^Concordancia (de )?/i, '');
+      const key = `${raw}|${match}`;
+      // Frase y exacta llegan como "palabra" y [palabra]; el tipo ya va en su columna.
+      const item = keywords.get(key) || { keyword: raw.replace(/^["[]+|["\]]+$/g, ''), match, paused: /detenid|pausad/i.test(status), impressions: 0, clicks: 0, cost: 0, conversions: 0, actions: {} };
+      const values = metrics(row);
+      ['impressions', 'clicks', 'cost', 'conversions'].forEach(metric => { item[metric] += values[metric]; });
+      if (action && action !== '--' && values.conversions) {
+        item.actions[action] = (item.actions[action] || 0) + values.conversions;
+        actionTotals[action] = (actionTotals[action] || 0) + values.conversions;
+      }
+      keywords.set(key, item);
+    });
+    if (!keywords.size) return { skipped: `${name}: no tiene filas por palabra clave.` };
+    const list = [...keywords.values()].sort((a, b) => b.conversions - a.conversions || b.impressions - a.impressions || a.keyword.localeCompare(b.keyword));
+    return { report: {
+      kind: 'keywordConversions', name, modified: sheet.modified || '', start: dates[0], end: dates[1],
+      data: {
+        start: dates[0], end: dates[1], sourceFile: name, byAction: cols.action >= 0, account,
+        actions: Object.entries(actionTotals).sort((a, b) => b[1] - a[1]).map(([action]) => action),
+        keywords: list
+      }
+    } };
+  }
+
   // Por cada mes manda el informe que llegue mas lejos (y, si empatan, el editado al ultimo).
   const newer = (a, b) => !b || a.end > b.end || (a.end === b.end && a.modified > b.modified);
 
@@ -226,7 +282,7 @@
     const latest = {};
     reports.forEach(report => {
       // Palabras Clave: se muestra el informe mas reciente de cada tipo.
-      if (report.kind === 'searchTerms' || report.kind === 'locations') {
+      if (report.kind === 'searchTerms' || report.kind === 'locations' || report.kind === 'keywordConversions') {
         if (newer(report, latest[report.kind])) latest[report.kind] = report;
         return;
       }

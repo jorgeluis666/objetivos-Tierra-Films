@@ -48,8 +48,8 @@ paneles de Amador y Aquarius.
      diario necesario, y marca en rojo cuando supera el presupuesto actual.
      La meta, el costo marginal y el escenario se guardan en el navegador.
 3. **Palabras Clave**: informe semanal de palabras clave de busqueda.
-   - `Desde Google Drive` (al final): categorias de busqueda y ubicaciones,
-     leidas de la carpeta de Drive; ver
+   - `Desde Google Drive` (al final): palabras clave que convierten, categorias
+     de busqueda y ubicaciones, leidas de las carpetas de Drive; ver
      [Sincronizacion con Drive](#sincronizacion-con-drive).
    - Filtro por mes y KPIs: impresiones, clics, cuota de impresiones, perdido
      por ranking, nivel de calidad y CPC.
@@ -126,14 +126,15 @@ campaña.
 
 ## Sincronizacion con Drive
 
-El boton **Sincronizar** de la barra superior lee dos carpetas de Google Drive
-del cliente y pone lo que encuentre encima de la data del repo. Tambien
-sincroniza solo al abrir el tablero; cada visita lee las carpetas en vivo.
+El boton **Sincronizar** de la barra superior lee las carpetas "Google Ads TF"
+de Google Drive del cliente y pone lo que encuentre encima de la data del repo.
+Tambien sincroniza solo al abrir el tablero; cada visita lee las carpetas en vivo.
 
-| Carpeta | ID | Modulo |
+| Carpeta en Drive | ID | Modulo |
 | --- | --- | --- |
-| Gasto | `1Zz5WjNFy0H37n0trSjhVx90NgPmqkyrO` | Gasto Publicitario y Proyecciones |
-| Palabras | `1Ehko4amk1IjGW6H-HB4WtkF98aaNeB7U` | Palabras Clave (seccion `Desde Google Drive`) |
+| Google Ads TF Campañas | `1Zz5WjNFy0H37n0trSjhVx90NgPmqkyrO` | Gasto Publicitario y Proyecciones |
+| Google Ads TF Segmentacion | `1Ehko4amk1IjGW6H-HB4WtkF98aaNeB7U` | Palabras Clave (seccion `Desde Google Drive`) |
+| Google Ads TF Keywords | `1WSk4gc4UNeprLTWFzLtTUaSqOSWZ25yL` | Palabras Clave (seccion `Desde Google Drive`) |
 
 El tablero reconoce cada informe por su fila de encabezados, no por la carpeta
 ni por el nombre del archivo (una pestaña o CSV por informe, con el rango de
@@ -153,6 +154,14 @@ Gasto Publicitario:
 Palabras Clave (se muestra el informe mas reciente de cada tipo, con su propio
 rango; el filtro de mes del modulo no lo cambia):
 
+- **Informe de palabras clave de busqueda** (`Palabra clave`): tabla
+  `Palabras clave que convierten` con las conversiones de cada palabra, su % del
+  total y una columna por accion. Si el informe viene separado por accion de
+  conversion (como hoy), Google Ads deja en 0 impresiones, clics y costo por
+  palabra, y la tabla muestra solo conversiones; sin ese segmento suma tambien
+  impresiones, clics, gasto y costo por conversion. Las palabras sin conversiones
+  se ven con un boton.
+
 - **Estadisticas de los terminos de busqueda** (`Categoría de búsqueda`):
   tabla de categorias con impresiones, clics, CTR, conversiones, tasa de
   conversion y volumen de busquedas, con el % de cambio contra el periodo de
@@ -171,7 +180,7 @@ se queda con la copia y el boton dice `Copia <fecha>`. Para renovarla con CSV
 descargados de las carpetas:
 
 ```bash
-python scripts/drive-snapshot.py gasto="Accion de conversion setiembre 2026.csv" palabras="Terminos de busqueda 22-28 set 2026.csv" palabras="Ubicaciones setiembre 2026.csv"
+python scripts/drive-snapshot.py campanas="Accion de conversion setiembre 2026.csv" segmentacion="Terminos de busqueda 22-28 set 2026.csv" segmentacion="Ubicaciones setiembre 2026.csv" keywords="Palabras clave conversiones setiembre 2026.csv"
 ```
 
 Por cada mes manda el informe que llega mas lejos. Si Drive trae menos dias que

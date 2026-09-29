@@ -1,9 +1,10 @@
 (function () {
-  // Palabras Clave | informes de la carpeta de Drive: categorias de busqueda y ubicaciones.
+  // Palabras Clave | informes de las carpetas de Drive: palabras que convierten (TF Keywords),
+  // categorias de busqueda y ubicaciones (TF Segmentacion).
   // Cada informe trae su propio rango, independiente del filtro de mes del modulo.
   const TOP_CATEGORIES = 12;
   const PLACE_COLORS = ['#0284c7', '#7c3aed', '#0f766e', '#f59e0b', '#94a3b8'];
-  const state = { showAll: false };
+  const state = { showAll: false, showAllKeywords: false };
   const F = () => window.TierraFilmsFormat;
 
   function rangeLabel(start, end) {
@@ -77,6 +78,57 @@
       </div>`;
   }
 
+  function renderKeywords(report) {
+    const f = F();
+    const total = report.keywords.reduce((sum, item) => sum + item.conversions, 0);
+    const onlyConversions = report.byAction && report.keywords.every(item => !item.impressions && !item.cost);
+    const converting = report.keywords.filter(item => item.conversions > 0);
+    const visible = state.showAllKeywords ? report.keywords : converting;
+    const actions = report.actions;
+    const metricHead = onlyConversions ? '' : '<th class="num">Impr.</th><th class="num">Clics</th><th class="num">Gasto</th><th class="num">Costo x conv.</th>';
+    const row = item => {
+      const share = total ? item.conversions / total : 0;
+      const metrics = onlyConversions ? '' : `<td class="num">${f.fmtCount(item.impressions)}</td><td class="num">${f.fmtCount(item.clicks)}</td><td class="num">${f.fmtMoney(item.cost)}</td><td class="num">${item.conversions ? f.fmtMoney(item.cost / item.conversions) : '-'}</td>`;
+      return `<tr class="${item.conversions ? '' : 'is-muted'}">
+        <td class="campaign-name">${f.escapeHtml(item.keyword)}${item.paused ? ' <span class="status-pill muted">detenida</span>' : ''}</td>
+        <td><span class="match-pill">${f.escapeHtml(item.match || '-')}</span></td>
+        <td class="num"><strong>${f.fmtCount(item.conversions)}</strong></td>
+        <td class="num"><span class="kw-share"><i style="width:${(share * 100).toFixed(2)}%"></i></span>${total && item.conversions ? `${Math.round(share * 100)}%` : '-'}</td>
+        ${actions.map(action => `<td class="num">${item.actions[action] ? f.fmtCount(item.actions[action]) : '-'}</td>`).join('')}
+        ${metrics}
+      </tr>`;
+    };
+    const acc = report.account;
+    const note = onlyConversions
+      ? `El informe viene separado por accion de conversion, asi que por palabra clave solo trae conversiones.${acc ? ` En el mismo periodo la cuenta tuvo ${f.fmtCount(acc.impressions)} impresiones, ${f.fmtCount(acc.clicks)} clics y ${f.fmtMoney(acc.cost)} de gasto.` : ''}`
+      : '';
+    const hidden = report.keywords.length - converting.length;
+    const toggle = hidden > 0
+      ? `<button type="button" class="drive-more" data-keywords-toggle>${state.showAllKeywords ? 'Ver solo las que convierten' : `Ver tambien las ${hidden} sin conversiones`}</button>`
+      : '';
+    return `
+      <div class="panel campaigns-panel drive-panel">
+        <div class="panel-head">
+          <div>
+            <div class="panel-title">Palabras clave que convierten | ${f.escapeHtml(rangeLabel(report.start, report.end))}</div>
+            <div class="panel-sub">Conversiones de cada palabra clave y por que accion llegaron. Fuente: ${f.escapeHtml(report.sourceFile)}.</div>
+          </div>
+          <div class="drive-total"><strong>${f.fmtCount(total)}</strong> conversiones · ${converting.length} de ${report.keywords.length} palabras</div>
+        </div>
+        <div class="table-scroll">
+          <table class="data-table campaigns-table drive-terms-table">
+            <thead><tr><th>Palabra clave</th><th>Concordancia</th><th class="num">Conv.</th><th class="num">% del total</th>${actions.map(action => `<th class="num">${f.escapeHtml(action)}</th>`).join('')}${metricHead}</tr></thead>
+            <tbody>
+              ${visible.map(row).join('')}
+              <tr class="reservations-total-row"><td class="total-label">Total</td><td></td><td class="num">${f.fmtCount(total)}</td><td></td>${actions.map(action => `<td class="num">${f.fmtCount(report.keywords.reduce((sum, item) => sum + (item.actions[action] || 0), 0))}</td>`).join('')}${onlyConversions ? '' : '<td></td><td></td><td></td><td></td>'}</tr>
+            </tbody>
+          </table>
+        </div>
+        ${toggle ? `<div class="drive-more-wrap">${toggle}</div>` : ''}
+        ${note ? `<div class="panel-note">${note}</div>` : ''}
+      </div>`;
+  }
+
   function renderPlaces(places) {
     const f = F();
     const total = places.places.reduce((sum, item) => sum + item.conversions, 0);
@@ -116,19 +168,28 @@
     const data = window.TIERRA_FILMS_RETAIL_DATA;
     if (!host || !data || !F()) return;
     const drive = window.TierraFilmsDrive;
-    const folder = drive && drive.folderUrls ? drive.folderUrls.palabras : '';
-    const blocks = [data.searchTerms ? renderTerms(data.searchTerms) : '', data.locations ? renderPlaces(data.locations) : ''].join('');
+    const urls = (drive && drive.folderUrls) || {};
+    const links = [['keywords', 'Carpeta Keywords'], ['segmentacion', 'Carpeta Segmentacion']]
+      .filter(([key]) => urls[key])
+      .map(([key, label]) => `<a class="drive-link" href="${F().escapeHtml(urls[key])}" target="_blank" rel="noopener">${label}</a>`).join('');
+    const blocks = [
+      data.keywordConversions ? renderKeywords(data.keywordConversions) : '',
+      data.searchTerms ? renderTerms(data.searchTerms) : '',
+      data.locations ? renderPlaces(data.locations) : ''
+    ].join('');
     host.innerHTML = `
       <div class="drive-block-head">
         <div>
           <div class="sec-lbl">Desde Google Drive</div>
-          <p>Informes de la carpeta de Palabras Clave. Cada uno muestra su propio rango de fechas; el filtro de mes de arriba no los cambia.</p>
+          <p>Informes de las carpetas Google Ads TF Keywords y Segmentacion. Cada uno muestra su propio rango de fechas; el filtro de mes de arriba no los cambia.</p>
         </div>
-        ${folder ? `<a class="drive-link" href="${F().escapeHtml(folder)}" target="_blank" rel="noopener">Abrir carpeta</a>` : ''}
+        ${links ? `<div class="drive-links">${links}</div>` : ''}
       </div>
-      ${blocks || '<div class="data-notice"><strong>Todavia no hay informes de Drive.</strong>Sube a la carpeta el informe de estadisticas de terminos de busqueda o el de ubicaciones y aprieta Sincronizar.</div>'}`;
+      ${blocks || '<div class="data-notice"><strong>Todavia no hay informes de Drive.</strong>Sube a las carpetas el informe de palabras clave, el de estadisticas de terminos de busqueda o el de ubicaciones y aprieta Sincronizar.</div>'}`;
     const toggle = host.querySelector('[data-terms-toggle]');
     if (toggle) toggle.addEventListener('click', () => { state.showAll = !state.showAll; render(); });
+    const keywordsToggle = host.querySelector('[data-keywords-toggle]');
+    if (keywordsToggle) keywordsToggle.addEventListener('click', () => { state.showAllKeywords = !state.showAllKeywords; render(); });
   }
 
   window.addEventListener('tierra-films:data-ready', render);

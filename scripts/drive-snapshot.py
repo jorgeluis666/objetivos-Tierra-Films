@@ -5,8 +5,9 @@ El tablero la usa mientras no haya conexion con Drive (o si Drive no responde) y
 la lee con el mismo codigo que la respuesta en vivo (js/drive-sync.js). Cada
 archivo se indica con la carpeta a la que pertenece:
 
-    python scripts/drive-snapshot.py gasto="Accion de conversion setiembre 2026.csv" \
-        palabras="Terminos de busqueda 22-28 set 2026.csv" palabras="Ubicaciones setiembre 2026.csv"
+    python scripts/drive-snapshot.py campanas="Accion de conversion setiembre 2026.csv" \
+        segmentacion="Terminos de busqueda 22-28 set 2026.csv" segmentacion="Ubicaciones setiembre 2026.csv" \
+        keywords="Palabras clave conversiones setiembre 2026.csv"
 
 Los CSV se copian tambien a data/csv-backups/.
 """
@@ -23,7 +24,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 OUTPUT = ROOT / "data" / "drive-snapshot.json"
 BACKUPS = ROOT / "data" / "csv-backups"
-FOLDERS = ("gasto", "palabras")
+FOLDERS = ("campanas", "segmentacion", "keywords")
 
 
 def read_rows(path: Path) -> list[list[str]]:

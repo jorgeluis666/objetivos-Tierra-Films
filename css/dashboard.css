@@ -1802,3 +1802,38 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+.drive-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.match-pill {
+  display: inline-flex;
+  padding: 3px 8px;
+  border-radius: 99px;
+  color: #475569;
+  background: #f1f5f9;
+  font-size: 9px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.kw-share {
+  display: inline-block;
+  width: 48px;
+  height: 6px;
+  margin-right: 8px;
+  overflow: hidden;
+  border-radius: 99px;
+  background: #f1f5f9;
+  vertical-align: middle;
+}
+
+.kw-share i {
+  display: block;
+  height: 100%;
+  border-radius: 99px;
+  background: var(--brand);
+}
