@@ -231,6 +231,33 @@
     });
   }
 
+  // Desglose del informe "Accion de conversion": el del mes elegido o, en todo el periodo, el mas reciente.
+  // Trae su propio rango (puede ir mas alla del resto de la data), por eso lo muestra en el titulo.
+  function renderConversionActions() {
+    const host = document.getElementById('conv-actions');
+    if (!host) return;
+    const blocks = state.data.conversionActions || [];
+    const block = state.monthId === ALL ? blocks[blocks.length - 1] : blocks.find(item => item.month === state.monthId);
+    if (!block || !block.total) {
+      host.hidden = true;
+      host.innerHTML = '';
+      return;
+    }
+    const colors = ['#7c3aed', '#0284c7', '#0f766e', '#f59e0b', '#94a3b8'];
+    const actions = block.actions.map((action, index) => Object.assign({}, action, { color: colors[Math.min(index, colors.length - 1)], share: action.conversions / block.total }));
+    const start = parseDate(block.start);
+    const end = parseDate(block.end);
+    const range = start.m === end.m ? `${start.d} - ${shortDate(block.end)} ${end.y}` : `${shortDate(block.start)} - ${shortDate(block.end)} ${end.y}`;
+    host.hidden = false;
+    host.title = `Fuente: ${block.sourceFile}`;
+    host.innerHTML = `
+      <div class="conv-actions-head"><span>Conversiones por accion <b>${escapeHtml(range)}</b></span><strong>${fmtCount(block.total)} <small>total</small></strong></div>
+      <div class="conv-actions-bar" aria-hidden="true">${actions.filter(action => action.conversions > 0).map(action => `<i style="width:${(action.share * 100).toFixed(2)}%;background:${action.color}"></i>`).join('')}</div>
+      <ul class="conv-actions-list">
+        ${actions.map(action => `<li class="${action.conversions > 0 ? '' : 'is-zero'}"><span class="conv-name"><span class="conv-dot" style="background:${action.color}"></span>${escapeHtml(action.name)}</span><span class="conv-value"><strong>${fmtCount(action.conversions)}</strong>${action.conversions > 0 ? ` <small>${Math.round(action.share * 100)}%</small>` : ''}</span></li>`).join('')}
+      </ul>`;
+  }
+
   function renderKpis() {
     const host = document.getElementById('kpi-strip');
     const t = periodTotals();
@@ -456,6 +483,7 @@
 
   function renderAll() {
     renderFilters();
+    renderConversionActions();
     renderKpis();
     renderChart();
     renderTrend();

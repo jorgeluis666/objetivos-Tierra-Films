@@ -20,6 +20,8 @@ Se pueden pasar varios archivos a la vez:
   traiga, con fechas en español ("sáb, 1 ago 2026") e importes con moneda.
 - Informe de palabras clave por semana: alimenta el modulo Palabras Clave con
   cuota de impresiones, perdida por ranking y nivel de calidad.
+- Segmentado por Accion de conversion: desglose de las conversiones del mes
+  (Formulario, WhatsApp...) en el encabezado de Gasto Publicitario.
 
 Los meses sin informe propio se calculan repartiendo por dias las semanas que
 los cruzan, y quedan marcados como estimados.
@@ -113,6 +115,9 @@ def read_table(path: Path) -> tuple[str, list[str], list[dict[str, str]], str]:
             rows = list(csv.DictReader(lines[index:]))
             kind = "keywords" if "Palabra clave" in line else DATE_COLUMNS[column]
             return kind, lines[:index], rows, column
+    for index, line in enumerate(lines):
+        if line.startswith(("Acción de conversión,", "Accion de conversion,")):
+            return "actions", lines[:index], list(csv.DictReader(lines[index:])), ""
     for index, line in enumerate(lines):
         if line.startswith("Estado de la campaña,"):
             return "period", lines[:index], list(csv.DictReader(lines[index:])), ""
@@ -258,11 +263,43 @@ def parse_series(path: Path, rows: list[dict[str, str]], date_column: str) -> di
             "campaigns": {}, "accountTotal": None}
 
 
+def parse_actions(path: Path, preamble: list[str], rows: list[dict[str, str]]) -> dict:
+    """Informe segmentado por "Acción de conversión": conversiones de cada accion en el rango."""
+    period = next((parse_range(line) for line in preamble if parse_range(line)), None)
+    if not period:
+        raise SystemExit(f"[tf-import] {path.name}: el informe no trae el rango de fechas en la cabecera.")
+    # Las filas "Total: Cuenta" con nombre de accion traen todas las acciones, incluso las de 0.
+    actions: dict[str, float] = {}
+    total = None
+    for row in rows:
+        name = (row.get("Acción de conversión") or row.get("Accion de conversion") or "").strip()
+        if (row.get("Estado de la campaña") or "").strip() != "Total: Cuenta":
+            continue
+        if not name or name == "--":
+            total = parse_number(row.get("Conversiones"))
+        else:
+            actions[name] = parse_number(row.get("Conversiones")) or 0.0
+    if not actions:
+        raise SystemExit(f"[tf-import] {path.name}: no tiene filas por accion de conversion.")
+    return {"kind": "actions", "file": path.name, "period": period, "entries": {}, "campaigns": {},
+            "accountTotal": None, "actions": {
+                "month": month_id(period[0]),
+                "start": period[0].isoformat(),
+                "end": period[1].isoformat(),
+                "sourceFile": path.name,
+                "total": total if total is not None else sum(actions.values()),
+                "actions": [{"name": name, "conversions": value}
+                            for name, value in sorted(actions.items(), key=lambda item: -item[1])],
+            }}
+
+
 def parse_source(path: Path) -> dict:
     """Lee un export y devuelve sus filas por fecha y campaña."""
     kind, preamble, rows, date_column = read_table(path)
     if kind == "series":
         return parse_series(path, rows, date_column)
+    if kind == "actions":
+        return parse_actions(path, preamble, rows)
     if kind == "keywords":
         source = parse_keywords(path, rows, date_column)
         preamble_period = next((parse_range(line) for line in preamble if parse_range(line)), None)
@@ -396,7 +433,7 @@ def build(paths: list[Path]) -> dict:
     stamps = [stamp for source in sources for stamp in source["entries"]]
     base = weekly or daily or periods[0]
     ranges = [source["period"] for source in sources
-              if source["period"] and source["kind"] != "keywords"]
+              if source["period"] and source["kind"] not in ("keywords", "actions")]
     if not ranges:
         ranges = [source["period"] for source in sources if source["period"]]
     if ranges:
@@ -594,6 +631,9 @@ def build(paths: list[Path]) -> dict:
         "days": day_list,
         "months": month_list,
         "keywords": keyword_block(keyword_sources) if keyword_sources else None,
+        # Un bloque por informe de accion de conversion; si hay dos del mismo mes, manda el ultimo.
+        "conversionActions": sorted({s["actions"]["month"]: s["actions"] for s in sources
+                                     if s["kind"] == "actions"}.values(), key=lambda a: a["month"]),
     }
 
 

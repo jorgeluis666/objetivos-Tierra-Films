@@ -14,7 +14,8 @@
     "Mensual setiembre 2026.csv",
     "Serie diaria jun-set 2026 - coste.csv",
     "Palabras clave semanal jun-set 2026.csv",
-    "Palabras clave setiembre 2026 - calidad.csv"
+    "Palabras clave setiembre 2026 - calidad.csv",
+    "Accion de conversion setiembre 2026.csv"
   ],
   "dayMetrics": [
     "cost"
@@ -11300,5 +11301,28 @@
       }
     ],
     "hasQualityDetail": true
-  }
+  },
+  "conversionActions": [
+    {
+      "month": "2026-09",
+      "start": "2026-09-01",
+      "end": "2026-09-28",
+      "sourceFile": "Accion de conversion setiembre 2026.csv",
+      "total": 64.0,
+      "actions": [
+        {
+          "name": "WhatsApp Plugin LR",
+          "conversions": 55.0
+        },
+        {
+          "name": "Formulario LR",
+          "conversions": 9.0
+        },
+        {
+          "name": "WhatsApp Clic LR",
+          "conversions": 0.0
+        }
+      ]
+    }
+  ]
 }
