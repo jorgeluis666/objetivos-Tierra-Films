@@ -7,7 +7,8 @@ paneles de Amador y Aquarius.
 
 - Password del login: `TF2026`
 - Entrada local: `index.html`
-- Build publicado: `dist/index.html`
+- Publicado: https://tierrafilms.limaretail.com (GitHub Pages desde `main`; el dominio sale del archivo `CNAME`)
+- Build: `dist/index.html`
 
 ## Modulos
 
