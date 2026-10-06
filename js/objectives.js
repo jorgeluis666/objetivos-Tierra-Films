@@ -554,14 +554,22 @@
       setSyncStatus('off', meta, state.snapshot ? `Mostrando la copia guardada de Drive del ${snapshotDate()}. ${pending}` : pending);
       return;
     }
-    setSyncStatus('loading', '', 'Leyendo las carpetas de Google Drive');
+    setSyncStatus('loading', '', clicked ? 'Leyendo las carpetas de Google Drive' : 'Trayendo el ultimo barrido de Drive');
     try {
-      const merged = drive.merge(state.base, await drive.fetchFolder());
+      // Al abrir se usa el ultimo barrido (el automatico de las 10:00); el boton barre en el momento.
+      const merged = drive.merge(state.base, await drive.fetchFolder({ fresh: clicked }));
       applyData(merged);
-      const time = new Date(merged.drive.syncedAt).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' });
-      const used = merged.drive.applied.length ? `Leido: ${merged.drive.applied.join(', ')}.` : 'La carpeta no tiene informes que el tablero reconozca.';
-      const skipped = merged.drive.notes.length ? `\n${merged.drive.notes.join('\n')}` : '';
-      setSyncStatus(merged.drive.notes.length && !merged.drive.applied.length ? 'warn' : 'ok', `leido ${time}`, `${used}${skipped}`);
+      const info = merged.drive;
+      const when = new Date(info.syncedAt);
+      const time = when.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' });
+      const today = when.toDateString() === new Date().toDateString();
+      const stamp = today ? time : `${shortDate(when.toISOString().slice(0, 10))} ${time}`;
+      const meta = info.origin === 'automatico' ? `auto ${stamp}` : `leido ${stamp}`;
+      const schedule = info.schedule ? `Barrido automatico todos los dias a las ${info.schedule.hour}:00 (hora de Lima). ` : '';
+      const origin = { automatico: 'automatico', manual: 'con el boton', inicial: 'inicial', instalacion: 'al instalar', prueba: 'de prueba' }[info.origin] || '';
+      const used = info.applied.length ? `Leido: ${info.applied.join(', ')}.` : 'Las carpetas no tienen informes que el tablero reconozca.';
+      const skipped = info.notes.length ? `\n${info.notes.join('\n')}` : '';
+      setSyncStatus(info.notes.length && !info.applied.length ? 'warn' : 'ok', meta, `${schedule}Ultimo barrido${origin ? ` (${origin})` : ''}: ${when.toLocaleString('es-PE')}\n${used}${skipped}`);
     } catch (error) {
       console.error(error);
       const fallback = state.snapshot ? ` Se muestra la copia guardada del ${snapshotDate()}.` : '';

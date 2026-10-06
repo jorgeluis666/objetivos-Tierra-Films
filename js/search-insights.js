@@ -1,8 +1,8 @@
 (function () {
-  // Palabras Clave | informe de la carpeta Google Ads TF Keywords: palabras que convierten.
-  // Trae su propio rango, independiente del filtro de mes del modulo. Los informes de la
-  // carpeta TF Segmentacion viven en su propio modulo (js/segmentation.js).
-  const state = { showAllKeywords: false };
+  // Palabras Clave | informes de la carpeta Google Ads TF Keywords: palabras que convierten.
+  // Un informe por mes, con su propio selector (independiente del filtro de mes del modulo).
+  // Los informes de la carpeta TF Segmentacion viven en su propio modulo (js/segmentation.js).
+  const state = { showAllKeywords: false, month: null };
   const F = () => window.TierraFilmsFormat;
 
   function rangeLabel(start, end) {
@@ -13,8 +13,20 @@
     return `${head} - ${f.shortDate(end)}${ye ? ` ${ye}` : ''}`;
   }
 
-  function renderKeywords(report) {
+  // "Setiembre" o "Octubre (al 5)" si el informe no llega al fin de mes.
+  function monthTab(report) {
     const f = F();
+    const [y, m] = report.month.split('-').map(Number);
+    const last = new Date(Date.UTC(y, m, 0)).getUTCDate();
+    const endDay = Number(report.end.slice(8, 10));
+    return `${f.MONTH_NAMES[m - 1]}${report.end.slice(0, 7) === report.month && endDay < last ? ` (al ${endDay})` : ''}`;
+  }
+
+  function renderKeywords(report, months) {
+    const f = F();
+    const tabs = months.length > 1
+      ? `<div class="month-tabs filter-months kw-month-tabs">${months.map(item => `<button type="button" class="month-tab${item.month === report.month ? ' active' : ''}" data-kw-month="${f.escapeHtml(item.month)}">${f.escapeHtml(monthTab(item))}</button>`).join('')}</div>`
+      : '';
     const total = report.keywords.reduce((sum, item) => sum + item.conversions, 0);
     const onlyConversions = report.byAction && report.keywords.every(item => !item.impressions && !item.cost);
     const converting = report.keywords.filter(item => item.conversions > 0);
@@ -50,6 +62,7 @@
           </div>
           <div class="drive-total"><strong>${f.fmtCount(total)}</strong> conversiones · ${converting.length} de ${report.keywords.length} palabras</div>
         </div>
+        ${tabs}
         <div class="table-scroll">
           <table class="data-table campaigns-table drive-terms-table">
             <thead><tr><th>Palabra clave</th><th>Concordancia</th><th class="num">Conv.</th><th class="num">% del total</th>${actions.map(action => `<th class="num">${f.escapeHtml(action)}</th>`).join('')}${metricHead}</tr></thead>
@@ -71,16 +84,20 @@
     const drive = window.TierraFilmsDrive;
     const urls = (drive && drive.folderUrls) || {};
     const links = urls.keywords ? `<a class="drive-link" href="${F().escapeHtml(urls.keywords)}" target="_blank" rel="noopener">Carpeta Keywords</a>` : '';
-    const blocks = data.keywordConversions ? renderKeywords(data.keywordConversions) : '';
+    const months = data.keywordConversionsByMonth || (data.keywordConversions ? [Object.assign({ month: data.keywordConversions.start.slice(0, 7) }, data.keywordConversions)] : []);
+    // Arranca en el mes mas reciente; si se eligio otro y sigue existiendo, se queda ahi.
+    const current = months.find(item => item.month === state.month) || months[months.length - 1];
+    const blocks = current ? renderKeywords(current, months) : '';
     host.innerHTML = `
       <div class="drive-block-head">
         <div>
           <div class="sec-lbl">Desde Google Drive</div>
-          <p>Informe de la carpeta Google Ads TF Keywords. Muestra su propio rango de fechas; el filtro de mes de arriba no lo cambia. Categorias de busqueda y ubicaciones estan en el modulo Segmentacion.</p>
+          <p>Informes de la carpeta Google Ads TF Keywords, uno por mes. Tienen su propio selector de mes; el filtro de arriba no los cambia. Categorias de busqueda y ubicaciones estan en el modulo Segmentacion.</p>
         </div>
         ${links ? `<div class="drive-links">${links}</div>` : ''}
       </div>
       ${blocks || '<div class="data-notice"><strong>Todavia no hay informe de Drive.</strong>Sube a la carpeta Keywords el informe de palabras clave por accion de conversion y aprieta Sincronizar.</div>'}`;
+    host.querySelectorAll('[data-kw-month]').forEach(button => button.addEventListener('click', () => { state.month = button.dataset.kwMonth; render(); }));
     const keywordsToggle = host.querySelector('[data-keywords-toggle]');
     if (keywordsToggle) keywordsToggle.addEventListener('click', () => { state.showAllKeywords = !state.showAllKeywords; render(); });
   }

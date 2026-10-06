@@ -173,8 +173,9 @@ Gasto Publicitario:
 Palabras Clave (se muestra el informe mas reciente de cada tipo, con su propio
 rango; el filtro de mes del modulo no lo cambia):
 
-- **Informe de palabras clave de busqueda** (`Palabra clave`): tabla
-  `Palabras clave que convierten` con las conversiones de cada palabra, su % del
+- **Informe de palabras clave de busqueda** (`Palabra clave`), uno por mes
+  (`Tierra Films KW setiembre - 2026`, ...): tabla `Palabras clave que
+  convierten`, con un selector de mes, y las conversiones de cada palabra, su % del
   total y una columna por accion. Si el informe viene separado por accion de
   conversion (como hoy), Google Ads deja en 0 impresiones, clics y costo por
   palabra, y la tabla muestra solo conversiones; sin ese segmento suma tambien
@@ -212,22 +213,48 @@ Estados del boton: `Drive hh:mm` (verde, leido), `Reintentar` (rojo, fallo;
 el tablero sigue con lo que tenia) y `Sincronizar` en amarillo (falta la
 conexion).
 
+### Barrido automatico a las 10:00
+
+El Apps Script tiene un disparador que lee las tres carpetas **todos los dias a
+las 10:00 (hora de Lima)** y guarda el resultado en un archivo de Drive
+(`Tierra Films - barrido del tablero.json`, en el Drive de quien instala el
+script). Al abrir, el tablero trae ese ultimo barrido, asi carga rapido; el
+boton **Sincronizar** pide un barrido en el momento (`?fresh=1`). Si alguien lo
+aprieta varias veces seguidas, el script reusa el barrido del ultimo minuto.
+
+La etiqueta del boton dice de donde salio la data:
+
+| Etiqueta | Significa |
+| --- | --- |
+| `auto 10:00` | barrido automatico de hoy (con fecha si es de otro dia) |
+| `leido 15:37` | barrido pedido con el boton (o el primero tras instalar) |
+| `copia 6 oct` | la copia del repo (`data/drive-snapshot.json`): Drive aun no esta conectado |
+| `no se pudo leer` | fallo la lectura; el tablero sigue con lo que tenia |
+
+Al pasar el mouse sale la hora exacta del barrido y los archivos que se leyeron.
+
 ### Conectar la carpeta (una sola vez)
 
 El tablero es una pagina fija en GitHub Pages y no puede entrar a Drive por su
-cuenta; el puente es un Apps Script que corre con tu cuenta de Google.
+cuenta; el puente es un Apps Script que corre con tu cuenta de Google. Es el
+mismo esquema que el tablero de Terminal Pesquero.
 
 1. Entra a <https://script.google.com> con la cuenta duena de las carpetas >
    **Nuevo proyecto**. Borra lo que trae y pega `apps-script/drive-sync.gs`.
-2. **Implementar > Nueva implementacion** > tipo **Aplicacion web**.
+2. En el selector de funciones elige **installSweepTriggers** y dale **Ejecutar**.
+   Autoriza los permisos de Drive y Hojas de calculo. Esto crea el disparador
+   de las 10:00 y hace el primer barrido (el registro muestra cada hoja leida).
+3. **Implementar > Nueva implementacion** > tipo **Aplicacion web**.
    - Ejecutar como: **Yo**.
    - Quien tiene acceso: **Cualquier persona**.
-3. Autoriza los permisos de Drive y Hojas de calculo que pide Google.
 4. Copia la URL que termina en `/exec` y pegala en `DRIVE_SYNC_URL`, al inicio
    de `js/drive-sync.js`. Sube el cambio a `main`.
 
 Si luego cambias el script, usa **Implementar > Gestionar implementaciones >
-Editar > Nueva version** para que la URL siga siendo la misma.
+Editar > Nueva version** para que la URL siga siendo la misma. Si cambias
+`SWEEP_HOUR`, vuelve a ejecutar `installSweepTriggers` (borra el disparador
+anterior y crea el nuevo). `probarBarrido` hace un barrido de prueba sin tocar
+el disparador.
 
 Para sumar otra carpeta, agregala en `FOLDERS` (Apps Script) y en
 `FOLDER_URLS` (`js/drive-sync.js`) y publica una nueva version del script.

@@ -82,7 +82,9 @@
   // Un informe por pestaña. El tipo sale de la fila de encabezados, como en el importador de Python.
   function parseSheet(sheet) {
     const rows = (sheet.rows || []).map(row => row.map(cell => (typeof cell === 'number' ? cell : clean(cell))));
-    const name = sheet.sheet && sheet.sheet !== sheet.file ? `${sheet.file} > ${sheet.sheet}` : sheet.file;
+    // Una hoja importada de un CSV se llama como el archivo (con .csv): basta con el nombre del archivo.
+    const sameName = !sheet.sheet || sheet.sheet === sheet.file || sheet.sheet.replace(/\.csv$/i, '') === sheet.file;
+    const name = sameName ? sheet.file : `${sheet.file} > ${sheet.sheet}`;
     const locale = detectLocale(rows);
     const termsIndex = rows.findIndex(row => row.includes('Categoría de búsqueda'));
     if (termsIndex >= 0) return parseSearchTerms(sheet, name, rows, termsIndex, locale);
@@ -280,9 +282,16 @@
     const bestTotals = {};
     const bestActions = {};
     const latest = {};
+    const keywordMonths = {};
     reports.forEach(report => {
-      // Palabras Clave y Segmentacion: se muestra el informe mas reciente de cada tipo.
-      if (report.kind === 'searchTerms' || report.kind === 'locations' || report.kind === 'keywordConversions') {
+      // Palabras Clave: un informe por mes (si hay dos del mismo mes, manda el que llega mas lejos).
+      if (report.kind === 'keywordConversions') {
+        const month = report.start.slice(0, 7);
+        if (newer(report, keywordMonths[month])) keywordMonths[month] = report;
+        return;
+      }
+      // Segmentacion: se muestra el informe mas reciente de cada tipo.
+      if (report.kind === 'searchTerms' || report.kind === 'locations') {
         if (newer(report, latest[report.kind])) latest[report.kind] = report;
         return;
       }
@@ -346,19 +355,41 @@
       data[report.kind] = report.data;
       applied.push(report.name);
     });
+    const byMonth = (data.keywordConversionsByMonth || []).slice();
+    Object.entries(keywordMonths).forEach(([month, report]) => {
+      const index = byMonth.findIndex(item => item.month === month);
+      if (index >= 0 && byMonth[index].end > report.end) return;
+      const block = Object.assign({ month }, report.data);
+      if (index >= 0) byMonth[index] = block; else byMonth.push(block);
+      applied.push(report.name);
+    });
+    if (byMonth.length) {
+      data.keywordConversionsByMonth = byMonth.sort((a, b) => a.month.localeCompare(b.month));
+      data.keywordConversions = data.keywordConversionsByMonth[data.keywordConversionsByMonth.length - 1];
+    }
     if (data.months.length) data.defaultMonth = data.months[data.months.length - 1].id;
-    data.drive = { folders: payload.folders || {}, syncedAt: payload.generatedAt || new Date().toISOString(), applied, notes };
+    data.drive = {
+      folders: payload.folders || {},
+      syncedAt: payload.generatedAt || new Date().toISOString(),
+      // automatico (10:00 diario), manual (boton), inicial, instalacion o prueba; vacio en la copia local.
+      origin: payload.origin || (payload.snapshot ? 'copia' : ''),
+      schedule: payload.schedule || null,
+      applied,
+      notes
+    };
     return data;
   }
 
-  async function fetchFolder() {
+  // fresh: true pide un barrido en el momento (boton); si no, el ultimo barrido (el de las 10:00).
+  async function fetchFolder(options = {}) {
     if (!DRIVE_SYNC_URL) throw new Error('Falta conectar la carpeta de Drive (ver README > Sincronizacion con Drive).');
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
     try {
-      const response = await fetch(`${DRIVE_SYNC_URL}?t=${Date.now()}`, { signal: controller.signal, cache: 'no-store' });
+      const response = await fetch(`${DRIVE_SYNC_URL}?${options.fresh ? 'fresh=1&' : ''}t=${Date.now()}`, { signal: controller.signal, cache: 'no-store' });
       if (!response.ok) throw new Error(`Drive respondio HTTP ${response.status}.`);
       const payload = await response.json();
+      if (payload && payload.ok === false && payload.error) throw new Error(payload.error);
       if (!payload || !payload.ok || !Array.isArray(payload.sheets)) throw new Error('La respuesta de Drive no tiene el formato esperado.');
       return payload;
     } catch (error) {
