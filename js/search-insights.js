@@ -39,9 +39,9 @@
       return `<tr class="${item.conversions ? '' : 'is-muted'}">
         <td class="campaign-name">${f.escapeHtml(item.keyword)}${item.paused ? ' <span class="status-pill muted">detenida</span>' : ''}</td>
         <td><span class="match-pill">${f.escapeHtml(item.match || '-')}</span></td>
-        <td class="num"><strong>${f.fmtCount(item.conversions)}</strong></td>
+        <td class="num"><strong>${f.fmtConv(item.conversions)}</strong></td>
         <td class="num"><span class="kw-share"><i style="width:${(share * 100).toFixed(2)}%"></i></span>${total && item.conversions ? `${Math.round(share * 100)}%` : '-'}</td>
-        ${actions.map(action => `<td class="num">${item.actions[action] ? f.fmtCount(item.actions[action]) : '-'}</td>`).join('')}
+        ${actions.map(action => `<td class="num">${item.actions[action] ? f.fmtConv(item.actions[action]) : '-'}</td>`).join('')}
         ${metrics}
       </tr>`;
     };
@@ -60,7 +60,7 @@
             <div class="panel-title">Palabras clave que convierten | ${f.escapeHtml(rangeLabel(report.start, report.end))}</div>
             <div class="panel-sub">Conversiones de cada palabra clave y por que accion llegaron. Fuente: ${f.escapeHtml(report.sourceFile)}.</div>
           </div>
-          <div class="drive-total"><strong>${f.fmtCount(total)}</strong> conversiones · ${converting.length} de ${report.keywords.length} palabras</div>
+          <div class="drive-total"><strong>${f.fmtConv(total)}</strong> conversiones · ${converting.length} de ${report.keywords.length} palabras</div>
         </div>
         ${tabs}
         <div class="table-scroll">
@@ -68,7 +68,7 @@
             <thead><tr><th>Palabra clave</th><th>Concordancia</th><th class="num">Conv.</th><th class="num">% del total</th>${actions.map(action => `<th class="num">${f.escapeHtml(action)}</th>`).join('')}${metricHead}</tr></thead>
             <tbody>
               ${visible.map(row).join('')}
-              <tr class="reservations-total-row"><td class="total-label">Total</td><td></td><td class="num">${f.fmtCount(total)}</td><td></td>${actions.map(action => `<td class="num">${f.fmtCount(report.keywords.reduce((sum, item) => sum + (item.actions[action] || 0), 0))}</td>`).join('')}${onlyConversions ? '' : '<td></td><td></td><td></td><td></td>'}</tr>
+              <tr class="reservations-total-row"><td class="total-label">Total</td><td></td><td class="num">${f.fmtConv(total)}</td><td></td>${actions.map(action => `<td class="num">${f.fmtConv(report.keywords.reduce((sum, item) => sum + (item.actions[action] || 0), 0))}</td>`).join('')}${onlyConversions ? '' : '<td></td><td></td><td></td><td></td>'}</tr>
             </tbody>
           </table>
         </div>

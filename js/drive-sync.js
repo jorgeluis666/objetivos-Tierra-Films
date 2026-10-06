@@ -111,7 +111,11 @@
     const accountRows = body.filter(row => row[statusCol] === 'Total: Cuenta');
     const hasLabel = row => kind === 'actions' && row[0] && row[0] !== '--';
 
-    let totals = accountRows.filter(row => !hasLabel(row)).map(metricsOf)[0];
+    const accountRow = accountRows.find(row => !hasLabel(row));
+    let totals = accountRow ? metricsOf(accountRow) : undefined;
+    // Google Ads calcula el costo por conversion con las conversiones sin redondear (2.99 puede ser 2.9913).
+    const cpaCol = col(['Costo/conv.', 'Coste/conv.']);
+    if (totals && cpaCol !== undefined) totals.reportedCostPerConversion = parseNumber(accountRow[cpaCol], locale);
     if (!totals && kind === 'period') {
       // Sin fila de total: suma las filas por campaña.
       const campaignCol = header.indexOf('Campaña');
@@ -119,7 +123,16 @@
         .map(metricsOf)
         .reduce((sum, item) => Object.fromEntries(Object.keys(item).map(key => [key, (sum[key] || 0) + (item[key] || 0)])), {});
     }
-    const report = { kind, name, file: sheet.file, modified: sheet.modified || '', month: range.start.slice(0, 7), start: range.start, end: range.end, totals: totals || null };
+    // Presupuesto diario y estado de cada campaña en el periodo del informe.
+    const campaignCol = header.indexOf('Campaña');
+    const budgetCol = col(['Presupuesto']);
+    const campaigns = {};
+    body.forEach(row => {
+      const campaign = campaignCol >= 0 ? clean(row[campaignCol]) : '';
+      if (!campaign || campaign === '--' || String(row[statusCol]).startsWith('Total')) return;
+      campaigns[campaign] = { name: campaign, status: clean(row[statusCol]), dailyBudget: budgetCol !== undefined ? parseNumber(row[budgetCol], locale) : null };
+    });
+    const report = { kind, name, file: sheet.file, modified: sheet.modified || '', month: range.start.slice(0, 7), start: range.start, end: range.end, totals: totals || null, campaigns: Object.values(campaigns) };
     if (kind === 'actions') {
       const actions = accountRows.filter(hasLabel).map(row => ({ name: row[0], conversions: metricsOf(row).conversions || 0 }));
       if (!actions.length) return { skipped: `${name}: no tiene filas por accion de conversion.` };
@@ -327,6 +340,7 @@
         clicks: report.totals.clicks || 0,
         conversions: report.totals.conversions || 0
       }), {
+        reportedCostPerConversion: Number.isFinite(report.totals.reportedCostPerConversion) && report.totals.reportedCostPerConversion > 0 ? report.totals.reportedCostPerConversion : null,
         source: 'Drive',
         sourceFile: report.name,
         exact: true,
@@ -340,6 +354,17 @@
       applied.push(report.name);
       if (report.end > data.period.end) data.period.end = report.end;
     });
+
+    // El presupuesto vigente es el del informe mas reciente (en setiembre paso de S/ 110 a S/ 112).
+    const newest = Object.values(bestTotals).sort((a, b) => b.end.localeCompare(a.end))[0];
+    if (newest && Array.isArray(data.campaigns)) {
+      newest.campaigns.forEach(item => {
+        const campaign = data.campaigns.find(entry => entry.name === item.name);
+        if (!campaign) return;
+        if (Number.isFinite(item.dailyBudget) && item.dailyBudget > 0) campaign.dailyBudget = item.dailyBudget;
+        if (item.status) campaign.status = item.status;
+      });
+    }
 
     const blocks = data.conversionActions || [];
     Object.values(bestActions).forEach(report => {

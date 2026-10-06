@@ -16,6 +16,12 @@
 
   const fmtMoney = value => Number.isFinite(Number(value)) && value !== null ? `S/ ${Number(value).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-';
   const fmtCount = value => Number.isFinite(Number(value)) && value !== null ? Number(value).toLocaleString('es-PE', { maximumFractionDigits: 0 }) : '-';
+  // Conversiones: Google Ads reparte algunas (2.99, 0.99); se muestran con decimales solo si los hay.
+  const fmtConv = value => {
+    const number = Number(value);
+    if (!Number.isFinite(number) || value === null) return '-';
+    return Math.abs(number - Math.round(number)) < 0.005 ? fmtCount(number) : number.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
   const fmtPercent = value => Number.isFinite(Number(value)) && value !== null ? `${(Number(value) * 100).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%` : '-';
   const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
 
@@ -54,6 +60,8 @@
     out.ctr = out.impressions > 0 ? out.clicks / out.impressions : null;
     out.cpc = out.clicks > 0 ? out.cost / out.clicks : null;
     out.costPerConversion = out.conversions > 0 ? out.cost / out.conversions : null;
+    // Meses leidos de Drive: el costo por conversion que reporta Google Ads (con conversiones sin redondear).
+    if (Number.isFinite(out.reportedCostPerConversion) && out.reportedCostPerConversion > 0) out.costPerConversion = out.reportedCostPerConversion;
     return out;
   }
 
@@ -255,10 +263,10 @@
     host.hidden = false;
     host.title = `Fuente: ${block.sourceFile}`;
     host.innerHTML = `
-      <div class="conv-actions-head"><span>Conversiones por accion <b>${escapeHtml(range)}</b></span><strong>${fmtCount(block.total)} <small>total</small></strong></div>
+      <div class="conv-actions-head"><span>Conversiones por accion <b>${escapeHtml(range)}</b></span><strong>${fmtConv(block.total)} <small>total</small></strong></div>
       <div class="conv-actions-bar" aria-hidden="true">${actions.filter(action => action.conversions > 0).map(action => `<i style="width:${(action.share * 100).toFixed(2)}%;background:${action.color}"></i>`).join('')}</div>
       <ul class="conv-actions-list">
-        ${actions.map(action => `<li class="${action.conversions > 0 ? '' : 'is-zero'}"><span class="conv-name"><span class="conv-dot" style="background:${action.color}"></span>${escapeHtml(action.name)}</span><span class="conv-value"><strong>${fmtCount(action.conversions)}</strong>${action.conversions > 0 ? ` <small>${Math.round(action.share * 100)}%</small>` : ''}</span></li>`).join('')}
+        ${actions.map(action => `<li class="${action.conversions > 0 ? '' : 'is-zero'}"><span class="conv-name"><span class="conv-dot" style="background:${action.color}"></span>${escapeHtml(action.name)}</span><span class="conv-value"><strong>${fmtConv(action.conversions)}</strong>${action.conversions > 0 ? ` <small>${Math.round(action.share * 100)}%</small>` : ''}</span></li>`).join('')}
       </ul>`;
   }
 
@@ -271,7 +279,7 @@
       ['Impresiones', fmtCount(t.impressions), `${days} dias con datos`],
       ['CTR', fmtPercent(t.ctr), 'Clics / impresiones'],
       ['Clics', fmtCount(t.clicks), `CPC medio ${fmtMoney(t.cpc)}`],
-      ['Conversiones', fmtCount(t.conversions), 'Resultados registrados'],
+      ['Conversiones', fmtConv(t.conversions), 'Resultados registrados'],
       ['Costo x conversion', fmtMoney(t.costPerConversion), 'Gasto / conversiones']
     ];
     host.innerHTML = cards.map(([label, value, meta]) => `<div class="kpi-pill"><span>${label}</span><strong>${value}</strong><small>${meta}</small></div>`).join('');
@@ -466,7 +474,7 @@
         <td class="num">${fmtPercent(t.ctr)}</td>
         <td class="num">${fmtCount(t.clicks)}</td><td></td>
         <td class="num">${fmtMoney(t.cpc)}</td><td></td>
-        <td class="num">${fmtCount(t.conversions)}</td><td></td>
+        <td class="num">${fmtConv(t.conversions)}</td><td></td>
         <td class="num">${fmtMoney(t.costPerConversion)}</td><td></td>
       </tr>`;
   }
@@ -604,7 +612,7 @@
     syncDrive();
   }
 
-  window.TierraFilmsFormat = { fmtMoney, fmtCount, fmtPercent, formatValue, shortDate, weekLabel, withRates, escapeHtml, MONTH_NAMES };
+  window.TierraFilmsFormat = { fmtMoney, fmtCount, fmtConv, fmtPercent, formatValue, shortDate, weekLabel, withRates, escapeHtml, MONTH_NAMES };
   window.TierraFilmsRefreshLabels = updateSourceLabels;
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();

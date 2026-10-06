@@ -92,7 +92,8 @@
     const record = (data.months || []).find(item => item.id === monthId);
     // El informe mensual manda: puede cubrir mas dias que las semanas cargadas.
     const actual = record ? F().withRates({
-      cost: record.cost, impressions: record.impressions, clicks: record.clicks, conversions: record.conversions
+      cost: record.cost, impressions: record.impressions, clicks: record.clicks, conversions: record.conversions,
+      reportedCostPerConversion: record.reportedCostPerConversion
     }) : totals(monthRows);
     const daysWithData = record ? record.daysWithData : monthRows.length;
     const remaining = daysInMonth - daysWithData;
@@ -461,7 +462,7 @@
     document.getElementById('projection-body').innerHTML = rows.map(([label, unit, key, inverse, isRate]) => `
       <tr class="${isRate ? 'projection-cost-row' : ''}">
         <td>${label}</td>
-        <td class="num">${f.formatValue(m.actual[key], unit)}</td>
+        <td class="num">${key === 'conversions' ? f.fmtConv(m.actual[key]) : f.formatValue(m.actual[key], unit)}</td>
         <td class="num">${isRate ? '-' : f.formatValue(rate[key], unit === 'count' ? 'decimal' : unit)}</td>
         <td class="num projection-value">${f.formatValue(close[key], unit)}</td>
         <td class="num projection-sim-value">${f.formatValue(sim[key], unit)}</td>
