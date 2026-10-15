@@ -56,6 +56,12 @@
   ];
 
   const state = { data: null, months: [], weeks: [], days: [], monthId: null, annual: false, base: null, snapshot: null };
+  // Estado de la sincronizacion para la pildora: mode (idle, loading, ok, warn, off, error), meta (texto corto),
+  // detail (lo que leyo o el error), at (cuando fue el barrido) y origin (automatico, manual, copia...).
+  const sync = { mode: 'idle', meta: '', detail: '', at: null, origin: '', schedule: null };
+  const SWEEP_HOUR = 10;
+  // Sin barrido en mas de un dia y algo, la pildora pasa a ambar.
+  const STALE_SWEEP_HOURS = 30;
   const gasto = {
     months: [],
     latestKey: null,
@@ -1454,7 +1460,7 @@
     if (!document.getElementById('view-obj').classList.contains('visible')) return;
     // La navegacion puede llamar antes de que termine la carga; renderAll() lo vuelve a hacer despues.
     if (!state.data) return;
-    if (status) status.textContent = `Datos al ${shortDate(state.data.period.end)} | ${state.weeks.length} semanas`;
+    if (status) status.textContent = syncPillLabel();
     if (source) source.textContent = `Fuente: ${state.data.sourceFile}`;
     if (footerStatus) footerStatus.textContent = `Periodo ${periodLabel()}`;
     if (caption) caption.textContent = `Google Ads | ${periodLabel()}`;
@@ -1537,17 +1543,120 @@
     window.dispatchEvent(new CustomEvent('tierra-films:data-ready', { detail: data }));
   }
 
-  // El boton siempre dice "Sincronizar"; el estado va en el texto chico de al lado.
-  function setSyncStatus(mode, meta, detail) {
+  // El boton siempre dice "Sincronizar"; de donde salio la data y cuando lo dice la pildora (y su detalle).
+  function setSyncStatus(mode, meta, detail, extra = {}) {
+    Object.assign(sync, { mode, meta, detail }, extra);
     const button = document.getElementById('drive-sync');
     const text = document.getElementById('drive-sync-label');
-    const status = document.getElementById('drive-sync-meta');
-    if (!button || !text) return;
-    button.dataset.state = mode;
-    button.disabled = mode === 'loading';
-    text.textContent = mode === 'loading' ? 'Sincronizando...' : 'Sincronizar';
-    if (status) status.textContent = meta;
-    button.title = detail;
+    if (button && text) {
+      button.dataset.state = mode;
+      button.disabled = mode === 'loading';
+      text.textContent = mode === 'loading' ? 'Sincronizando...' : 'Sincronizar';
+      button.title = mode === 'loading' ? 'Leyendo las carpetas de Google Drive' : 'Leer ahora las carpetas de Google Drive';
+    }
+    renderStatusCard();
+    updateSourceLabels();
+  }
+
+  // ── Pildora de sincronizacion (barra superior) y su detalle ──
+  const DRIVE_FOLDERS = [['campanas', 'Campañas'], ['segmentacion', 'Segmentación'], ['keywords', 'Keywords']];
+  const pad2 = value => String(value).padStart(2, '0');
+  // "6 oct, 10:02" (o "10:02" si es de hoy).
+  function stampLabel(stamp, withDay = true) {
+    if (!stamp) return null;
+    const date = new Date(stamp);
+    if (Number.isNaN(date.getTime())) return String(stamp);
+    const time = `${pad2(date.getHours())}:${pad2(date.getMinutes())}`;
+    const today = date.toDateString() === new Date().toDateString();
+    return !withDay && today ? time : `${date.getDate()} ${MONTH_SHORT[date.getMonth()]}, ${time}`;
+  }
+
+  // Proximo barrido de las 10:00 de Lima (UTC-5 todo el ano).
+  function nextSweepLabel() {
+    const now = new Date();
+    const next = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), SWEEP_HOUR + 5, 0));
+    if (next <= now) next.setUTCDate(next.getUTCDate() + 1);
+    return `${stampLabel(next)} · todos los días`;
+  }
+
+  const sweepHours = () => (sync.at ? (Date.now() - new Date(sync.at).getTime()) / 3600000 : null);
+  const isStale = () => sweepHours() !== null && sweepHours() > STALE_SWEEP_HOURS;
+
+  // "Datos al 5 de octubre | copia 6 oct" (o auto 10:00, leido 15:37, no se pudo leer).
+  function syncPillLabel() {
+    const latest = gastoMonthByKey(gasto.latestKey);
+    const head = latest ? `Datos al ${latest.lastDay} de ${latest.name.toLowerCase()}` : 'Sin informes de campaña';
+    return sync.meta ? `${head} | ${sync.meta}` : head;
+  }
+
+  function renderStatusCard() {
+    const set = (id, html) => {
+      const node = document.getElementById(id);
+      if (node) node.innerHTML = html;
+    };
+    const latest = gastoMonthByKey(gasto.latestKey);
+    const withData = gasto.months.filter(month => month.hasData);
+    const drive = window.TierraFilmsDrive;
+    const connected = Boolean(drive && drive.configured);
+    set('status-data', latest ? escapeHtml(`${dayRange(latest, latest.firstDay, latest.lastDay)} ${latest.year}${latest.complete ? '' : ' (mes en curso)'}`) : 'Sin informes');
+    set('status-months', withData.length ? escapeHtml(`${withData.length} ${withData.length === 1 ? 'mes' : 'meses'} con informe de campaña (${withData[0].shortName} a ${withData[withData.length - 1].shortName})`) : 'Ninguno');
+    const origin = { automatico: 'automático de las 10:00', manual: 'con el botón', inicial: 'inicial', instalacion: 'al instalar', prueba: 'de prueba' }[sync.origin] || '';
+    let sweepText = 'Consultando...';
+    if (sync.mode === 'error') sweepText = 'No se pudo leer Drive';
+    else if (sync.origin === 'copia') sweepText = `Copia guardada del ${stampLabel(sync.at)} (Drive sin conectar)`;
+    else if (sync.at) sweepText = `${stampLabel(sync.at)}${origin ? ` · ${origin}` : ''}`;
+    set('status-sweep', escapeHtml(sweepText));
+    set('status-next', escapeHtml(connected ? nextSweepLabel() : 'Sin barrido automático: falta conectar Drive'));
+    const kwMonths = ((state.data && state.data.keywordConversionsByMonth) || []);
+    const kwLast = kwMonths[kwMonths.length - 1];
+    set('status-keywords', escapeHtml(kwLast
+      ? `Hasta el ${Number(kwLast.end.slice(8, 10))} de ${MONTH_NAMES[Number(kwLast.end.slice(5, 7)) - 1].toLowerCase()} (carpeta Keywords)`
+      : 'Sin informe de la carpeta Keywords'));
+    const urls = (drive && drive.folderUrls) || {};
+    set('status-folders', DRIVE_FOLDERS.map(([key, label]) => (/^https:\/\//.test(urls[key] || '')
+      ? `<a href="${escapeHtml(urls[key])}" target="_blank" rel="noopener noreferrer">${escapeHtml(label)}</a>`
+      : escapeHtml(label))).join(' · '));
+    // Aviso fijo del detalle: Drive, mes en curso, informe diario y meses sin informe.
+    const notes = [];
+    if (sync.mode === 'error') notes.push('La última lectura de Drive falló: el tablero sigue con lo que tenía.');
+    else if (!connected) notes.push('Drive no está conectado: el tablero muestra la copia guardada. Falta publicar el Apps Script (README > Conectar la carpeta).');
+    else if (isStale()) notes.push('No hay barrido desde hace más de un día: revisa el activador de las 10:00 en Apps Script.');
+    if (latest && !latest.complete) notes.push(`${latest.name} está en curso: el informe llega hasta el ${latest.lastDay} de ${latest.name.toLowerCase()}.`);
+    if (latest && !latest.days.length) notes.push(`Falta el informe de campaña por Día de ${latest.name.toLowerCase()} para ver clics, impresiones y conversiones diarias reales.`);
+    const missing = missingMonths();
+    if (missing.length) notes.push(`Falta el informe de campaña de ${missing.map(key => MONTH_NAMES[Number(key.slice(5, 7)) - 1]).join(', ')}.`);
+    set('status-note', escapeHtml(notes.join(' ')));
+    const status = document.getElementById('sync-status');
+    if (status) {
+      status.textContent = sync.detail || '';
+      status.classList.toggle('is-error', sync.mode === 'error');
+      status.classList.toggle('is-ok', sync.mode === 'ok');
+    }
+    // Un error o un barrido viejo tine la pildora de ambar en todas las vistas.
+    const pill = document.getElementById('data-status-btn');
+    if (pill) pill.classList.toggle('warn', sync.mode === 'error' || sync.mode === 'warn' || isStale());
+  }
+
+  function wireStatusCard() {
+    const button = document.getElementById('data-status-btn');
+    const card = document.getElementById('data-status-card');
+    if (!button || !card) return;
+    const close = () => {
+      card.hidden = true;
+      button.setAttribute('aria-expanded', 'false');
+    };
+    button.addEventListener('click', event => {
+      event.stopPropagation();
+      const open = card.hidden;
+      // El proximo barrido depende de la hora: se recalcula al abrir el detalle.
+      if (open) renderStatusCard();
+      card.hidden = !open;
+      button.setAttribute('aria-expanded', String(open));
+    });
+    document.addEventListener('click', event => {
+      if (!card.hidden && !card.contains(event.target) && !button.contains(event.target)) close();
+    });
+    document.addEventListener('keydown', event => { if (event.key === 'Escape') close(); });
   }
 
   // Lee la carpeta de Drive y la pone encima de la data del repo. Si falla, el tablero sigue con lo que tenia.
@@ -1572,8 +1681,9 @@
     const clicked = Boolean(event && event.type === 'click');
     const pending = 'Falta conectar las carpetas de Drive: publica apps-script/drive-sync.gs y pega su URL en js/drive-sync.js.';
     if (!drive.configured) {
-      const meta = clicked ? 'falta conectar Drive' : state.snapshot ? `copia ${snapshotDate()}` : 'sin conexion';
-      setSyncStatus('off', meta, state.snapshot ? `Mostrando la copia guardada de Drive del ${snapshotDate()}. ${pending}` : pending);
+      const meta = state.snapshot ? `copia ${snapshotDate()}` : 'sin conexión';
+      const detail = clicked ? `No se puede sincronizar todavía. ${pending}` : '';
+      setSyncStatus('off', meta, detail, { at: state.snapshot ? state.snapshot.generatedAt : null, origin: state.snapshot ? 'copia' : '' });
       return;
     }
     setSyncStatus('loading', '', clicked ? 'Leyendo las carpetas de Google Drive' : 'Trayendo el ultimo barrido de Drive');
@@ -1582,16 +1692,11 @@
       const merged = drive.merge(state.base, await drive.fetchFolder({ fresh: clicked }));
       applyData(merged);
       const info = merged.drive;
-      const when = new Date(info.syncedAt);
-      const time = when.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' });
-      const today = when.toDateString() === new Date().toDateString();
-      const stamp = today ? time : `${shortDate(when.toISOString().slice(0, 10))} ${time}`;
-      const meta = info.origin === 'automatico' ? `auto ${stamp}` : `leido ${stamp}`;
-      const schedule = info.schedule ? `Barrido automatico todos los dias a las ${info.schedule.hour}:00 (hora de Lima). ` : '';
-      const origin = { automatico: 'automatico', manual: 'con el boton', inicial: 'inicial', instalacion: 'al instalar', prueba: 'de prueba' }[info.origin] || '';
-      const used = info.applied.length ? `Leido: ${info.applied.join(', ')}.` : 'Las carpetas no tienen informes que el tablero reconozca.';
-      const skipped = info.notes.length ? `\n${info.notes.join('\n')}` : '';
-      setSyncStatus(info.notes.length && !info.applied.length ? 'warn' : 'ok', meta, `${schedule}Ultimo barrido${origin ? ` (${origin})` : ''}: ${when.toLocaleString('es-PE')}\n${used}${skipped}`);
+      const stamp = stampLabel(info.syncedAt, false);
+      const meta = info.origin === 'automatico' ? `auto ${stamp}` : `leído ${stamp}`;
+      const used = info.applied.length ? `Leído: ${info.applied.join(', ')}.` : 'Las carpetas no tienen informes que el tablero reconozca.';
+      const skipped = info.notes.length ? ` ${info.notes.join(' ')}` : '';
+      setSyncStatus(info.notes.length && !info.applied.length ? 'warn' : 'ok', meta, `${used}${skipped}`, { at: info.syncedAt, origin: info.origin, schedule: info.schedule });
     } catch (error) {
       console.error(error);
       const fallback = state.snapshot ? ` Se muestra la copia guardada del ${snapshotDate()}.` : '';
@@ -1601,6 +1706,7 @@
 
   async function init() {
     wireEvents();
+    wireStatusCard();
     try {
       let data = window.TIERRA_FILMS_RETAIL_DATA;
       if (!data) {

@@ -2596,7 +2596,8 @@
   }
 }
 
-@media (max-width: 680px) {
+/* Con la barra lateral abierta, por debajo de 1100 px cuatro columnas parten montos como S/ 14,089.14. */
+@media (max-width: 1100px) {
   .kpi-strip.gasto-kpis {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -2841,3 +2842,141 @@ body.gasto-table-fullscreen {
 .gasto-kw-panel.no-cpa .gasto-rank-table :is(th, td):nth-child(6) {
   display: none;
 }
+
+/* ===== Sincronizacion (barra superior derecha) ===== */
+/* La pildora abre el detalle de la sincronizacion y el boton Sincronizar (#drive-sync) va a su lado. */
+
+.data-status {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+button.topbar-pill {
+  border: 1px solid transparent;
+  cursor: pointer;
+}
+
+button.topbar-pill:hover {
+  border-color: currentColor;
+}
+
+button.topbar-pill:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+.topbar-pill.warn {
+  color: #b45309;
+  background: #fffbeb;
+}
+
+.status-chevron {
+  width: 12px;
+  height: 12px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: transform .15s;
+}
+
+button.topbar-pill[aria-expanded="true"] .status-chevron {
+  transform: rotate(180deg);
+}
+
+.data-status-card {
+  position: absolute;
+  z-index: 140;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 340px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  background: #fff;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, .14);
+}
+
+.data-status-head {
+  margin-bottom: 10px;
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+
+.data-status-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 6px 0;
+  border-top: 1px solid var(--border);
+  font-size: 10px;
+}
+
+.data-status-row span {
+  flex: none;
+  color: var(--muted);
+}
+
+.data-status-row strong {
+  color: var(--ink);
+  font-weight: 700;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.data-status-row a {
+  color: var(--brand);
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.data-status-row a:hover {
+  text-decoration: underline;
+}
+
+.data-status-note {
+  margin: 10px 0 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  color: var(--brand-text);
+  background: #f0f9ff;
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.data-status-note:empty {
+  display: none;
+}
+
+#sync-status.is-ok {
+  background: var(--green-soft);
+}
+
+#sync-status.is-error {
+  background: #fef2f2;
+}
+
+@media (max-width: 760px) {
+  .data-status {
+    flex-wrap: wrap;
+  }
+
+  .data-status-card {
+    width: min(340px, calc(100vw - 36px));
+  }
+}
+
+/* En el celular la barra superior va en columna: el detalle se abre hacia la derecha. */
+@media (max-width: 520px) {
+  .data-status-card {
+    right: auto;
+    left: 0;
+  }
+}
+
