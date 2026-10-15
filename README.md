@@ -12,26 +12,55 @@ paneles de Amador y Aquarius.
 
 ## Modulos
 
-1. **Gasto Publicitario**: resultados semanales de Google Ads.
-   - Boton `Sincronizar` (barra superior): lee la carpeta de Google Drive del
-     cliente; ver [Sincronizacion con Drive](#sincronizacion-con-drive).
-   - Filtro por mes: `Julio`, `Agosto`, `Setiembre` o `Todo el periodo`. Arranca
-     en el ultimo mes con datos.
-   - `Conversiones por accion` (al costado del titulo): cuantas conversiones
-     trajo cada accion (WhatsApp Plugin, Formulario, WhatsApp Clic) en el mes
-     elegido, con su propio rango de fechas. Sale del informe de campaña
-     segmentado por accion de conversion; en `Todo el periodo` muestra el mas
-     reciente y en un mes sin ese informe no aparece.
-   - KPIs: coste, impresiones, CTR, clics (con CPC medio), conversiones y costo
-     por conversion.
-   - `Indicadores por dia`: lineas de gasto, conversiones, costo por conversion
-     y CTR dia a dia del mes elegido. Con el export semanal solo, cada dia es la
-     semana dividida entre sus dias y las lineas salen punteadas con `(est.)`;
-     al importar el export diario pasan a ser la curva real.
-   - `Evolucion semanal`: las mismas lineas para todo el periodo; las semanas del
-     mes elegido quedan resaltadas.
-   - `Resultados semanales`: tabla con % Δ contra la semana anterior y fila de
-     total. En CPC y costo por conversion, bajar es mejor.
+1. **Gasto Publicitario**: resultados de Google Ads por campaña, mes a mes y en el
+   acumulado del año.
+   - **Sincronización** (barra superior): la píldora dice hasta qué día llegan los
+     datos y de dónde salen (`auto 10:00`, `leído 15:37`, `copia 6 oct` o
+     `no se pudo leer`) y abre el detalle (datos, meses cargados, último y
+     próximo barrido, palabras clave, carpetas de Drive y lo que falta subir).
+     Al lado, el botón `Sincronizar`. Un error o un barrido de más de 30 horas
+     pone la píldora en ámbar. Ver [Sincronizacion con Drive](#sincronizacion-con-drive).
+   - **Pestañas** Enero a Diciembre y **Anual**. Mes sin informe, deshabilitado;
+     punto en el último mes con datos. El mes elegido se guarda en
+     `tierra_films_selected_month` (`anual` para Anual; el viejo `all` de "Todo el
+     periodo" se migra a Anual). Un mes sin informe entre el primero y el último
+     se avisa arriba.
+   - **Periodo** con 8 KPIs: inversión, impresiones, clics, CTR, CPC prom.,
+     conversiones, costo por conversión y tasa de conversión (conversiones /
+     clics). Los cocientes salen de las sumas. Un mes cerrado se compara con el
+     mes anterior completo. El mes en curso compara la **inversión con el mismo
+     tramo del mes anterior** cuando hay costo diario real de esos días, y el
+     resto contra el mes anterior **prorrateado** a los mismos días (CTR, CPC,
+     costo y tasa son los del mes anterior); la bajada lo dice. El primer mes no
+     tiene comparación. Anual muestra el promedio mensual de los meses cerrados.
+     Un mes cuyas impresiones, clics o conversiones salen de repartir semanas
+     (Agosto) las marca `(est.)`. El mes empieza el día 1 salvo el primero con
+     datos.
+   - **Distribución de inversión por campaña** (estado y presupuesto vigentes en
+     el último informe) y, debajo, **un cuadro por campaña**: KPIs con variación,
+     gráfico con `Acumulado del mes`, `Por día`, `Por semana` y `Por mes` y chips
+     de indicadores (varios = paneles apilados, cada uno con su escala; uno solo
+     en vista diaria = contra el mes anterior en el mismo día). Lo repartido desde
+     semanas va punteado con `(est.)`. Las vistas diarias necesitan la serie por
+     día del mes (hoy: costo real del 1-jun al 20-set y el resto repartido de las
+     semanas; octubre solo tiene Por mes). Dentro del cuadro: `Conversiones por
+     acción` (WhatsApp Plugin, Formulario, WhatsApp Clic) del informe por acción
+     de conversión, `Resultados semanales` (% Δ contra la semana anterior; en CPC
+     y costo por conversión, bajar es mejor) y `Palabras clave del periodo`.
+     Minimizar, indicadores y vista se recuerdan en
+     `tierra_films_gasto_campaign_charts`.
+   - **Palabras clave**: cada mes usa un solo informe. Si la carpeta Keywords tiene
+     el del mes (por acción de conversión), solo conversiones: Google deja
+     impresiones, clics y costo en 0 y esas columnas no se muestran. Si no, el
+     informe semanal del repo, con todas las métricas; las semanas que cruzan de
+     mes se reparten por días `(est.)`. Se compara con el mes anterior solo si los
+     dos usan el mismo informe y cubren el mes completo o los mismos días. En
+     Anual, con meses de los dos informes, no se calcula el costo por conversión.
+   - **Ranking de palabras clave del periodo**: cabecera fija, Campaña y Palabra
+     clave ancladas, estrella en la líder, filtro por campaña, `Compacto`
+     (`tierra_films_gasto_kw_compact`) y `Pantalla completa` (las pestañas de mes
+     entran al panel; `Esc` sale). `Ver análisis completo` abre Palabras Clave.
+   - Campañas, palabras y semanas sin inversión, impresiones ni clics no aparecen.
 2. **Proyecciones**: cierre del mes en curso (el mes del ultimo dia con datos).
    - Cada semana de Google Ads se reparte en partes iguales entre sus dias para
      armar el acumulado diario real.
@@ -91,8 +120,8 @@ Google Ads agrupa por semanas de lunes a domingo. Para los totales mensuales, un
 semana que cruza de mes se reparte por dias (por ejemplo, 27 jul - 2 ago aporta
 5/7 a julio y 2/7 a agosto). En la tabla de un mes esas semanas se muestran
 completas con la etiqueta de cuantos dias caen en el mes, y la fila de total dice
-`(prorrateado)`. La vista `Todo el periodo` no prorratea nada y cuadra exacto con
-Google Ads.
+`(prorrateado)`. La pestaña `Anual` suma los totales de cada mes (los de su
+informe mensual), así que no reparte semanas.
 
 ## De donde sale cada total
 
@@ -205,9 +234,9 @@ python scripts/drive-snapshot.py campanas="Accion de conversion setiembre 2026.c
 ```
 
 Por cada mes manda el informe que llega mas lejos. Si Drive trae menos dias que
-el repo, se queda el del repo. `Todo el periodo`, los KPIs, `Datos al ...` y
-Proyecciones se recalculan con lo nuevo; los graficos por dia y la tabla
-semanal siguen con el detalle del repo hasta volver a importarlo.
+el repo, se queda el del repo. `Anual`, los KPIs, la píldora `Datos al ...` y
+Proyecciones se recalculan con lo nuevo; las vistas por día del cuadro de campaña
+y la tabla semanal siguen con el detalle del repo hasta volver a importarlo.
 
 Estados del boton: `Drive hh:mm` (verde, leido), `Reintentar` (rojo, fallo;
 el tablero sigue con lo que tenia) y `Sincronizar` en amarillo (falta la
@@ -222,7 +251,7 @@ script). Al abrir, el tablero trae ese ultimo barrido, asi carga rapido; el
 boton **Sincronizar** pide un barrido en el momento (`?fresh=1`). Si alguien lo
 aprieta varias veces seguidas, el script reusa el barrido del ultimo minuto.
 
-La etiqueta del boton dice de donde salio la data:
+La píldora de la barra superior dice de donde salio la data:
 
 | Etiqueta | Significa |
 | --- | --- |
@@ -231,7 +260,9 @@ La etiqueta del boton dice de donde salio la data:
 | `copia 6 oct` | la copia del repo (`data/drive-snapshot.json`): Drive aun no esta conectado |
 | `no se pudo leer` | fallo la lectura; el tablero sigue con lo que tenia |
 
-Al pasar el mouse sale la hora exacta del barrido y los archivos que se leyeron.
+Al abrir la píldora sale el detalle: hora exacta del último barrido, el próximo
+(10:00 de Lima), las carpetas y lo que falta subir. Si el último barrido tiene
+más de 30 horas o la lectura falló, la píldora se pone ámbar.
 
 ### Conectar la carpeta (una sola vez)
 
