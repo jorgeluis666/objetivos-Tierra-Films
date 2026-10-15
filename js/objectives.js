@@ -7,6 +7,7 @@
   const LEGACY_ALL = 'all';
   // Indicadores, vista y minimizado del grafico de cada campana, por campana.
   const CAMP_CHARTS_KEY = 'tierra_films_gasto_campaign_charts';
+  const KW_COMPACT_KEY = 'tierra_films_gasto_kw_compact';
   const MONTH_NAMES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Setiembre', 'Octubre', 'Noviembre', 'Diciembre'];
   const MONTH_SHORT = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'set', 'oct', 'nov', 'dic'];
   const SHORT_NAMES = MONTH_NAMES.map(name => name.slice(0, 3));
@@ -55,7 +56,18 @@
   ];
 
   const state = { data: null, months: [], weeks: [], days: [], monthId: null, annual: false, base: null, snapshot: null };
-  const gasto = { months: [], latestKey: null, campaignCharts: readJson(CAMP_CHARTS_KEY), charts: new Map() };
+  const gasto = {
+    months: [],
+    latestKey: null,
+    campaignCharts: readJson(CAMP_CHARTS_KEY),
+    charts: new Map(),
+    // Palabras clave por mes, armadas una vez por version de la data.
+    kwCache: new Map(),
+    kwFilter: 'all',
+    compact: readSetting(KW_COMPACT_KEY) === 'true',
+    fullscreen: false,
+    tabsHome: null
+  };
 
   const isNum = value => value !== null && value !== undefined && value !== '' && Number.isFinite(Number(value));
   const fmtMoney = value => Number.isFinite(Number(value)) && value !== null ? `S/ ${Number(value).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-';
@@ -288,6 +300,7 @@
   }
 
   function buildGastoMonths() {
+    gasto.kwCache = new Map();
     gasto.months = state.months.filter(month => /^\d{4}-\d{2}$/.test(month.id)).map(gastoMonth);
     const withData = gasto.months.filter(month => month.hasData);
     gasto.latestKey = withData.length ? withData[withData.length - 1].key : null;
@@ -780,6 +793,7 @@
           <div class="panel-note gasto-chart-note" data-camp-note hidden></div>
           ${actionsHtml(period)}
           ${weeksHtml(period)}
+          ${campaignKeywordsHtml(period, campaign)}
         </div>
       </section>`;
   }
@@ -1096,6 +1110,303 @@
     campaigns.forEach(campaign => renderCampaignChart(campaign.key, period, campaigns));
   }
 
+  // ── Palabras clave por mes ──
+  // Cada mes usa un solo informe para que la tabla sea coherente: el de la carpeta Keywords (por accion
+  // de conversion: solo conversiones, Google deja impresiones, clics y costo en 0) o, si no hay, el informe
+  // semanal del repo (todas las metricas; las semanas que cruzan de mes se reparten por dias).
+  const MATCH_LABELS = { amplia: 'Concordancia amplia', frase: 'Concordancia de frase', exacta: 'Concordancia exacta' };
+  const plainKeyword = text => String(text || '').replace(/^["[]+|["\]]+$/g, '').trim();
+  const plainMatch = text => {
+    const value = normalizeText(text).replace(/^concordancia (de )?/, '');
+    return ['amplia', 'frase', 'exacta'].includes(value) ? value : value || '';
+  };
+  const kwKey = (keyword, match) => `${normalizeText(plainKeyword(keyword))}|${plainMatch(match)}`;
+  const KW_METRICS = ['cost', 'impressions', 'clicks'];
+
+  function driveKeywordMonth(month) {
+    const block = ((state.data && state.data.keywordConversionsByMonth) || []).find(item => item.month === month.key);
+    if (!block) return null;
+    const startDay = Number(block.start.slice(8, 10));
+    const endDay = Number(block.end.slice(8, 10));
+    const rows = new Map();
+    block.keywords.forEach(item => {
+      const key = kwKey(item.keyword, item.match);
+      if (!rows.has(key)) rows.set(key, { key, keyword: plainKeyword(item.keyword), match: plainMatch(item.match), paused: Boolean(item.paused), conversions: 0, cost: null, impressions: null, clicks: null, actions: {} });
+      const row = rows.get(key);
+      row.conversions += Number(item.conversions) || 0;
+      Object.entries(item.actions || {}).forEach(([name, value]) => { row.actions[name] = (row.actions[name] || 0) + (Number(value) || 0); });
+      // Sin el segmento por accion el informe trae metricas reales por palabra: se usan.
+      KW_METRICS.forEach(field => { if (Number(item[field]) > 0) row[field] = (row[field] || 0) + Number(item[field]); });
+    });
+    const list = [...rows.values()];
+    return {
+      source: 'drive', label: block.sourceFile, startDay, endDay,
+      complete: startDay === 1 && endDay === month.daysInMonth,
+      hasMetrics: list.some(row => KW_METRICS.some(field => Number(row[field]) > 0)),
+      actions: block.actions || [], estimated: false, rows: list
+    };
+  }
+
+  function weeklyKeywordMonth(month) {
+    const weeks = ((state.data && state.data.keywords && state.data.keywords.weeks) || []);
+    const rows = new Map();
+    let first = null;
+    let last = null;
+    let estimated = false;
+    weeks.forEach(week => {
+      const start = new Date(`${week.start}T00:00:00Z`);
+      const end = new Date(`${week.end}T00:00:00Z`);
+      const length = Math.round((end - start) / 86400000) + 1;
+      let inside = 0;
+      for (let d = new Date(start); d <= end; d.setUTCDate(d.getUTCDate() + 1)) {
+        const iso = d.toISOString().slice(0, 10);
+        if (!iso.startsWith(month.key)) continue;
+        inside += 1;
+        const day = Number(iso.slice(8, 10));
+        first = first === null ? day : Math.min(first, day);
+        last = last === null ? day : Math.max(last, day);
+      }
+      if (!inside) return;
+      const share = inside / length;
+      if (share < 1) estimated = true;
+      (week.rows || []).forEach(item => {
+        const key = kwKey(item.keyword, item.matchType);
+        if (!rows.has(key)) rows.set(key, { key, keyword: plainKeyword(item.keyword), match: plainMatch(item.matchType), paused: /pausa|detenid/i.test(item.status || ''), conversions: 0, cost: 0, impressions: 0, clicks: 0, actions: {} });
+        const row = rows.get(key);
+        SUMS.forEach(field => { row[field] += (Number(item[field]) || 0) * share; });
+        row.paused = /pausa|detenid/i.test(item.status || '');
+      });
+    });
+    if (!rows.size) return null;
+    return {
+      source: 'weekly', label: (state.data.keywords && state.data.keywords.sourceFile) || 'informe semanal de palabras clave',
+      startDay: first, endDay: last, complete: first === 1 && last === month.daysInMonth,
+      hasMetrics: true, actions: [], estimated, rows: [...rows.values()]
+    };
+  }
+
+  // Cache por version de la data: se arma una vez por mes.
+  function keywordMonth(month) {
+    if (!gasto.kwCache.has(month.key)) gasto.kwCache.set(month.key, driveKeywordMonth(month) || weeklyKeywordMonth(month));
+    return gasto.kwCache.get(month.key);
+  }
+
+  const kwActive = (row, hasMetrics) => (hasMetrics ? isActive(row) : Number(row.conversions) > 0);
+
+  // Filas del periodo (en Anual se suman los meses). hasMetrics: alguna fila trae impresiones, clics o costo.
+  function keywordScope(period) {
+    const months = period.months.map(month => ({ month, kw: keywordMonth(month) })).filter(item => item.kw);
+    const byKey = new Map();
+    months.forEach(({ kw }) => kw.rows.forEach(row => {
+      if (!byKey.has(row.key)) byKey.set(row.key, Object.assign({}, row, { conversions: 0, cost: null, impressions: null, clicks: null, actions: {} }));
+      const entry = byKey.get(row.key);
+      entry.conversions += row.conversions;
+      entry.paused = row.paused;
+      KW_METRICS.forEach(field => { if (isNum(row[field])) entry[field] = (entry[field] || 0) + Number(row[field]); });
+      Object.entries(row.actions || {}).forEach(([name, value]) => { entry.actions[name] = (entry.actions[name] || 0) + value; });
+    }));
+    const hasMetrics = months.some(({ kw }) => kw.hasMetrics);
+    // Anual con meses de los dos informes: la inversion por palabra solo existe en los meses del semanal, asi
+    // que el costo por conversion mezclaria periodos y no se calcula.
+    const metricMonths = months.filter(({ kw }) => kw.hasMetrics).map(({ month }) => month);
+    const mixed = hasMetrics && metricMonths.length < months.length;
+    const rows = [...byKey.values()].map(row => Object.assign(derive(row), mixed ? { costPerConversion: null } : {}));
+    let label = '';
+    if (period.annual) label = months.map(({ month }) => month.shortName).join(', ');
+    else if (months.length) {
+      const { month, kw } = months[0];
+      label = kw.complete ? `${month.name} ${month.year}` : `${dayRange(month, kw.startDay, kw.endDay)} ${month.year}`;
+    }
+    return {
+      months, rows, hasMetrics, label, mixed, metricMonths,
+      estimated: months.some(({ kw }) => kw.estimated),
+      sources: [...new Set(months.map(({ kw }) => kw.source))]
+    };
+  }
+
+  // Comparacion con el mes calendario anterior: solo si los dos meses usan el mismo informe y cubren el mes
+  // completo o los mismos dias.
+  function keywordCompare(period) {
+    if (period.annual) return { compare: null, reason: null };
+    const current = keywordMonth(period.month);
+    if (!current) return { compare: null, reason: null };
+    const previousMonth = gastoMonthByKey(previousKey(period.month));
+    if (!previousMonth || !previousMonth.hasData) return { compare: null, reason: 'Sin mes anterior para comparar.' };
+    const previous = keywordMonth(previousMonth);
+    if (!previous) return { compare: null, reason: `Sin informe de palabras clave de ${previousMonth.name} para comparar.` };
+    if (current.source !== previous.source) {
+      return { compare: null, reason: `Sin comparación: ${period.month.name} sale del informe por acción de conversión y ${previousMonth.name}, del informe semanal.` };
+    }
+    const sameDays = current.startDay === previous.startDay && current.endDay === previous.endDay;
+    if ((current.complete && previous.complete) || sameDays) {
+      const rows = new Map(keywordScope({ months: [previousMonth], month: previousMonth }).rows.map(row => [row.key, row]));
+      return { compare: { month: previousMonth, rows, label: current.complete ? previousMonth.name : dayRange(previousMonth, previous.startDay, previous.endDay), estimated: previous.estimated }, reason: null };
+    }
+    return { compare: null, reason: `Sin comparación: el informe de palabras clave de ${period.month.name} (${current.startDay}-${current.endDay}) y el de ${previousMonth.name} no cubren los mismos días.` };
+  }
+
+  // Variacion con el mes anterior: "Nuevo" si no estaba, verde o rojo si no.
+  function variationCell(current, previous) {
+    if (previous === null || previous === undefined) return '<span class="status-pill new">Nuevo</span>';
+    const d = change(current, previous);
+    if (d === null) return '<span class="no-data">-</span>';
+    return `<span class="status-pill ${d >= 0 ? 'green' : 'red'}">${d >= 0 ? '▲' : '▼'} ${pctText(d, 0)}</span>`;
+  }
+
+  const matchText = match => MATCH_LABELS[match] || match || 'Sin concordancia';
+  const keywordCell = (row, cls) => `<td class="${cls}" title="${escapeHtml(`${row.keyword} (${matchText(row.match)})`)}"><span>${row.leader ? '<b class="gasto-leader" title="Líder de la campaña">★</b> ' : ''}${escapeHtml(row.keyword)}</span><small>${escapeHtml(matchText(row.match))}${row.paused ? ' · detenida' : ''}</small></td>`;
+
+  // Palabras clave de la campana en el periodo, con sus conversiones contra el mes anterior.
+  function campaignKeywordsHtml(period, campaign) {
+    const head = '<div class="gasto-kw-block-head"><div class="panel-title">Palabras clave del periodo</div>';
+    const scope = keywordScope(period);
+    if (!scope.months.length) {
+      const what = period.annual ? 'Ningún mes del periodo tiene' : `${escapeHtml(period.month.label)} no tiene`;
+      return `${head}<div class="panel-sub">${what} informe de palabras clave. Súbelo a la carpeta Google Ads TF Keywords de Drive.</div></div>`;
+    }
+    const all = scope.rows;
+    const rows = all.filter(row => kwActive(row, scope.hasMetrics)).sort((a, b) => b.conversions - a.conversions || (b.cost || 0) - (a.cost || 0) || (b.clicks || 0) - (a.clicks || 0));
+    if (!rows.length) return `${head}<div class="panel-sub">El informe de palabras clave de ${escapeHtml(scope.label)} no trae actividad de esta campaña.</div></div>`;
+    const { compare, reason } = keywordCompare(period);
+    const kwCost = rows.reduce((total, row) => total + (Number(row.cost) || 0), 0);
+    // Cobertura: la inversion de la campana en los meses que tienen inversion por palabra.
+    const campaignCost = scope.mixed ? scope.metricMonths.reduce((total, month) => total + (Number(month.totals.cost) || 0), 0) : campaign.cost;
+    const kwConv = rows.reduce((total, row) => total + row.conversions, 0);
+    const byCost = scope.hasMetrics && kwCost > 0;
+    const hidden = all.length - rows.length;
+    const cols = [['Palabra clave'], ['Conversiones', true]]
+      .concat(compare ? [[`Conversiones ${compare.label}`, true], ['Variación', true]] : [])
+      .concat(scope.hasMetrics ? (scope.mixed ? [] : [['Costo por conversión', true]]).concat([['Inversión', true]]) : [])
+      .concat([[byCost ? '% de la campaña' : '% de las conversiones']])
+      .concat(scope.hasMetrics ? [['Impresiones', true], ['Clics', true], ['CPC', true]] : []);
+    const est = estTag(scope.estimated);
+    const body = rows.map(row => {
+      const before = compare ? compare.rows.get(row.key) : null;
+      return `<tr>
+          ${keywordCell(row, 'gasto-kw-name')}
+          <td class="num gasto-strong">${fmtConv(row.conversions)}</td>
+          ${compare ? `<td class="num">${before ? fmtConv(before.conversions) : '<span class="no-data">-</span>'}</td><td class="num">${variationCell(row.conversions, before ? before.conversions : null)}</td>` : ''}
+          ${scope.hasMetrics ? `${scope.mixed ? '' : `<td class="num">${fmtMoney(row.costPerConversion)}</td>`}<td class="num">${fmtMoney(row.cost)}${est}</td>` : ''}
+          ${shareCell(byCost ? (Number(row.cost) || 0) / kwCost : kwConv > 0 ? row.conversions / kwConv : null)}
+          ${scope.hasMetrics ? `<td class="num">${fmtCount(row.impressions)}${est}</td><td class="num">${fmtCount(row.clicks)}${est}</td><td class="num">${fmtMoney(row.cpc)}</td>` : ''}
+        </tr>`;
+    }).join('');
+    const from = scope.sources.length === 1
+      ? (scope.sources[0] === 'drive' ? 'del informe por acción de conversión (carpeta Keywords)' : 'del informe semanal de palabras clave')
+      : 'de la carpeta Keywords (Set, Oct) y del informe semanal (meses anteriores)';
+    const notes = [`${rows.length} ${rows.length === 1 ? 'palabra clave' : 'palabras clave'} con ${scope.hasMetrics ? 'actividad' : 'conversiones'} en ${escapeHtml(scope.label)}, ${from}.`];
+    if (byCost) notes.push(`${fmtMoney(kwCost)} de ${fmtMoney(campaignCost)} de la campaña${scope.mixed ? ` en ${scope.metricMonths.map(month => month.shortName).join(', ')}` : ''}${scope.estimated ? ' (semanas repartidas por días, est.)' : ''}.`);
+    if (scope.mixed) notes.push(`Inversión, impresiones y clics por palabra solo de ${scope.metricMonths.map(month => month.shortName).join(', ')}; sin costo por conversión, porque las conversiones suman también los meses del informe por acción.`);
+    if (!scope.hasMetrics) notes.push('Ese informe viene separado por acción de conversión: Google Ads no reparte impresiones, clics ni costo por palabra, así que esas columnas no se muestran.');
+    if (compare) notes.push(`Conversiones contra ${escapeHtml(compare.label)}${compare.estimated ? ' (est.)' : ''}.`);
+    else if (reason) notes.push(escapeHtml(reason));
+    if (hidden) notes.push(`${hidden} sin ${scope.hasMetrics ? 'impresiones' : 'conversiones'} no se ${hidden === 1 ? 'muestra' : 'muestran'}.`);
+    if (period.annual && scope.months.length < period.months.length) notes.push('Solo los meses del periodo con informe de palabras clave.');
+    return `${head}<div class="panel-sub">${notes.join(' ')}</div></div>
+      <div class="table-scroll">
+        <table class="data-table gasto-kw-table">
+          <thead><tr>${cols.map(([label, numeric]) => `<th${numeric ? ' class="num"' : ''}>${escapeHtml(label)}</th>`).join('')}</tr></thead>
+          <tbody>${body}</tbody>
+        </table>
+      </div>`;
+  }
+
+  // ── Ranking de palabras clave del periodo ──
+  function renderRanking(period, campaigns) {
+    const panel = document.getElementById('gasto-kw-panel');
+    const body = document.getElementById('gasto-kw-body');
+    const select = document.getElementById('gasto-kw-campaign');
+    const sub = document.getElementById('gasto-kw-sub');
+    if (!panel || !body) return;
+    const scope = keywordScope(period);
+    const { compare, reason } = keywordCompare(period);
+    panel.classList.toggle('no-compare', !compare);
+    panel.classList.toggle('no-metrics', !scope.hasMetrics);
+    panel.classList.toggle('no-cpa', scope.mixed);
+    document.getElementById('gasto-kw-title').textContent = `Ranking de palabras clave | ${period.label} ${period.year}`;
+    document.getElementById('gasto-kw-prev-head').textContent = compare ? `Conversiones ${compare.label}` : 'Mes anterior';
+    // Con una sola campana (o informes sin campana por palabra), todas van a la campana del periodo.
+    const campaign = campaigns[0];
+    const options = campaign ? [`<option value="${escapeHtml(campaign.key)}"${gasto.kwFilter === campaign.key ? ' selected' : ''}>${escapeHtml(campaign.label)}</option>`] : [];
+    select.innerHTML = ['<option value="all">Todas las campañas</option>'].concat(options).join('');
+    if (!scope.months.length) {
+      sub.textContent = '';
+      body.innerHTML = `<tr><td class="table-empty" colspan="11">${period.annual ? 'Ningún mes del periodo tiene' : `${escapeHtml(period.month.label)} no tiene`} informe de palabras clave. Súbelo a la carpeta Google Ads TF Keywords de Drive.</td></tr>`;
+      return;
+    }
+    const rows = scope.rows.filter(row => kwActive(row, scope.hasMetrics))
+      .sort((a, b) => b.conversions - a.conversions || (b.cost || 0) - (a.cost || 0) || (b.clicks || 0) - (a.clicks || 0));
+    if (rows.length && rows[0].conversions > 0) rows[0].leader = true;
+    const visible = gasto.kwFilter === 'all' || (campaign && gasto.kwFilter === campaign.key) ? rows : [];
+    const est = estTag(scope.estimated);
+    sub.textContent = `${visible.length} ${visible.length === 1 ? 'palabra clave ordenada' : 'palabras clave ordenadas'} por conversiones, ${scope.label}. La estrella marca a la líder de la campaña.${scope.hasMetrics ? '' : ' Solo conversiones: el informe viene separado por acción de conversión.'}${scope.mixed ? ` Inversión, impresiones y clics solo de ${scope.metricMonths.map(month => month.shortName).join(', ')}.` : ''}${compare ? '' : reason ? ` ${reason}` : ''}`;
+    body.innerHTML = visible.map(row => {
+      const before = compare ? compare.rows.get(row.key) : null;
+      return `
+        <tr>
+          <td class="gasto-rank-campaign" title="${escapeHtml(campaign ? campaign.name : '')}"><span>${escapeHtml(campaign ? campaign.label : '-')}</span></td>
+          ${keywordCell(row, 'gasto-rank-keyword')}
+          <td class="num gasto-strong">${fmtConv(row.conversions)}</td>
+          <td class="num">${before ? fmtConv(before.conversions) : '<span class="no-data">-</span>'}</td>
+          <td class="num">${compare ? variationCell(row.conversions, before ? before.conversions : null) : '<span class="no-data">-</span>'}</td>
+          <td class="num">${fmtMoney(row.costPerConversion)}</td>
+          <td class="num">${fmtMoney(row.cost)}${est}</td>
+          <td class="num">${fmtCount(row.impressions)}${est}</td>
+          <td class="num">${fmtCount(row.clicks)}${est}</td>
+          <td class="num">${fmtPercent(row.ctr)}</td>
+          <td class="num">${fmtMoney(row.cpc)}</td>
+        </tr>`;
+    }).join('') || '<tr><td class="table-empty" colspan="11">No hay palabras clave de esta campaña en el periodo.</td></tr>';
+  }
+
+  // ── Herramientas del ranking: compacto y pantalla completa ──
+  function applyCompact() {
+    const panel = document.getElementById('gasto-kw-panel');
+    const button = document.getElementById('gasto-kw-density');
+    if (!panel || !button) return;
+    panel.classList.toggle('is-compact', gasto.compact);
+    button.setAttribute('aria-pressed', String(gasto.compact));
+    button.textContent = gasto.compact ? 'Cómodo' : 'Compacto';
+    button.title = gasto.compact ? 'Volver a filas amplias' : 'Reducir el alto de las filas';
+  }
+  function toggleCompact() {
+    gasto.compact = !gasto.compact;
+    saveSetting(KW_COMPACT_KEY, gasto.compact);
+    applyCompact();
+  }
+
+  function toggleFullscreen(force) {
+    const panel = document.getElementById('gasto-kw-panel');
+    const button = document.getElementById('gasto-kw-expand');
+    const tabs = document.getElementById('month-tabs');
+    if (!panel || !button || !tabs) return;
+    const next = force === undefined ? !gasto.fullscreen : Boolean(force);
+    if (next === gasto.fullscreen) return;
+    gasto.fullscreen = next;
+    const scroller = panel.querySelector('.gasto-rank-scroll');
+    panel.classList.toggle('is-fullscreen', next);
+    document.body.classList.toggle('gasto-table-fullscreen', next);
+    // Las pestanas de mes viajan al panel para poder cambiar de mes sin salir.
+    if (next) {
+      gasto.tabsHome = { parent: tabs.parentNode, next: tabs.nextSibling };
+      panel.insertBefore(tabs, scroller);
+    } else if (gasto.tabsHome) {
+      gasto.tabsHome.parent.insertBefore(tabs, gasto.tabsHome.next);
+      gasto.tabsHome = null;
+    }
+    button.setAttribute('aria-pressed', String(next));
+    button.textContent = next ? '✕ Salir' : '⤢ Pantalla completa';
+    button.title = next ? 'Salir de pantalla completa (Esc)' : 'Ver la tabla en pantalla completa (Esc para salir)';
+    if (next) scroller.focus();
+  }
+
+  function openKeywordsView() {
+    toggleFullscreen(false);
+    const button = document.querySelector('.s-item[data-view-target="view-keywords"]');
+    if (button) button.click();
+    window.scrollTo(0, 0);
+  }
+
   // ── Render ──
   function selectTab(value) {
     if (value === YEAR_KEY) {
@@ -1119,12 +1430,14 @@
       document.getElementById('gasto-dist-body').innerHTML = '<tr><td class="table-empty" colspan="12">Sin resultados para mostrar.</td></tr>';
       destroyCampaignCharts();
       document.getElementById('gasto-blocks').innerHTML = '';
+      document.getElementById('gasto-kw-body').innerHTML = '<tr><td class="table-empty" colspan="11">Sin resultados para mostrar.</td></tr>';
       return;
     }
     const campaigns = periodCampaigns(period);
     renderPeriod(period);
     renderDistribution(period, campaigns);
     renderCampaigns(period, campaigns);
+    renderRanking(period, campaigns);
   }
 
   function periodLabel() {
@@ -1173,9 +1486,19 @@
         const key = toggle.closest('.gasto-camp-block').dataset.campaign;
         saveCampaignSettings(key, { collapsed: !campaignSettings(key).collapsed });
         renderCampaignChart(key);
+        return;
       }
+      if (event.target.closest('#gasto-kw-density')) { toggleCompact(); return; }
+      if (event.target.closest('#gasto-kw-expand')) { toggleFullscreen(); return; }
+      if (event.target.closest('#gasto-kw-more')) openKeywordsView();
     });
     view.addEventListener('change', event => {
+      if (event.target.id === 'gasto-kw-campaign') {
+        gasto.kwFilter = event.target.value;
+        const period = currentPeriod();
+        if (period) renderRanking(period, periodCampaigns(period));
+        return;
+      }
       const input = event.target.closest('.gasto-camp-block input');
       if (!input) return;
       const block = input.closest('.gasto-camp-block');
@@ -1189,6 +1512,10 @@
       }
       renderCampaignChart(key);
     });
+    // Esc y el cambio de modulo cierran la pantalla completa (con el panel fijo la pagina quedaria bloqueada).
+    document.addEventListener('keydown', event => { if (event.key === 'Escape') toggleFullscreen(false); });
+    document.querySelectorAll('.s-item').forEach(button => button.addEventListener('click', () => toggleFullscreen(false)));
+    applyCompact();
   }
 
   // Deja lista una version de la data (la del repo o la ya mezclada con Drive) y redibuja todo.
