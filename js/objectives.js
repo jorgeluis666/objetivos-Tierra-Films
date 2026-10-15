@@ -2,18 +2,62 @@
   const DATA_URL = 'data/tierra-films-lima-retail-2026.json';
   const SNAPSHOT_URL = 'data/drive-snapshot.json';
   const MONTH_STORAGE_KEY = 'tierra_films_selected_month';
-  const ALL = 'all';
-  const SERIES = {
-    cost: { label: 'Gasto', unit: 'money', color: '#0284c7', axis: 'y' },
-    conversions: { label: 'Conversiones', unit: 'count', color: '#7c3aed', axis: 'y1' },
-    costPerConversion: { label: 'Costo x conversion', unit: 'money', color: '#0f766e', axis: 'y2', dashed: true },
-    ctr: { label: 'CTR', unit: 'percent', color: '#f59e0b', axis: 'y3', dashed: true }
-  };
-  const TREND_METRICS = ['cost', 'conversions', 'costPerConversion', 'ctr'];
+  // Pestana Anual; antes existia "Todo el periodo" ('all'), que se migra a Anual.
+  const YEAR_KEY = 'anual';
+  const LEGACY_ALL = 'all';
+  // Indicadores, vista y minimizado del grafico de cada campana, por campana.
+  const CAMP_CHARTS_KEY = 'tierra_films_gasto_campaign_charts';
   const MONTH_NAMES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Setiembre', 'Octubre', 'Noviembre', 'Diciembre'];
   const MONTH_SHORT = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'set', 'oct', 'nov', 'dic'];
-  const state = { data: null, months: [], weeks: [], days: [], monthId: null, base: null, snapshot: null, chart: null, trendChart: null };
+  const SHORT_NAMES = MONTH_NAMES.map(name => name.slice(0, 3));
+  const SUMS = ['cost', 'impressions', 'clicks', 'conversions'];
+  const CHART_COLOR = '#0284c7';
+  const AXIS_COLOR = '#7890b5';
+  const GRID_COLOR = 'rgba(14,165,233,.16)';
+  const PREVIOUS_COLOR = '#94a3b8';
+  const EST_DASH = [6, 5];
+  const CHEVRON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 15 6-6 6 6"/></svg>';
+  // Vistas del grafico de cada campana. Las diarias salen de la serie por dia (window.TierraFilmsDays):
+  // con una sola campana, la cuenta y la campana son lo mismo.
+  const MODES = [
+    { key: 'cumulative', label: 'Acumulado del mes', daily: true },
+    { key: 'daily', label: 'Por día', daily: true },
+    { key: 'weekly', label: 'Por semana', daily: true },
+    { key: 'monthly', label: 'Por mes', daily: false }
+  ];
+  const CAMPAIGN_METRICS = [
+    { key: 'cost', label: 'Inversión', unit: 'money' },
+    { key: 'conversions', label: 'Conversiones', unit: 'conv' },
+    { key: 'clicks', label: 'Clics', unit: 'count' },
+    { key: 'impressions', label: 'Impresiones', unit: 'count' }
+  ];
+  const DEFAULT_METRICS = ['cost', 'conversions'];
+  // better: hacia donde una variacion es buena (null = neutra). uses: sumas de las que depende el indicador.
+  const CAMPAIGN_KPIS = [
+    { key: 'cost', label: 'Inversión', unit: 'money', better: null, uses: ['cost'] },
+    { key: 'clicks', label: 'Clics', unit: 'count', better: 'up', uses: ['clicks'] },
+    { key: 'ctr', label: 'CTR', unit: 'percent', better: 'up', uses: ['clicks', 'impressions'] },
+    { key: 'cpc', label: 'CPC', unit: 'money', better: 'down', uses: ['cost', 'clicks'] },
+    { key: 'conversions', label: 'Conversiones', unit: 'conv', better: 'up', uses: ['conversions'] },
+    { key: 'costPerConversion', label: 'Costo por conversión', unit: 'money', better: 'down', uses: ['cost', 'conversions'] },
+    { key: 'dailyBudget', label: 'Presupuesto diario', unit: 'money', better: null, uses: [] }
+  ];
+  // perMonth: en Anual muestra su promedio mensual en lugar de la variacion.
+  const KPIS = [
+    { key: 'cost', label: 'Inversión', hint: 'Costo del periodo', better: null, unit: 'money', perMonth: true, uses: ['cost'] },
+    { key: 'impressions', label: 'Impresiones', hint: 'Veces que se mostraron los anuncios', better: 'up', unit: 'count', perMonth: true, uses: ['impressions'] },
+    { key: 'clicks', label: 'Clics', hint: 'Clics en los anuncios', better: 'up', unit: 'count', perMonth: true, uses: ['clicks'] },
+    { key: 'ctr', label: 'CTR', hint: 'Clics / impresiones', better: 'up', unit: 'percent', uses: ['clicks', 'impressions'] },
+    { key: 'cpc', label: 'CPC prom.', hint: 'Costo por clic', better: 'down', unit: 'money', uses: ['cost', 'clicks'] },
+    { key: 'conversions', label: 'Conversiones', hint: 'Contactos registrados', better: 'up', unit: 'conv', perMonth: true, uses: ['conversions'] },
+    { key: 'costPerConversion', label: 'Costo por conversión', hint: 'Inversión / conversiones', better: 'down', unit: 'money', uses: ['cost', 'conversions'] },
+    { key: 'conversionRate', label: 'Tasa de conversión', hint: 'Conversiones / clics', better: 'up', unit: 'percent', uses: ['conversions', 'clicks'] }
+  ];
 
+  const state = { data: null, months: [], weeks: [], days: [], monthId: null, annual: false, base: null, snapshot: null };
+  const gasto = { months: [], latestKey: null, campaignCharts: readJson(CAMP_CHARTS_KEY), charts: new Map() };
+
+  const isNum = value => value !== null && value !== undefined && value !== '' && Number.isFinite(Number(value));
   const fmtMoney = value => Number.isFinite(Number(value)) && value !== null ? `S/ ${Number(value).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-';
   const fmtCount = value => Number.isFinite(Number(value)) && value !== null ? Number(value).toLocaleString('es-PE', { maximumFractionDigits: 0 }) : '-';
   // Conversiones: Google Ads reparte algunas (2.99, 0.99); se muestran con decimales solo si los hay.
@@ -31,6 +75,7 @@
       return fmtMoney(value);
     }
     if (unit === 'percent') return fmtPercent(value);
+    if (unit === 'conv') return fmtConv(value);
     if (unit === 'decimal') return Number.isFinite(Number(value)) && value !== null ? Number(value).toLocaleString('es-PE', { maximumFractionDigits: 1 }) : '-';
     return fmtCount(value);
   }
@@ -78,25 +123,28 @@
     return `<td class="num delta-cell ${cls}">${sign}${(value * 100).toLocaleString('es-PE', { maximumFractionDigits: 1 })}%</td>`;
   }
 
+  function readSetting(key) {
+    try { return window.localStorage.getItem(key); } catch (error) { return null; }
+  }
+  function saveSetting(key, value) {
+    try { window.localStorage.setItem(key, String(value)); } catch (error) { /* almacenamiento bloqueado */ }
+  }
+  function readJson(key) {
+    try {
+      const value = JSON.parse(readSetting(key) || '{}');
+      return value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+    } catch (error) {
+      return {};
+    }
+  }
+
   function readStoredMonth() {
-    try { return window.localStorage.getItem(MONTH_STORAGE_KEY); } catch (error) { return null; }
+    const value = readSetting(MONTH_STORAGE_KEY);
+    return value === LEGACY_ALL ? YEAR_KEY : value;
   }
 
-  function storeMonth(monthId) {
-    try { window.localStorage.setItem(MONTH_STORAGE_KEY, monthId); } catch (error) { /* solo vive en la sesion */ }
-  }
-
-  function currentMonth() {
-    return state.months.find(month => month.id === state.monthId) || null;
-  }
-
-  // Semanas del filtro activo. En un mes se listan las que tienen al menos un dia
-  // dentro de el; su aporte al total del mes se prorratea por dias.
-  function visibleWeeks() {
-    if (state.monthId === ALL) return state.weeks.map(week => ({ week, share: 1 }));
-    return state.weeks
-      .filter(week => week.daysByMonth && week.daysByMonth[state.monthId])
-      .map(week => ({ week, share: week.daysByMonth[state.monthId] / week.days }));
+  function storeMonth(value) {
+    saveSetting(MONTH_STORAGE_KEY, value);
   }
 
   // Serie diaria. Cada dia toma los indicadores reales que traiga el export
@@ -120,7 +168,7 @@
         const source = real.get(date);
         const share = weighted ? costs[index] / costTotal : 1 / week.days;
         const row = { date, week: week.start, estimated: {} };
-        ['cost', 'impressions', 'clicks', 'conversions'].forEach(metric => {
+        SUMS.forEach(metric => {
           const value = source ? Number(source[metric]) : NaN;
           if (Number.isFinite(value)) {
             row[metric] = value;
@@ -137,7 +185,7 @@
     (data.days || []).forEach(day => {
       if (used.has(day.date)) return;
       const row = Object.assign({ estimated: {} }, day);
-      ['cost', 'impressions', 'clicks', 'conversions'].forEach(metric => {
+      SUMS.forEach(metric => {
         if (!Number.isFinite(Number(day[metric]))) row[metric] = null;
       });
       rows.push(withRates(row));
@@ -146,306 +194,511 @@
     return rows;
   }
 
-  // Indicadores estimados dentro de las filas visibles.
-  function estimatedMetrics(rows) {
-    const set = new Set();
-    rows.forEach(row => {
-      TREND_METRICS.forEach(metric => {
-        if (metric === 'costPerConversion' || metric === 'ctr') {
-          if (row.estimated && (row.estimated.cost || row.estimated.conversions || row.estimated.clicks || row.estimated.impressions)) set.add(metric);
-        } else if (row.estimated && row.estimated[metric]) {
-          set.add(metric);
-        }
-      });
+  // ════════════════════════════════════════════════════════════
+  // Gasto Publicitario: pestanas de mes y Anual, periodo con KPIs, distribucion por campana
+  // con un cuadro por campana. Los totales del mes salen del informe mensual (repo o Drive);
+  // el detalle por dia y por semana, de la serie diaria y de las semanas del repo.
+  // ════════════════════════════════════════════════════════════
+  const normalizeText = text => String(text ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').trim().toLowerCase().replace(/\s+/g, ' ');
+  const campaignKey = normalizeText;
+  const slug = text => String(text).replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  const monthKeyOf = (year, number) => `${year}-${String(number).padStart(2, '0')}`;
+  const limaToday = () => new Date(Date.now() - 5 * 3600000);
+  const dayRange = (month, from, to) => `${from}-${to} ${month.name}`;
+  const pickSums = item => Object.fromEntries(SUMS.map(field => [field, isNum(item[field]) ? Number(item[field]) : null]));
+  // Solo lo que tuvo actividad: inversion, impresiones o clics.
+  const isActive = item => ['cost', 'impressions', 'clicks'].some(field => Number(item[field]) > 0);
+  const ratio = (a, b) => (isNum(a) && isNum(b) && Number(b) !== 0 ? Number(a) / Number(b) : null);
+
+  // CTR, CPC, costo y tasa de conversion se recalculan sobre las sumas; nunca se promedian. El costo por
+  // conversion de un mes de Drive es el que reporta Google Ads (sus conversiones no vienen redondeadas).
+  function derive(totals) {
+    const reported = Number(totals.reportedCostPerConversion);
+    return Object.assign({}, totals, {
+      ctr: ratio(totals.clicks, totals.impressions),
+      cpc: ratio(totals.cost, totals.clicks),
+      costPerConversion: Number.isFinite(reported) && reported > 0 ? reported : ratio(totals.cost, totals.conversions),
+      conversionRate: ratio(totals.conversions, totals.clicks)
     });
-    return set;
+  }
+  // Suma campo a campo; si un sumando no informa el campo (null), la suma tampoco.
+  function sumOf(items) {
+    return Object.fromEntries(SUMS.map(field => [field, items.reduce((total, item) => (total === null || !isNum(item[field]) ? null : total + Number(item[field])), 0)]));
+  }
+  const scale = (totals, factor) => Object.fromEntries(SUMS.map(field => [field, isNum(totals[field]) ? totals[field] * factor : null]));
+
+  function campaignMeta(name) {
+    const list = (state.data && state.data.campaigns) || [];
+    return list.find(item => campaignKey(item.name) === campaignKey(name)) || {};
   }
 
-  function visibleDays() {
-    if (state.monthId === ALL) return state.days;
-    return state.days.filter(day => day.date.startsWith(state.monthId));
-  }
-
-  function periodTotals() {
-    if (state.monthId === ALL) return withRates(state.data.totals);
-    return withRates(currentMonth());
-  }
-
-  function periodDays() {
-    if (state.monthId === ALL) return state.months.reduce((total, month) => total + month.daysWithData, 0);
-    const month = currentMonth();
-    return month ? month.daysWithData : 0;
-  }
-
-  // De donde sale el total del mes: informe mensual, serie diaria o prorrateo.
-  function monthSourceNote() {
-    const month = currentMonth();
-    if (!month) {
-      const exact = state.months.filter(item => item.exact).length;
-      const partial = state.months.filter(item => !item.exact && item.exactMetrics && item.exactMetrics.length).length;
-      const partialNote = partial ? `, ${partial} tiene el gasto real de la serie diaria` : '';
-      return `Totales por mes: ${exact} de ${state.months.length} vienen de su informe mensual${partialNote}; el resto se calcula repartiendo por dias las semanas que cruzan de mes.`;
+  // Campanas del mes: las filas por campana del informe si suman el mes; si el informe solo trae el total de
+  // la cuenta (los de Drive vienen por accion de conversion) y hay una sola campana, el total es de ella.
+  // Estado y presupuesto: los vigentes del informe mas reciente.
+  function monthCampaigns(month, totals) {
+    const records = Array.isArray(month.records) ? month.records.filter(record => record && record.campaign) : [];
+    const recordCost = records.reduce((sum, record) => sum + (Number(record.cost) || 0), 0);
+    let rows = [];
+    if (records.length && Math.abs(recordCost - (Number(month.cost) || 0)) < 0.05) {
+      rows = records.map(record => Object.assign(pickSums(record), { name: record.campaign }));
+    } else if (((state.data && state.data.campaigns) || []).length === 1) {
+      rows = [Object.assign({}, totals, { name: state.data.campaigns[0].name, reportedCostPerConversion: month.reportedCostPerConversion })];
     }
-    const range = month.rangeStart && month.rangeEnd ? ` (${shortDate(month.rangeStart)} - ${shortDate(month.rangeEnd)})` : '';
-    const weeksNote = month.weekDays && month.weekDays !== month.daysWithData
-      ? ` El detalle semanal cubre ${month.weekDays} dias, asi que puede no sumar exactamente el total del mes.`
-      : '';
-    if (month.source === 'Drive') {
-      return `Total de ${month.label} leido de Google Drive${range}: ${month.sourceFile}.${weeksNote}`;
-    }
-    if (month.exact) {
-      return `Total de ${month.label} tomado del informe mensual${range}: ${escapeHtml(month.sourceFile)}.${weeksNote}`;
-    }
-    if (month.exactMetrics && month.exactMetrics.length) {
-      const exactLabels = month.exactMetrics.map(metric => (SERIES[metric] ? SERIES[metric].label.toLowerCase() : metric));
-      const head = exactLabels.join(' y ');
-      return `${head.charAt(0).toUpperCase()}${head.slice(1)} de ${month.label}: dato real de la serie diaria${range}. Conversiones, clics e impresiones siguen prorrateados desde las semanas; para el dato exacto, importa el informe mensual de ${month.label.split(' ')[0].toLowerCase()}.${weeksNote}`;
-    }
-    return `Total de ${month.label} calculado repartiendo por dias las semanas que cruzan de mes. Para el dato exacto, importa el informe mensual de ${month.label.split(' ')[0].toLowerCase()}.`;
-  }
-
-  function periodLabel() {
-    if (state.monthId === ALL) {
-      const { start, end } = state.data.period;
-      return `${shortDate(start)} - ${shortDate(end)} ${parseDate(end).y}`;
-    }
-    return currentMonth() ? currentMonth().label : '';
-  }
-
-  function renderFilters() {
-    const host = document.getElementById('retail-filters');
-    if (!host) return;
-    const campaign = state.data.campaigns && state.data.campaigns[0];
-    const options = state.months.map(month => {
-      const partial = month.daysWithData < month.daysInMonth;
-      const label = `${month.label.split(' ')[0]}${partial ? ` (al ${parseDate(month.rangeEnd || state.data.period.end).d})` : ''}`;
-      return `<button type="button" class="month-tab${month.id === state.monthId ? ' active' : ''}" data-month="${escapeHtml(month.id)}">${escapeHtml(label)}</button>`;
-    }).join('');
-    host.innerHTML = `
-      <div class="retail-filter">
-        <span>Mes</span>
-        <div class="month-tabs filter-months">
-          ${options}
-          <button type="button" class="month-tab${state.monthId === ALL ? ' active' : ''}" data-month="${ALL}" title="${escapeHtml(`${shortDate(state.data.period.start)} - ${shortDate(state.data.period.end)}`)}">Todo el periodo</button>
-        </div>
-      </div>
-      <div class="retail-filter filter-hint">
-        <span>Cuenta Google Ads</span>
-        <p>${state.data.campaigns.length} ${state.data.campaigns.length === 1 ? 'campaña' : 'campañas'} de ${escapeHtml(campaign ? campaign.type : 'Búsqueda')}${campaign && campaign.dailyBudget ? ` | presupuesto ${fmtMoney(campaign.dailyBudget)}/dia` : ''} | ${state.months.length} meses y ${state.weeks.length} semanas cargadas.<br>${monthSourceNote()}</p>
-      </div>
-    `;
-    host.querySelectorAll('[data-month]').forEach(button => {
-      button.addEventListener('click', () => {
-        state.monthId = button.dataset.month;
-        storeMonth(state.monthId);
-        renderAll();
+    return rows.map(row => {
+      const meta = campaignMeta(row.name);
+      return Object.assign(row, {
+        key: campaignKey(row.name),
+        label: row.name,
+        status: meta.status || '',
+        dailyBudget: isNum(meta.dailyBudget) ? Number(meta.dailyBudget) : null
       });
     });
   }
 
-  // Desglose del informe "Accion de conversion": el del mes elegido o, en todo el periodo, el mas reciente.
-  // Trae su propio rango (puede ir mas alla del resto de la data), por eso lo muestra en el titulo.
-  function renderConversionActions() {
-    const host = document.getElementById('conv-actions');
-    if (!host) return;
-    const blocks = state.data.conversionActions || [];
-    const block = state.monthId === ALL ? blocks[blocks.length - 1] : blocks.find(item => item.month === state.monthId);
-    if (!block || !block.total) {
-      host.hidden = true;
-      host.innerHTML = '';
-      return;
-    }
-    const colors = ['#7c3aed', '#0284c7', '#0f766e', '#f59e0b', '#94a3b8'];
-    const actions = block.actions.map((action, index) => Object.assign({}, action, { color: colors[Math.min(index, colors.length - 1)], share: action.conversions / block.total }));
-    const start = parseDate(block.start);
-    const end = parseDate(block.end);
-    const range = start.m === end.m ? `${start.d} - ${shortDate(block.end)} ${end.y}` : `${shortDate(block.start)} - ${shortDate(block.end)} ${end.y}`;
-    host.hidden = false;
-    host.title = `Fuente: ${block.sourceFile}`;
-    host.innerHTML = `
-      <div class="conv-actions-head"><span>Conversiones por accion <b>${escapeHtml(range)}</b></span><strong>${fmtConv(block.total)} <small>total</small></strong></div>
-      <div class="conv-actions-bar" aria-hidden="true">${actions.filter(action => action.conversions > 0).map(action => `<i style="width:${(action.share * 100).toFixed(2)}%;background:${action.color}"></i>`).join('')}</div>
-      <ul class="conv-actions-list">
-        ${actions.map(action => `<li class="${action.conversions > 0 ? '' : 'is-zero'}"><span class="conv-name"><span class="conv-dot" style="background:${action.color}"></span>${escapeHtml(action.name)}</span><span class="conv-value"><strong>${fmtConv(action.conversions)}</strong>${action.conversions > 0 ? ` <small>${Math.round(action.share * 100)}%</small>` : ''}</span></li>`).join('')}
-      </ul>`;
-  }
-
-  function renderKpis() {
-    const host = document.getElementById('kpi-strip');
-    const t = periodTotals();
-    const days = periodDays();
-    const cards = [
-      ['Gasto total', fmtMoney(t.cost), `Promedio ${fmtMoney(t.cost / days)} x dia`],
-      ['Impresiones', fmtCount(t.impressions), `${days} dias con datos`],
-      ['CTR', fmtPercent(t.ctr), 'Clics / impresiones'],
-      ['Clics', fmtCount(t.clicks), `CPC medio ${fmtMoney(t.cpc)}`],
-      ['Conversiones', fmtConv(t.conversions), 'Resultados registrados'],
-      ['Costo x conversion', fmtMoney(t.costPerConversion), 'Gasto / conversiones']
-    ];
-    host.innerHTML = cards.map(([label, value, meta]) => `<div class="kpi-pill"><span>${label}</span><strong>${value}</strong><small>${meta}</small></div>`).join('');
-  }
-
-  // Tope del eje de costo por conversion: ignora los picos de semanas con 1 conversion.
-  function cpaCap(rows) {
-    const values = rows.map(row => row.costPerConversion).filter(Number.isFinite).sort((a, b) => a - b);
-    if (values.length < 4) return undefined;
-    return values[Math.floor(values.length * 0.75)] * 1.6;
-  }
-
-  // Grafico de lineas reutilizable: una linea por indicador, cada una con su escala.
-  function lineChart(canvas, rows, options) {
-    if (typeof Chart === 'undefined') {
-      canvas.parentElement.innerHTML = '<div class="empty-state"><strong>Grafico no disponible sin conexion.</strong><span>Las tablas siguen visibles.</span></div>';
-      return null;
-    }
-    return new Chart(canvas, {
-      type: 'line',
-      data: {
-        labels: options.labels || rows.map(weekLabel),
-        datasets: TREND_METRICS.map(metric => {
-          const series = SERIES[metric];
-          return {
-            metricKey: metric,
-            label: series.label,
-            data: rows.map(row => (Number.isFinite(row[metric]) ? row[metric] : null)),
-            yAxisID: series.axis,
-            borderColor: series.color,
-            backgroundColor: 'transparent',
-            borderWidth: options.estimated && options.estimated.has(metric) ? 1.8 : 2.2,
-            borderDash: series.dashed || (options.estimated && options.estimated.has(metric)) ? [5, 4] : [],
-            pointRadius: options.pointRadius === undefined ? 3 : options.pointRadius,
-            pointBackgroundColor: options.pointBackground ? options.pointBackground(series) : series.color,
-            pointBorderColor: series.color,
-            pointHoverRadius: 6,
-            tension: 0.32,
-            spanGaps: true
-          };
-        })
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        interaction: { mode: 'index', intersect: false },
-        plugins: {
-          legend: { display: false },
-          tooltip: {
-            callbacks: {
-              title: items => (options.tooltipTitle ? options.tooltipTitle(items[0].dataIndex) : `Semana ${weekLabel(rows[items[0].dataIndex])}`),
-              label: context => {
-                const metric = context.dataset.metricKey;
-                const suffix = typeof options.suffix === 'function' ? options.suffix(metric) : (options.suffix || '');
-                return ` ${SERIES[metric].label}: ${formatValue(context.raw, SERIES[metric].unit)}${suffix}`;
-              }
-            }
-          }
-        },
-        scales: {
-          x: { grid: { display: false }, border: { color: '#bfdbfe' }, ticks: { color: '#7890b5', font: { size: 10 }, maxRotation: 35, minRotation: 0 } },
-          y: { beginAtZero: true, border: { display: false }, grid: { color: 'rgba(14,165,233,.16)' }, ticks: { color: '#7890b5', font: { size: 10 }, callback: value => formatValue(value, 'money', true) } },
-          y1: { beginAtZero: true, position: 'right', border: { display: false }, grid: { drawOnChartArea: false }, ticks: { color: '#7c3aed', font: { size: 10 }, precision: 0 } },
-          // Ejes ocultos: el costo por conversion y el CTR conservan su forma sin aplastar al resto.
-          y2: { display: false, beginAtZero: true, grid: { drawOnChartArea: false }, max: cpaCap(rows) },
-          y3: { display: false, beginAtZero: true, grid: { drawOnChartArea: false } }
-        }
-      }
-    });
-  }
-
-  function legendHtml(estimated = null) {
-    return TREND_METRICS.map(metric => {
-      const isEstimated = estimated instanceof Set ? estimated.has(metric) : Boolean(estimated);
-      const dashed = SERIES[metric].dashed || isEstimated;
-      return `<i class="legend-line${dashed ? ' dashed' : ''}" style="${dashed ? `color:${SERIES[metric].color}` : `background:${SERIES[metric].color}`}"></i><b>${SERIES[metric].label}${isEstimated ? ' (est.)' : ''}</b>`;
-    }).join('');
-  }
-
-  // Dia a dia del mes elegido.
-  function renderChart() {
-    const rows = visibleDays();
-    const perMonth = state.monthId !== ALL;
-    const panel = document.getElementById('chart-panel');
-    const notice = document.getElementById('records-empty');
-    panel.hidden = !rows.length;
-    notice.hidden = rows.length > 0;
-    if (!rows.length) {
-      const month = currentMonth();
-      notice.innerHTML = `<strong>Sin detalle por semana ni por dia para ${escapeHtml(month ? month.label : 'este periodo')}.</strong>Los KPIs de arriba vienen del informe mensual. Para ver la curva, descarga el informe de ese mes con Segmento > Tiempo > Semana (o Dia) y vuelve a importarlo.`;
-      if (state.chart) { state.chart.destroy(); state.chart = null; }
-      return;
-    }
-    const estimated = estimatedMetrics(rows);
-    const label = metric => SERIES[metric].label.toLowerCase();
-    const hasData = metric => rows.some(row => row[metric] !== null && row[metric] !== undefined && Number.isFinite(Number(row[metric])));
-    const missingLabels = TREND_METRICS.filter(metric => !hasData(metric)).map(label);
-    const realLabels = TREND_METRICS.filter(metric => hasData(metric) && !estimated.has(metric)).map(label);
-    const estLabels = TREND_METRICS.filter(metric => hasData(metric) && estimated.has(metric)).map(label);
-    document.getElementById('chart-title').textContent = `Indicadores por dia | ${periodLabel()}`;
-    document.getElementById('chart-sub').textContent = [
-      realLabels.length ? `Dato real por dia: ${realLabels.join(', ')}.` : '',
-      estLabels.length ? `Estimado repartiendo la semana: ${estLabels.join(', ')} (linea punteada).` : '',
-      missingLabels.length ? `Sin detalle diario: ${missingLabels.join(', ')} (solo el total del mes).` : ''
-    ].filter(Boolean).join(' ');
-    const legend = document.querySelector('#chart-panel .chart-legend span');
-    if (legend) legend.innerHTML = legendHtml(estimated);
-    if (state.chart) state.chart.destroy();
-    state.chart = lineChart(document.getElementById('chart-monthly'), rows, {
-      labels: rows.map(row => (perMonth ? String(parseDate(row.date).d) : shortDate(row.date))),
-      tooltipTitle: index => formatLongDate(rows[index].date),
-      pointRadius: rows.length > 40 ? 0 : 2.5,
+  function gastoMonth(month) {
+    const [year, number] = month.id.split('-').map(Number);
+    const daysInMonth = new Date(year, number, 0).getDate();
+    const dayOf = iso => (typeof iso === 'string' && iso.startsWith(month.id) ? Number(iso.slice(8, 10)) : null);
+    const firstDay = dayOf(month.rangeStart) || 1;
+    const lastDay = dayOf(month.rangeEnd) || daysInMonth;
+    const totals = pickSums(month);
+    // Indicadores que no son exactos en el mes (Agosto: solo la inversion sale de la serie diaria).
+    const exact = month.exact ? SUMS : (Array.isArray(month.exactMetrics) ? month.exactMetrics : []);
+    const estimated = SUMS.filter(field => !exact.includes(field));
+    return {
+      key: month.id,
+      label: month.label,
+      name: MONTH_NAMES[number - 1],
+      shortName: SHORT_NAMES[number - 1],
+      year,
+      month: number,
+      daysInMonth,
+      realFirstDay: firstDay,
+      firstDay,
+      lastDay,
+      totals,
+      reportedCostPerConversion: month.reportedCostPerConversion,
       estimated,
-      suffix: metric => (estimated.has(metric) ? ' (estimado)' : '')
+      source: month.source || '',
+      sourceFile: month.sourceFile || '',
+      campaigns: monthCampaigns(month, totals),
+      days: state.days.filter(day => day.date.startsWith(month.id)),
+      hasData: SUMS.some(field => Number(totals[field]) > 0)
+    };
+  }
+
+  function buildGastoMonths() {
+    gasto.months = state.months.filter(month => /^\d{4}-\d{2}$/.test(month.id)).map(gastoMonth);
+    const withData = gasto.months.filter(month => month.hasData);
+    gasto.latestKey = withData.length ? withData[withData.length - 1].key : null;
+    gasto.months.forEach(month => {
+      // Un mes empieza el dia 1 aunque la campana no haya gastado ese dia; solo el primer mes con datos
+      // empieza en su primer dia real.
+      if (withData.length && month.key !== withData[0].key && month.hasData) month.firstDay = 1;
+      month.complete = month.firstDay === 1 && month.lastDay === month.daysInMonth;
+      // Un mes anterior al ultimo con datos ya termino aunque su informe no llegue al ultimo dia.
+      month.past = Boolean(gasto.latestKey && month.key < gasto.latestKey);
     });
   }
 
-  // Tendencia de todas las semanas; las del mes elegido quedan resaltadas.
-  function renderTrend() {
-    const panel = document.getElementById('daily-panel');
-    const rows = state.weeks;
-    panel.hidden = !rows.length;
-    if (!rows.length) {
-      if (state.trendChart) { state.trendChart.destroy(); state.trendChart = null; }
-      return;
+  const gastoMonthByKey = key => gasto.months.find(month => month.key === key) || null;
+  function previousKey(month) {
+    const date = new Date(month.year, month.month - 2, 1);
+    return monthKeyOf(date.getFullYear(), date.getMonth() + 1);
+  }
+  function selectedGastoMonth() {
+    const month = gastoMonthByKey(state.monthId);
+    return month && month.hasData ? month : gastoMonthByKey(gasto.latestKey);
+  }
+  const viewYear = () => (selectedGastoMonth() || { year: limaToday().getUTCFullYear() }).year;
+
+  // Mes cerrado: contra el mes anterior completo. Mes en curso: la inversion contra el mismo tramo del mes
+  // anterior cuando hay costo diario real de esos dias; el resto, contra el mes anterior prorrateado a los
+  // mismos dias. CTR, CPC, costo y tasa de conversion son los del mes anterior (no cambian al prorratear).
+  function periodOf(month) {
+    if (!month || !month.hasData) return null;
+    const closed = month.complete || month.past;
+    const days = month.lastDay - month.firstDay + 1;
+    const previous = gastoMonthByKey(previousKey(month));
+    let compare = null;
+    if (previous && previous.hasData) {
+      const previousDays = previous.lastDay - previous.firstDay + 1;
+      const factor = closed ? 1 : Math.min(1, days / previousDays);
+      const full = dayRange(previous, previous.firstDay, previous.lastDay);
+      if (factor >= 1) {
+        compare = { month: previous, factor: 1, label: full, short: full, costShort: full, costTramo: null };
+      } else {
+        const tramo = previous.days.filter(day => {
+          const d = Number(day.date.slice(8, 10));
+          return d >= month.firstDay && d <= month.lastDay;
+        });
+        const realCost = tramo.length === days && tramo.every(day => isNum(day.cost) && !(day.estimated && day.estimated.cost));
+        const costTramo = realCost ? tramo.reduce((sum, day) => sum + Number(day.cost), 0) : null;
+        const tramoLabel = dayRange(previous, month.firstDay, month.lastDay);
+        compare = {
+          month: previous,
+          factor,
+          costTramo,
+          label: realCost
+            ? `${tramoLabel} en inversión (costo diario real); el resto, ${previous.name} prorrateado a ${days} ${days === 1 ? 'día' : 'días'}`
+            : `${previous.name} prorrateado a ${days} ${days === 1 ? 'día' : 'días'}`,
+          short: `${previous.shortName} prorrateado`,
+          costShort: realCost ? tramoLabel : `${previous.shortName} prorrateado`
+        };
+      }
     }
-    const selected = new Set(visibleWeeks().map(({ week }) => week.start));
-    document.getElementById('daily-title').textContent = 'Evolucion semanal | todo el periodo';
-    const t = withRates(state.data.totals);
-    document.getElementById('daily-sub').textContent = `${rows.length} semanas | ${fmtMoney(t.cost)} de gasto | ${fmtCount(t.conversions)} conversiones | ${fmtMoney(t.costPerConversion)} por conversion | CTR ${fmtPercent(t.ctr)}.`;
-    const legend = document.querySelector('.daily-legend span');
-    if (legend) legend.innerHTML = legendHtml();
-    const note = document.getElementById('daily-note');
-    const first = rows[0];
-    note.hidden = false;
-    const withDaily = new Set((state.data.days || []).map(day => day.date.slice(0, 7)));
-    const missingDaily = withDaily.size < state.months.length
-      ? ` Solo ${withDaily.size} de ${state.months.length} meses tienen serie diaria real; en los demas el panel de arriba reparte la semana. Para la curva real, descarga el grafico de serie temporal (o el informe con Segmento > Tiempo > Dia) de ese mes.`
-      : '';
-    note.textContent = `La primera semana (${weekLabel(first)}) solo tiene ${first.days} dias dentro del informe.${state.monthId === ALL ? '' : ' Los puntos resaltados son las semanas del mes elegido.'} El eje del costo por conversion se recorta para que las semanas con 1 conversion no aplasten al resto; el valor exacto sale al pasar el cursor.${missingDaily}`;
-    if (state.trendChart) state.trendChart.destroy();
-    state.trendChart = lineChart(document.getElementById('chart-daily'), rows, {
-      pointRadius: rows.map(row => (state.monthId !== ALL && selected.has(row.start) ? 5 : 3)),
-      pointBackground: series => rows.map(row => (state.monthId === ALL || selected.has(row.start) ? series.color : '#fff'))
+    return { month, months: [month], year: month.year, closed, compare, label: dayRange(month, month.firstDay, month.lastDay) };
+  }
+
+  // Anual: acumulado de los meses del ano con informe, sin comparacion (no hay informes del ano anterior).
+  function yearPeriod(year) {
+    const months = gasto.months.filter(month => month.hasData && month.year === year);
+    if (!months.length) return null;
+    const first = months[0];
+    const last = months[months.length - 1];
+    return {
+      annual: true, month: null, months, year, compare: null,
+      closed: last.month === 12 && last.complete,
+      label: `${first.firstDay} ${first.name} - ${last.lastDay} ${last.name}`
+    };
+  }
+
+  function currentPeriod() {
+    if (state.annual) {
+      const period = yearPeriod(viewYear());
+      if (period) return period;
+    }
+    return periodOf(selectedGastoMonth());
+  }
+
+  // Sumas que en algun mes del periodo no son exactas (se marcan "est.").
+  const periodEstimated = period => new Set(period.months.flatMap(month => month.estimated));
+  const isEstimated = (estimated, uses) => uses.some(field => estimated.has(field));
+
+  function periodTotals(period) {
+    const sums = sumOf(period.months.map(month => month.totals));
+    if (period.months.length === 1) sums.reportedCostPerConversion = period.months[0].reportedCostPerConversion;
+    return derive(sums);
+  }
+
+  function previousTotals(period) {
+    if (!period.compare) return null;
+    const { month, factor, costTramo } = period.compare;
+    const full = derive(Object.assign({}, month.totals, { reportedCostPerConversion: month.reportedCostPerConversion }));
+    if (factor >= 1) return full;
+    const scaled = scale(month.totals, factor);
+    if (isNum(costTramo)) scaled.cost = costTramo;
+    return Object.assign(scaled, {
+      ctr: full.ctr, cpc: full.cpc, costPerConversion: full.costPerConversion, conversionRate: full.conversionRate
     });
   }
 
-  function renderTable() {
-    const body = document.getElementById('campaigns-body');
-    const items = visibleWeeks();
-    const month = currentMonth();
-    document.getElementById('campaigns-title').textContent = `Resultados semanales | ${periodLabel()}`;
-    document.getElementById('campaigns-sub').textContent = items.length
-      ? `${items.length} semanas. % Δ compara cada semana con la anterior; en CPC y costo por conversion, bajar es mejor.`
-      : 'Sin semanas cargadas para este periodo.';
-    const note = document.getElementById('campaigns-note');
-    const partial = items.filter(({ share }) => share < 1);
-    const partialNote = partial.length && month
-      ? `Las semanas marcadas cruzan de mes: se muestran completas, pero el total de ${month.label} solo cuenta sus dias dentro del mes. `
-      : '';
-    note.classList.add('visible');
-    note.textContent = `${partialNote}${monthSourceNote()}`;
+  // Campanas del periodo, de mayor a menor inversion (en Anual, sumadas por nombre).
+  function periodCampaigns(period) {
+    const byKey = new Map();
+    period.months.forEach(month => month.campaigns.forEach(campaign => {
+      if (!byKey.has(campaign.key)) byKey.set(campaign.key, { items: [], months: [] });
+      const entry = byKey.get(campaign.key);
+      entry.items.push(campaign);
+      if (isActive(campaign)) entry.months.push(month);
+    }));
+    const total = periodTotals(period).cost || 0;
+    return [...byKey.values()]
+      .map(({ items, months }) => {
+        const last = items[items.length - 1];
+        const sums = sumOf(items);
+        if (items.length === 1) sums.reportedCostPerConversion = items[0].reportedCostPerConversion;
+        return Object.assign(derive(sums), {
+          key: last.key, name: last.name, label: last.label, status: last.status, dailyBudget: last.dailyBudget,
+          months, share: total > 0 && isNum(sums.cost) ? sums.cost / total : null
+        });
+      })
+      .filter(isActive)
+      .sort((a, b) => (b.cost || 0) - (a.cost || 0) || (b.conversions || 0) - (a.conversions || 0));
+  }
+
+  // La campana en el periodo de comparacion, con la misma regla que el total. El presupuesto no se prorratea.
+  function previousCampaign(period, key) {
+    if (!period.compare) return null;
+    const { month, factor, costTramo } = period.compare;
+    const campaign = month.campaigns.find(item => item.key === key);
+    if (!campaign || !isActive(campaign)) return null;
+    const full = derive(campaign);
+    if (factor >= 1) return full;
+    const single = month.campaigns.length === 1;
+    const scaled = scale(campaign, factor);
+    if (single && isNum(costTramo)) scaled.cost = costTramo;
+    return Object.assign(scaled, {
+      ctr: full.ctr, cpc: full.cpc, costPerConversion: full.costPerConversion, conversionRate: full.conversionRate, dailyBudget: campaign.dailyBudget
+    });
+  }
+
+  // ── Celdas compartidas ──
+  const change = (current, previous) => (isNum(current) && isNum(previous) && Number(previous) !== 0 ? (current - previous) / previous : null);
+  const pctText = (value, decimals = 1) => `${(Math.abs(value) * 100).toLocaleString('es-PE', { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}%`;
+  const estTag = on => (on ? ' <small class="gasto-est" title="Estimado: repartido desde las semanas">(est.)</small>' : '');
+
+  // "▲ 12.3% vs 1-31 Julio". El color depende de si subir es bueno para ese indicador.
+  function deltaHtml(current, previous, better, compareLabel) {
+    const d = change(current, previous);
+    if (d === null) return compareLabel ? `<small class="gasto-delta flat">Sin dato en ${escapeHtml(compareLabel)}</small>` : '';
+    const direction = Math.abs(d) < 0.0005 ? 'flat' : d > 0 ? 'up' : 'down';
+    const tone = direction === 'flat' || !better ? 'flat' : direction === better ? 'good' : 'bad';
+    const arrow = direction === 'up' ? '▲' : direction === 'down' ? '▼' : '●';
+    return `<small class="gasto-delta ${tone}">${arrow} ${pctText(d)}${compareLabel ? ` vs ${escapeHtml(compareLabel)}` : ''}</small>`;
+  }
+
+  function statusPill(status) {
+    const plain = normalizeText(status);
+    const tone = /^habilitad/.test(plain) ? 'green' : !plain || /^(detenid|pausad|en pausa|quitad|eliminad)/.test(plain) ? 'muted' : 'amber';
+    return `<span class="status-pill ${tone}">${escapeHtml(status || 'Sin estado')}</span>`;
+  }
+
+  const shareCell = share => (isNum(share)
+    ? `<td class="gasto-share-col"><span class="gasto-share"><span style="width:${Math.min(100, share * 100).toFixed(1)}%"></span></span><b>${fmtPercent(share)}</b></td>`
+    : '<td class="gasto-share-col"><span class="no-data">-</span></td>');
+
+  // Un render que reemplaza el HTML de host no saca el foco del control que se estaba usando (pestana o chip).
+  function keepFocus(host, render) {
+    const active = document.activeElement;
+    if (!host || !active || active === host || !host.contains(active)) { render(); return; }
+    const sig = node => [node.tagName, node.getAttribute('name'), node.getAttribute('value'),
+      ...[...node.attributes].filter(attr => attr.name.startsWith('data-')).map(attr => `${attr.name}=${attr.value}`)].join('|');
+    const wanted = sig(active);
+    render();
+    if (document.activeElement === active) return;
+    const match = [...host.querySelectorAll(active.tagName)].find(node => sig(node) === wanted);
+    if (match) match.focus({ preventScroll: true });
+  }
+
+  // ── Pestanas de mes ──
+  function renderTabs(period) {
+    const host = document.getElementById('month-tabs');
+    if (!host) return;
+    const year = viewYear();
+    const yearOk = Boolean(yearPeriod(year));
+    const annual = Boolean(period && period.annual);
+    const selected = period && period.month ? period.month.key : null;
+    keepFocus(host, () => {
+      host.innerHTML = MONTH_NAMES.map((name, index) => {
+        const key = monthKeyOf(year, index + 1);
+        const month = gastoMonthByKey(key);
+        const ok = Boolean(month && month.hasData);
+        const on = !annual && key === selected;
+        return `<button type="button" class="month-tab${on ? ' active' : ''}" data-month="${key}" aria-pressed="${on}"${ok ? '' : ' disabled title="Sin informe de campaña"'}>${name}${key === gasto.latestKey ? '<span class="current-dot" title="Último mes con datos"></span>' : ''}</button>`;
+      }).join('') + `<button type="button" class="month-tab${annual ? ' active' : ''}" data-month="${YEAR_KEY}" aria-pressed="${annual}" title="${yearOk ? `Acumulado ${year} de los meses con informe` : 'Sin informes de campaña'}"${yearOk ? '' : ' disabled'}>Anual</button>`;
+    });
+    // En pantallas angostas la tira scrollea: se deja a la vista la pestana elegida (sin mover la pagina).
+    const active = host.querySelector('.month-tab.active');
+    if (active && host.scrollWidth > host.clientWidth) host.scrollLeft = Math.max(0, active.offsetLeft - host.offsetLeft - 24);
+  }
+
+  // Huecos: meses sin informe de campana entre el primero y el ultimo con datos.
+  function missingMonths() {
+    const withData = gasto.months.filter(month => month.hasData);
+    const missing = [];
+    if (withData.length < 2) return missing;
+    const first = withData[0];
+    const last = withData[withData.length - 1];
+    for (let date = new Date(first.year, first.month - 1, 1); ; date.setMonth(date.getMonth() + 1)) {
+      const key = monthKeyOf(date.getFullYear(), date.getMonth() + 1);
+      if (key >= last.key) break;
+      const month = gastoMonthByKey(key);
+      if (!month || !month.hasData) missing.push(key);
+    }
+    return missing;
+  }
+
+  function renderAlerts() {
+    const host = document.getElementById('gasto-alerts');
+    if (!host) return;
+    const notes = missingMonths().map(key => {
+      const [year, number] = key.split('-').map(Number);
+      return `<b>Pendiente:</b> ${escapeHtml(`${MONTH_NAMES[number - 1]} ${year}`)} no tiene informe de campaña. Súbelo a la carpeta Google Ads TF Campañas y pulsa Sincronizar, arriba a la derecha.`;
+    });
+    host.innerHTML = notes.map(note => `<p>${note}</p>`).join('');
+    host.hidden = !notes.length;
+  }
+
+  // De donde salen los totales del periodo.
+  function sourceNote(period) {
+    if (period.annual) {
+      const partial = period.months.filter(month => month.estimated.length);
+      return partial.length
+        ? ` ${partial.map(month => month.name).join(', ')} tiene${partial.length === 1 ? '' : 'n'} indicadores estimados desde las semanas (est.).`
+        : '';
+    }
+    const month = period.month;
+    const from = month.source === 'Drive' ? `Google Drive (${month.sourceFile})` : month.source === 'serie diaria' ? 'la serie diaria de costo' : 'el informe mensual de Google Ads';
+    if (month.estimated.length) {
+      return ` Inversión de ${from}; ${month.estimated.filter(field => field !== 'cost').map(field => ({ impressions: 'impresiones', clicks: 'clics', conversions: 'conversiones' }[field])).join(', ')} estimadas desde las semanas (est.).`;
+    }
+    return ` Fuente: ${from}.`;
+  }
+
+  // ── Periodo y KPIs ──
+  function renderPeriod(period) {
+    const title = document.getElementById('gasto-period-title');
+    const sub = document.getElementById('gasto-period-sub');
+    const estimated = periodEstimated(period);
+    if (period.annual) {
+      const count = period.months.length;
+      const closed = period.closed || period.year < limaToday().getUTCFullYear();
+      title.textContent = `Periodo: ${period.label} ${period.year}${closed ? '' : ' (año en curso)'}`;
+      sub.textContent = `Acumulado de ${count} ${count === 1 ? 'mes' : 'meses'} con informe de campaña (${period.months.map(month => month.shortName).join(', ')}). Sin año anterior para comparar.${sourceNote(period)}`;
+    } else {
+      title.textContent = `Periodo: ${period.label} ${period.year}${period.closed ? '' : ' (mes en curso)'}`;
+      const compare = !period.compare ? 'Sin mes anterior para comparar.' : `Comparación vs ${period.compare.label}.`;
+      sub.textContent = `${compare}${sourceNote(period)}`;
+    }
+    const current = periodTotals(period);
+    const previous = previousTotals(period);
+    const previousEstimated = period.compare ? new Set(period.compare.month.estimated) : new Set();
+    let average = null;
+    if (period.annual) {
+      // Mientras haya meses cerrados el mes en curso queda fuera: un mes a medias bajaria el promedio.
+      const closed = period.months.filter(month => month.complete || month.past);
+      const months = closed.length ? closed : period.months;
+      average = Object.fromEntries(KPIS.filter(kpi => kpi.perMonth).map(kpi => [kpi.key, months.reduce((total, month) => total + (Number(month.totals[kpi.key]) || 0), 0) / months.length]));
+      average.basis = `Promedio de ${months.map(month => month.name).join(', ')}`;
+    }
+    document.getElementById('kpi-strip').innerHTML = KPIS.map(kpi => {
+      let line = `<small>${kpi.hint}</small>`;
+      if (previous) {
+        const label = kpi.key === 'cost' ? period.compare.costShort : period.compare.short;
+        line = deltaHtml(current[kpi.key], previous[kpi.key], kpi.better, `${label}${isEstimated(previousEstimated, kpi.uses) ? ' (est.)' : ''}`);
+      } else if (average && kpi.perMonth) {
+        line = `<small title="${escapeHtml(average.basis)}">Prom. mensual: ${formatValue(average[kpi.key], kpi.unit)}</small>`;
+      }
+      return `<div class="kpi-pill"><span>${kpi.label}</span><strong>${formatValue(current[kpi.key], kpi.unit)}${estTag(isEstimated(estimated, kpi.uses))}</strong>${line}</div>`;
+    }).join('');
+  }
+
+  // ── Distribucion de inversion por campana ──
+  function renderDistribution(period, campaigns) {
+    const total = periodTotals(period);
+    const estimated = periodEstimated(period);
+    const est = uses => estTag(isEstimated(estimated, uses));
+    const budget = campaigns.filter(campaign => /^habilitad/.test(normalizeText(campaign.status))).reduce((sum, campaign) => sum + (Number(campaign.dailyBudget) || 0), 0);
+    document.getElementById('gasto-dist-sub').textContent = `${period.label} ${period.year} | ${campaigns.length} ${campaigns.length === 1 ? 'campaña' : 'campañas'} con inversión, impresiones o clics. Estado y presupuesto vigentes en el último informe.`;
+    const money = value => (isNum(value) ? fmtMoney(value) : '<span class="no-data">-</span>');
+    document.getElementById('gasto-dist-body').innerHTML = campaigns.map(campaign => `
+      <tr>
+        <td class="campaign-name"><span>${escapeHtml(campaign.label)}</span>${campaign.label !== campaign.name ? `<small>${escapeHtml(campaign.name)}</small>` : ''}</td>
+        <td>${statusPill(campaign.status)}</td>
+        <td class="num">${money(campaign.dailyBudget)}</td>
+        <td class="num">${fmtMoney(campaign.cost)}</td>
+        ${shareCell(campaign.share)}
+        <td class="num">${fmtCount(campaign.impressions)}${est(['impressions'])}</td>
+        <td class="num">${fmtCount(campaign.clicks)}${est(['clicks'])}</td>
+        <td class="num">${fmtPercent(campaign.ctr)}${est(['clicks', 'impressions'])}</td>
+        <td class="num">${fmtMoney(campaign.cpc)}${est(['clicks'])}</td>
+        <td class="num">${fmtConv(campaign.conversions)}${est(['conversions'])}</td>
+        <td class="num">${fmtMoney(campaign.costPerConversion)}${est(['conversions'])}</td>
+        <td class="num">${fmtPercent(campaign.conversionRate)}${est(['conversions', 'clicks'])}</td>
+      </tr>`).join('') + `
+      <tr class="gasto-total-row">
+        <td>Total del periodo</td>
+        <td></td>
+        <td class="num" title="Suma del presupuesto diario de las campañas habilitadas">${budget ? fmtMoney(budget) : '<span class="no-data">-</span>'}</td>
+        <td class="num">${fmtMoney(total.cost)}</td>
+        <td class="gasto-share-col"><b>100%</b></td>
+        <td class="num">${fmtCount(total.impressions)}</td>
+        <td class="num">${fmtCount(total.clicks)}</td>
+        <td class="num">${fmtPercent(total.ctr)}</td>
+        <td class="num">${fmtMoney(total.cpc)}</td>
+        <td class="num">${fmtConv(total.conversions)}</td>
+        <td class="num">${fmtMoney(total.costPerConversion)}</td>
+        <td class="num">${fmtPercent(total.conversionRate)}</td>
+      </tr>`;
+  }
+
+  // ── Cuadro de cada campana ──
+  function campaignSettings(key) {
+    const saved = gasto.campaignCharts[key] || {};
+    const metrics = CAMPAIGN_METRICS.map(metric => metric.key).filter(metricKey => Array.isArray(saved.metrics) && saved.metrics.includes(metricKey));
+    return {
+      metrics: metrics.length ? metrics : DEFAULT_METRICS,
+      // Con serie diaria abre en el acumulado del mes; sin ella, el cuadro cae a Por mes.
+      mode: MODES.some(mode => mode.key === saved.mode) ? saved.mode : 'cumulative',
+      collapsed: saved.collapsed === true
+    };
+  }
+  function saveCampaignSettings(key, changes) {
+    gasto.campaignCharts[key] = Object.assign(campaignSettings(key), changes);
+    saveSetting(CAMP_CHARTS_KEY, JSON.stringify(gasto.campaignCharts));
+  }
+  const campaignBlock = key => [...document.querySelectorAll('#gasto-blocks .gasto-camp-block')].find(node => node.dataset.campaign === key) || null;
+
+  // Serie por dia de la campana: con una sola campana es la de la cuenta. Fuera del mes del periodo, nada.
+  const campaignDaily = (period, key) => {
+    if (period.annual || gasto.months.some(month => month.campaigns.length > 1)) return [];
+    const campaign = period.month.campaigns.find(item => item.key === key);
+    return campaign ? period.month.days : [];
+  };
+
+  // Conversiones por accion (WhatsApp, Formulario...) del informe por accion de conversion de cada mes.
+  function actionBlocks(period) {
+    const blocks = (state.data && state.data.conversionActions) || [];
+    return period.months.map(month => blocks.find(block => block.month === month.key)).filter(Boolean);
+  }
+
+  function actionsHtml(period) {
+    const head = '<div class="gasto-kw-block-head"><div class="panel-title">Conversiones por acción</div>';
+    const blocks = actionBlocks(period);
+    if (!blocks.length) {
+      const what = period.annual ? 'Ningún mes del periodo tiene' : `${escapeHtml(period.month.label)} no tiene`;
+      return `${head}<div class="panel-sub">${what} informe de conversiones por acción. Sube a la carpeta Google Ads TF Campañas el informe de campaña con Segmento > Conversiones > Acción de conversión.</div></div>`;
+    }
+    const byName = new Map();
+    blocks.forEach(block => block.actions.forEach(action => byName.set(action.name, (byName.get(action.name) || 0) + (Number(action.conversions) || 0))));
+    const total = blocks.reduce((sum, block) => sum + (Number(block.total) || 0), 0);
+    const rows = [...byName.entries()].sort((a, b) => b[1] - a[1]);
+    const range = blocks.length === 1
+      ? (() => {
+        const block = blocks[0];
+        const start = parseDate(block.start);
+        const end = parseDate(block.end);
+        return `${start.d}-${end.d} ${MONTH_NAMES[end.m - 1]} ${end.y}`;
+      })()
+      : blocks.map(block => SHORT_NAMES[parseDate(block.start).m - 1]).join(', ');
+    const missing = period.months.length - blocks.length;
+    return `${head}<div class="panel-sub">Del informe por acción de conversión, ${escapeHtml(range)}: ${fmtConv(total)} conversiones.${missing ? ` ${missing} ${missing === 1 ? 'mes del periodo no tiene' : 'meses del periodo no tienen'} este informe.` : ''}</div></div>
+      <div class="table-scroll">
+        <table class="data-table gasto-kw-table gasto-actions-table">
+          <thead><tr><th>Acción de conversión</th><th class="num">Conversiones</th><th>% del total</th></tr></thead>
+          <tbody>${rows.map(([name, conversions]) => `<tr class="${conversions > 0 ? '' : 'is-muted'}">
+            <td class="gasto-kw-name"><span>${escapeHtml(name)}</span></td>
+            <td class="num gasto-strong">${fmtConv(conversions)}</td>
+            ${shareCell(total > 0 ? conversions / total : null)}
+          </tr>`).join('')}
+          <tr class="gasto-total-row"><td>Total</td><td class="num">${fmtConv(total)}</td><td></td></tr></tbody>
+        </table>
+      </div>`;
+  }
+
+  // Semanas del periodo (las que tienen al menos un dia dentro); el total del mes prorratea las que cruzan.
+  function periodWeeks(period) {
+    const keys = period.months.map(month => month.key);
+    return state.weeks
+      .filter(week => week.daysByMonth && keys.some(key => week.daysByMonth[key]))
+      .map(week => ({ week, inside: keys.reduce((sum, key) => sum + (week.daysByMonth[key] || 0), 0) }));
+  }
+
+  function weeksHtml(period) {
+    const head = '<div class="gasto-kw-block-head"><div class="panel-title">Resultados semanales</div>';
+    const items = periodWeeks(period);
+    if (!items.length) {
+      const what = period.annual ? 'el periodo' : escapeHtml(period.month.label);
+      return `${head}<div class="panel-sub">Sin detalle semanal para ${what}: el total sale del informe del mes. Sube el informe de campaña por Día o por Semana para verlo.</div></div>`;
+    }
     const byStart = new Map(state.weeks.map((week, index) => [week.start, index]));
-    const rowsHtml = items.map(({ week, share }) => {
+    const monthName = period.annual ? '' : period.month.name.toLowerCase();
+    const rows = items.map(({ week, inside }) => {
       const prev = state.weeks[byStart.get(week.start) - 1];
-      const tag = share < 1 ? `<small>${week.daysByMonth[state.monthId]} de ${week.days} dias en ${month.label.split(' ')[0].toLowerCase()}</small>` : (week.days < 7 ? `<small>${week.days} dias con datos</small>` : '');
+      const tag = !period.annual && inside < week.days
+        ? `<small>${inside} de ${week.days} días en ${monthName}</small>`
+        : (week.days < 7 ? `<small>${week.days} días con datos</small>` : '');
       return `
       <tr>
         <td class="campaign-name"><span>${escapeHtml(weekLabel(week))}</span>${tag}</td>
@@ -454,29 +707,430 @@
         <td class="num">${fmtPercent(week.ctr)}</td>
         <td class="num">${fmtCount(week.clicks)}</td>${deltaCell(prev ? delta(week.clicks, prev.clicks) : null)}
         <td class="num">${fmtMoney(week.cpc)}</td>${deltaCell(prev ? delta(week.cpc, prev.cpc) : null, true)}
-        <td class="num">${fmtCount(week.conversions)}</td>${deltaCell(prev ? delta(week.conversions, prev.conversions) : null)}
+        <td class="num">${fmtConv(week.conversions)}</td>${deltaCell(prev ? delta(week.conversions, prev.conversions) : null)}
         <td class="num">${fmtMoney(week.costPerConversion)}</td>${deltaCell(prev ? delta(week.costPerConversion, prev.costPerConversion) : null, true)}
       </tr>`;
     }).join('');
-    const t = periodTotals();
-    if (!items.length) {
-      body.innerHTML = `<tr><td colspan="13" class="table-empty">Sin detalle semanal para ${escapeHtml(month ? month.label : 'este periodo')}. El total del mes sigue en los KPIs de arriba.</td></tr>`;
+    const t = periodTotals(period);
+    const coveredDays = items.reduce((sum, item) => sum + item.inside, 0);
+    const periodDays = period.months.reduce((sum, month) => sum + (month.lastDay - month.firstDay + 1), 0);
+    const crossing = !period.annual && items.some(({ week, inside }) => inside < week.days);
+    const notes = [`${items.length} ${items.length === 1 ? 'semana' : 'semanas'} de lunes a domingo. % Δ compara cada semana con la anterior; en CPC y costo por conversión, bajar es mejor.`];
+    if (crossing) notes.push(`Las semanas que cruzan de mes se muestran completas; el total de ${monthName} solo cuenta sus días dentro del mes.`);
+    if (coveredDays < periodDays) notes.push(`El detalle semanal cubre ${coveredDays} de ${periodDays} días del periodo, así que no suma exactamente el total.`);
+    const estimated = periodEstimated(period).size > 0;
+    return `${head}<div class="panel-sub">${escapeHtml(notes.join(' '))}</div></div>
+      <div class="table-scroll">
+        <table class="data-table campaigns-table gasto-weeks-table">
+          <thead><tr><th>Semana</th><th class="num">Inversión</th><th class="num">% Δ</th><th class="num">Impresiones</th><th class="num">CTR</th><th class="num">Clics</th><th class="num">% Δ</th><th class="num">CPC medio</th><th class="num">% Δ</th><th class="num">Conversiones</th><th class="num">% Δ</th><th class="num">Costo por conversión</th><th class="num">% Δ</th></tr></thead>
+          <tbody>${rows}
+            <tr class="reservations-total-row">
+              <td class="total-label">Total ${escapeHtml(period.annual ? `${period.year}` : period.month.label)}${estimated ? ' (prorrateado)' : ''}</td>
+              <td class="num">${fmtMoney(t.cost)}</td><td></td>
+              <td class="num">${fmtCount(t.impressions)}</td>
+              <td class="num">${fmtPercent(t.ctr)}</td>
+              <td class="num">${fmtCount(t.clicks)}</td><td></td>
+              <td class="num">${fmtMoney(t.cpc)}</td><td></td>
+              <td class="num">${fmtConv(t.conversions)}</td><td></td>
+              <td class="num">${fmtMoney(t.costPerConversion)}</td><td></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>`;
+  }
+
+  function campaignHtml(period, campaign, before) {
+    const key = escapeHtml(campaign.key);
+    const id = slug(campaign.key);
+    const settings = campaignSettings(campaign.key);
+    const estimated = periodEstimated(period);
+    const previousEstimated = period.compare ? new Set(period.compare.month.estimated) : new Set();
+    let comparison = '';
+    if (period.annual) {
+      const months = campaign.months;
+      comparison = months.length === period.months.length
+        ? `. Activa en los ${months.length} ${months.length === 1 ? 'mes' : 'meses'}`
+        : `. Activa en ${months.map(month => month.shortName).join(', ')}`;
+    } else if (period.compare) {
+      comparison = before ? ` vs ${period.compare.label}` : `. Nueva: no corría en ${period.compare.month.name}`;
+    }
+    const kpis = CAMPAIGN_KPIS.map(kpi => {
+      const previousTag = isEstimated(previousEstimated, kpi.uses);
+      const deltaPart = before ? deltaHtml(campaign[kpi.key], before[kpi.key], kpi.better) : '';
+      return `
+      <div><dt>${kpi.label}</dt><dd>${formatValue(campaign[kpi.key], kpi.unit)}${estTag(isEstimated(estimated, kpi.uses))}${deltaPart}${deltaPart && previousTag ? '<small class="gasto-est" title="El mes de comparación es estimado"> (est.)</small>' : ''}</dd></div>`;
+    }).join('');
+    return `
+      <section class="gasto-camp-block${settings.collapsed ? ' is-collapsed' : ''}" data-campaign="${key}">
+        <div class="gasto-camp-head">
+          <div class="gasto-camp-heading">
+            <div class="gasto-camp-title">Campaña ${escapeHtml(campaign.label)}<em>${fmtPercent(campaign.share)} de la inversión</em>${statusPill(campaign.status)}</div>
+            <div class="panel-sub">${escapeHtml(`${period.label} ${period.year}`)}${escapeHtml(comparison)}</div>
+          </div>
+          <div class="gasto-camp-controls">
+            <div class="gasto-chips" data-camp-modes role="radiogroup" aria-label="Vista del gráfico de ${escapeHtml(campaign.label)}"></div>
+            <button type="button" class="gasto-camp-toggle" data-camp-toggle aria-controls="gasto-camp-body-${id}">${CHEVRON}</button>
+          </div>
+        </div>
+        <dl class="gasto-camp-kpis">${kpis}</dl>
+        <div class="gasto-camp-body" id="gasto-camp-body-${id}">
+          <div class="gasto-chips gasto-camp-metrics" data-camp-metrics role="group" aria-label="Indicadores del gráfico de ${escapeHtml(campaign.label)}"></div>
+          <div class="chart-wrap h-300"><canvas id="chart-gasto-${id}" role="img" aria-label="Gráfico de la campaña ${escapeHtml(campaign.label)}"></canvas></div>
+          <div class="gasto-legend" data-camp-legend></div>
+          <div class="panel-note gasto-chart-note" data-camp-note hidden></div>
+          ${actionsHtml(period)}
+          ${weeksHtml(period)}
+        </div>
+      </section>`;
+  }
+
+  // Chips de un grafico: radio para la vista, casillas para los indicadores (selected es entonces una lista).
+  function chipsHtml(items, selected, name, multiple = false) {
+    return items.map(item => {
+      const on = multiple ? selected.includes(item.key) : item.key === selected;
+      return `<label class="gasto-chip${on ? ' active' : ''}"><input type="${multiple ? 'checkbox' : 'radio'}" name="${escapeHtml(name)}" value="${escapeHtml(item.key)}"${on ? ' checked' : ''}>${escapeHtml(item.label)}</label>`;
+    }).join('');
+  }
+
+  // ── Graficos de cada campana ──
+  // Puntos de una serie: { values, est } (est[i] = el valor i es estimado). Un mes sin informe o en que la
+  // campana no corrio queda como hueco.
+  function monthlyPoints(metric, key) {
+    const year = viewYear();
+    const values = [];
+    const est = [];
+    MONTH_NAMES.forEach((_, index) => {
+      const month = gastoMonthByKey(monthKeyOf(year, index + 1));
+      const campaign = month && month.hasData ? month.campaigns.find(item => item.key === key) : null;
+      const ok = campaign && isActive(campaign) && isNum(campaign[metric.key]);
+      values.push(ok ? Number(campaign[metric.key]) : null);
+      est.push(Boolean(ok && month.estimated.includes(metric.key)));
+    });
+    return { labels: SHORT_NAMES, values, est };
+  }
+
+  // Valores por dia del mes (indice 0 = dia 1); fuera de la serie, null.
+  function dailyPoints(month, rows, metric) {
+    const values = Array.from({ length: month.daysInMonth }, () => null);
+    const est = Array.from({ length: month.daysInMonth }, () => false);
+    rows.forEach(row => {
+      const index = Number(row.date.slice(8, 10)) - 1;
+      if (!isNum(row[metric.key])) return;
+      values[index] = Number(row[metric.key]);
+      est[index] = Boolean(row.estimated && row.estimated[metric.key]);
+    });
+    return { labels: values.map((_, index) => `${index + 1}`), values, est };
+  }
+
+  function cumulativePoints(points) {
+    let total = 0;
+    let estimated = false;
+    // Despues del ultimo dia con dato la linea se corta (no se arrastra el acumulado).
+    const last = points.values.reduce((at, value, index) => (value === null ? at : index), -1);
+    return {
+      labels: points.labels,
+      values: points.values.map((value, index) => (index > last ? null : (total += value || 0))),
+      est: points.est.map((flag, index) => (estimated = estimated || flag) && index <= last)
+    };
+  }
+
+  // Por semana dentro del mes (lunes a domingo, cortadas en los bordes del mes).
+  function weeklyPoints(month, rows, metric) {
+    const groups = [];
+    rows.forEach(row => {
+      if (!isNum(row[metric.key])) return;
+      const date = new Date(`${row.date}T00:00:00Z`);
+      const monday = new Date(date);
+      monday.setUTCDate(date.getUTCDate() - ((date.getUTCDay() + 6) % 7));
+      const start = monday.toISOString().slice(0, 10);
+      let group = groups.find(item => item.start === start);
+      if (!group) groups.push(group = { start, first: row.date, last: row.date, value: 0, est: false });
+      group.last = row.date;
+      group.value += Number(row[metric.key]);
+      group.est = group.est || Boolean(row.estimated && row.estimated[metric.key]);
+    });
+    return {
+      labels: groups.map(group => `${Number(group.first.slice(8, 10))}-${Number(group.last.slice(8, 10))} ${MONTH_SHORT[month.month - 1]}`),
+      values: groups.map(group => group.value),
+      est: groups.map(group => group.est)
+    };
+  }
+
+  function pointsFor(metric, modeKey, period, key, month = period.month) {
+    if (modeKey === 'monthly') return monthlyPoints(metric, key);
+    const rows = month === period.month ? campaignDaily(period, key) : month.days;
+    if (modeKey === 'weekly') return weeklyPoints(month, rows, metric);
+    const daily = dailyPoints(month, rows, metric);
+    return modeKey === 'cumulative' ? cumulativePoints(daily) : daily;
+  }
+
+  // Dataset con lo estimado punteado (segmentos que tocan un punto estimado) y puntos huecos.
+  function lineDataset(points, metric, extra) {
+    const solid = points.values.length <= 12;
+    return Object.assign({
+      label: metric.label, unit: metric.unit, data: points.values, est: points.est,
+      borderColor: CHART_COLOR, backgroundColor: 'rgba(2,132,199,.08)', borderWidth: 2, tension: 0.25, spanGaps: false,
+      segment: { borderDash: ctx => (points.est[ctx.p0DataIndex] || points.est[ctx.p1DataIndex] ? EST_DASH : undefined) },
+      pointRadius: points.values.map(value => (value === null ? 0 : solid ? 4 : 2)),
+      pointHoverRadius: 6,
+      pointBackgroundColor: points.est.map(flag => (flag ? '#fff' : CHART_COLOR)),
+      pointBorderColor: CHART_COLOR, pointBorderWidth: 2
+    }, extra || {});
+  }
+
+  const MODE_TEXT = { cumulative: 'acumulado del mes', daily: 'por día', weekly: 'por semana', monthly: 'por mes' };
+
+  // Un indicador: su linea (contra el mes anterior en las vistas diarias). Varios: uno por panel apilado.
+  function campaignSeries(metrics, modeKey, period, key) {
+    const what = modeKey === 'monthly' ? `${viewYear()}` : `${period.month.name} ${period.month.year}`;
+    const anyEst = [];
+    const datasets = metrics.map((metric, index) => {
+      const points = pointsFor(metric, modeKey, period, key);
+      if (points.est.some(Boolean)) anyEst.push(metric.label.toLowerCase());
+      const marked = modeKey === 'monthly' ? [period.annual ? points.values.reduce((at, value, i) => (value === null ? at : i), -1) : period.month.month - 1] : [];
+      return lineDataset(points, metric, Object.assign({ valueLabels: marked, fill: metrics.length === 1 && modeKey === 'cumulative' }, metrics.length > 1 ? { yAxisID: `y${index}` } : {}));
+    });
+    const labels = pointsFor(metrics[0], modeKey, period, key).labels;
+    const legend = [`<span><i class="legend-line" style="background:${CHART_COLOR}"></i><b>${metrics.length === 1 ? `${escapeHtml(metrics[0].label)} ${MODE_TEXT[modeKey]}` : `${metrics.length} indicadores ${MODE_TEXT[modeKey]}`}, ${escapeHtml(what)}</b></span>`];
+    if (metrics.length > 1) legend.push('<span>Cada indicador con su escala.</span>');
+    // Con un indicador en vista diaria, el mes anterior en el mismo dia del mes.
+    if (metrics.length === 1 && modeKey !== 'monthly' && modeKey !== 'weekly') {
+      const previous = gastoMonthByKey(previousKey(period.month));
+      if (previous && previous.days.length) {
+        const points = pointsFor(metrics[0], modeKey, period, key, previous);
+        const values = labels.map((_, index) => (index < points.values.length ? points.values[index] : null));
+        if (values.some(value => value)) {
+          datasets.push(Object.assign(lineDataset({ values, est: labels.map((_, index) => Boolean(points.est[index])) }, metrics[0]), {
+            label: previous.name, borderColor: PREVIOUS_COLOR, pointBorderColor: PREVIOUS_COLOR, pointBackgroundColor: '#fff', pointRadius: 0, fill: false, borderDash: [3, 3], segment: undefined
+          }));
+          legend.push(`<span><i class="legend-line gasto-legend-dashed" style="color:${PREVIOUS_COLOR}"></i><b>${escapeHtml(previous.name)} (mismo día del mes)</b></span>`);
+        }
+      }
+    }
+    if (anyEst.length) legend.push(`<span><i class="legend-line gasto-legend-dashed" style="color:${CHART_COLOR}"></i><b>(est.) repartido desde las semanas: ${escapeHtml(anyEst.join(', '))}</b></span>`);
+    return { labels, datasets, legend };
+  }
+
+  const tickValue = (unit, value) => (unit === 'money'
+    ? `S/ ${Number(value).toLocaleString('es-PE', { maximumFractionDigits: 0 })}`
+    : Number(value).toLocaleString('es-PE', { notation: Math.abs(value) >= 100000 ? 'compact' : 'standard', maximumFractionDigits: 1 }));
+
+  // Con un indicador hay un solo eje y; con varios, un eje por indicador apilado en vertical (paneles con su
+  // escala) sobre el mismo eje x. Nunca dos escalas superpuestas.
+  function yScales(metrics) {
+    const base = unit => ({ beginAtZero: true, border: { display: false }, ticks: { color: AXIS_COLOR, font: { size: 10 }, callback: value => tickValue(unit, value) } });
+    if (metrics.length === 1) return { y: Object.assign(base(metrics[0].unit), { grace: '12%', grid: { color: GRID_COLOR } }) };
+    // Chart.js apila de abajo hacia arriba en el orden de los ejes: se dan al reves para que el primero quede arriba.
+    return Object.fromEntries(metrics.map((metric, index) => [`y${index}`, Object.assign(base(metric.unit), {
+      stack: 'metrics',
+      stackWeight: 1,
+      grace: '25%',
+      // El tope de cada panel cae sobre el cero del panel de arriba: se omite para que no se encimen.
+      ticks: Object.assign(base(metric.unit).ticks, { maxTicksLimit: 5, callback: (value, tickIndex, ticks) => (index > 0 && tickIndex === ticks.length - 1 ? '' : tickValue(metric.unit, value)) }),
+      grid: { color: ctx => (ctx.tick && ctx.tick.value === 0 ? '#bfdbfe' : GRID_COLOR) },
+      panelLabel: metric.label
+    })]).reverse());
+  }
+
+  const CHART_PLUGINS = [{
+    // Etiqueta de valor en los puntos marcados (valueLabels).
+    id: 'gastoValueLabels',
+    afterDatasetsDraw(chart) {
+      const ctx = chart.ctx;
+      ctx.save();
+      ctx.font = '600 10px Inter, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#334155';
+      chart.data.datasets.forEach((dataset, datasetIndex) => {
+        if (!Array.isArray(dataset.valueLabels)) return;
+        chart.getDatasetMeta(datasetIndex).data.forEach((point, index) => {
+          const value = dataset.data[index];
+          if (value === null || value === undefined || !dataset.valueLabels.includes(index)) return;
+          const text = dataset.unit === 'money' ? tickValue('money', Math.round(value)) : formatValue(value, dataset.unit);
+          ctx.fillText(text, point.x, point.y - 12);
+        });
+      });
+      ctx.restore();
+    }
+  }, {
+    // Nombre de cada panel arriba a la izquierda (solo con varios indicadores).
+    id: 'gastoPanelLabels',
+    afterDatasetsDraw(chart) {
+      const ctx = chart.ctx;
+      ctx.save();
+      ctx.font = '600 11px Inter, sans-serif';
+      ctx.textBaseline = 'top';
+      Object.values(chart.scales).forEach(scaleItem => {
+        const label = scaleItem.options.panelLabel;
+        if (!label) return;
+        const x = chart.chartArea.left + 8;
+        const y = scaleItem.top + 4;
+        ctx.fillStyle = 'rgba(255,255,255,.85)';
+        ctx.fillRect(x - 4, y - 2, ctx.measureText(label).width + 8, 16);
+        ctx.fillStyle = '#475569';
+        ctx.fillText(label, x, y);
+      });
+      ctx.restore();
+    }
+  }, {
+    // Linea vertical en el punto del tooltip, a lo alto de todos los paneles.
+    id: 'gastoCrosshair',
+    afterDatasetsDraw(chart) {
+      const active = (chart.tooltip && chart.tooltip.getActiveElements()) || [];
+      if (!active.length) return;
+      const x = active[0].element.x;
+      const ctx = chart.ctx;
+      ctx.save();
+      ctx.strokeStyle = '#94a3b8';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([3, 3]);
+      ctx.beginPath();
+      ctx.moveTo(x, chart.chartArea.top);
+      ctx.lineTo(x, chart.chartArea.bottom);
+      ctx.stroke();
+      ctx.restore();
+    }
+  }];
+
+  function destroyCampaignChart(id) {
+    const chart = gasto.charts.get(id);
+    if (chart) chart.destroy();
+    gasto.charts.delete(id);
+  }
+
+  function drawCampaignChart(canvas, series, metrics, modeKey, period) {
+    if (typeof Chart === 'undefined') {
+      canvas.parentElement.innerHTML = '<div class="empty-state"><strong>Gráfico no disponible sin conexión.</strong><span>Los KPIs y las tablas siguen visibles.</span></div>';
       return;
     }
-    const totalLabel = state.monthId === ALL
-      ? 'Total del periodo'
-      : `Total ${month.label}${month.exact || (month.exactMetrics && month.exactMetrics.length) ? '' : ' (prorrateado)'}`;
-    body.innerHTML = rowsHtml + `
-      <tr class="reservations-total-row">
-        <td class="total-label">${totalLabel}</td>
-        <td class="num">${fmtMoney(t.cost)}</td><td></td>
-        <td class="num">${fmtCount(t.impressions)}</td>
-        <td class="num">${fmtPercent(t.ctr)}</td>
-        <td class="num">${fmtCount(t.clicks)}</td><td></td>
-        <td class="num">${fmtMoney(t.cpc)}</td><td></td>
-        <td class="num">${fmtConv(t.conversions)}</td><td></td>
-        <td class="num">${fmtMoney(t.costPerConversion)}</td><td></td>
-      </tr>`;
+    const year = viewYear();
+    const title = items => {
+      const index = items[0].dataIndex;
+      if (modeKey === 'monthly') return `${MONTH_NAMES[index]} ${year}`;
+      if (modeKey === 'weekly') return `Semana ${items[0].label}`;
+      return `${items[0].label} de ${period.month.name.toLowerCase()}`;
+    };
+    gasto.charts.set(canvas.id, new Chart(canvas, {
+      type: 'line',
+      data: { labels: series.labels, datasets: series.datasets },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        interaction: { mode: 'index', intersect: false },
+        layout: { padding: { top: 24, right: 12, left: 4 } },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            filter: item => item.raw !== null && item.raw !== undefined,
+            callbacks: {
+              title,
+              label: context => ` ${context.dataset.label}: ${formatValue(context.raw, context.dataset.unit)}${context.dataset.est && context.dataset.est[context.dataIndex] ? ' (est.)' : ''}`
+            }
+          }
+        },
+        scales: Object.assign({
+          x: { grid: { display: false }, border: { color: '#bfdbfe' }, ticks: { color: AXIS_COLOR, font: { size: 10 }, autoSkip: true, maxTicksLimit: modeKey === 'monthly' ? 12 : 16 } }
+        }, yScales(metrics))
+      },
+      plugins: CHART_PLUGINS
+    }));
+  }
+
+  // Los controles del cuadro lo redibujan solo con la clave; renderCampaigns le pasa el periodo y sus campanas.
+  function renderCampaignChart(key, period = currentPeriod(), campaigns = null) {
+    const block = campaignBlock(key);
+    const list = campaigns || (period ? periodCampaigns(period) : []);
+    const campaign = list.find(item => item.key === key);
+    if (!block || !campaign) return;
+    const settings = campaignSettings(key);
+    const rows = campaignDaily(period, key);
+    const modes = rows.length ? MODES : MODES.filter(mode => !mode.daily);
+    const modeKey = modes.some(mode => mode.key === settings.mode) ? settings.mode : 'monthly';
+    // En una vista diaria solo los indicadores que la serie trae (junio, por ejemplo, solo tiene costo por dia).
+    const metrics = CAMPAIGN_METRICS.filter(metric => modeKey === 'monthly' || rows.some(row => isNum(row[metric.key])));
+    let selected = metrics.filter(metric => settings.metrics.includes(metric.key));
+    if (!selected.length) selected = metrics.filter(metric => DEFAULT_METRICS.includes(metric.key));
+    if (!selected.length) selected = metrics.slice(0, 1);
+    const toggle = block.querySelector('[data-camp-toggle]');
+    block.classList.toggle('is-collapsed', settings.collapsed);
+    toggle.setAttribute('aria-expanded', String(!settings.collapsed));
+    toggle.title = `${settings.collapsed ? 'Expandir' : 'Minimizar'} la campaña ${campaign.label}`;
+    toggle.setAttribute('aria-label', toggle.title);
+    const modesHost = block.querySelector('[data-camp-modes]');
+    const metricsHost = block.querySelector('[data-camp-metrics]');
+    const id = slug(key);
+    keepFocus(modesHost, () => { modesHost.innerHTML = chipsHtml(modes, modeKey, `gasto-mode-${id}`); });
+    keepFocus(metricsHost, () => { metricsHost.innerHTML = chipsHtml(metrics, selected.map(metric => metric.key), `gasto-metric-${id}`, true); });
+    // Nota del grafico: hasta donde llega la serie diaria y que viene repartido.
+    const note = block.querySelector('[data-camp-note]');
+    const notes = [];
+    if (!period.annual && !rows.length) notes.push(`${period.month.name} no tiene serie por día: solo la vista Por mes. Sube el informe de campaña por Día a la carpeta Google Ads TF Campañas.`);
+    if (!period.annual && rows.length && modeKey !== 'monthly') {
+      const last = Number(rows[rows.length - 1].date.slice(8, 10));
+      if (last < period.month.lastDay) notes.push(`La serie por día llega al ${last} de ${period.month.name.toLowerCase()}; el informe del mes, al ${period.month.lastDay}.`);
+      const missing = CAMPAIGN_METRICS.filter(metric => !metrics.includes(metric)).map(metric => metric.label.toLowerCase());
+      if (missing.length) notes.push(`Sin dato por día de ${missing.join(', ')}.`);
+    }
+    note.textContent = notes.join(' ');
+    note.hidden = !notes.length;
+    const canvas = block.querySelector('canvas');
+    if (!canvas) return;
+    destroyCampaignChart(canvas.id);
+    if (settings.collapsed) return;
+    const series = campaignSeries(selected, modeKey, period, key);
+    // Cada panel extra suma alto para que ninguno quede aplastado.
+    canvas.parentElement.style.height = selected.length > 1 ? `${90 + 135 * selected.length}px` : '';
+    block.querySelector('[data-camp-legend]').innerHTML = series.legend.join('');
+    drawCampaignChart(canvas, series, selected, modeKey, period);
+  }
+
+  function destroyCampaignCharts() {
+    [...gasto.charts.keys()].forEach(destroyCampaignChart);
+  }
+
+  function renderCampaigns(period, campaigns) {
+    const host = document.getElementById('gasto-blocks');
+    destroyCampaignCharts();
+    host.innerHTML = campaigns.map(campaign => campaignHtml(period, campaign, previousCampaign(period, campaign.key))).join('');
+    campaigns.forEach(campaign => renderCampaignChart(campaign.key, period, campaigns));
+  }
+
+  // ── Render ──
+  function selectTab(value) {
+    if (value === YEAR_KEY) {
+      state.annual = true;
+    } else {
+      state.annual = false;
+      state.monthId = value;
+    }
+    storeMonth(value);
+    renderAll();
+  }
+
+  function renderGasto() {
+    const period = currentPeriod();
+    renderTabs(period);
+    renderAlerts();
+    if (!period) {
+      document.getElementById('gasto-period-title').textContent = 'Sin informes de campaña';
+      document.getElementById('gasto-period-sub').textContent = 'Sube el informe del mes a la carpeta Google Ads TF Campañas y sincroniza.';
+      document.getElementById('kpi-strip').innerHTML = '';
+      document.getElementById('gasto-dist-body').innerHTML = '<tr><td class="table-empty" colspan="12">Sin resultados para mostrar.</td></tr>';
+      destroyCampaignCharts();
+      document.getElementById('gasto-blocks').innerHTML = '';
+      return;
+    }
+    const campaigns = periodCampaigns(period);
+    renderPeriod(period);
+    renderDistribution(period, campaigns);
+    renderCampaigns(period, campaigns);
+  }
+
+  function periodLabel() {
+    const period = currentPeriod();
+    if (!period) return '';
+    return period.annual ? `Anual ${period.year}` : period.month.label;
   }
 
   function updateSourceLabels() {
@@ -494,17 +1148,47 @@
   }
 
   function renderAll() {
-    renderFilters();
-    renderConversionActions();
-    renderKpis();
-    renderChart();
-    renderTrend();
-    renderTable();
+    renderGasto();
     updateSourceLabels();
   }
 
   function renderError(message) {
     document.getElementById('view-obj').innerHTML = `<div class="data-notice error"><strong>No se pudo cargar la data de Google Ads.</strong>${escapeHtml(message)}</div>`;
+  }
+
+  // Eventos por delegacion en la vista: pestanas y cuadros se repintan.
+  function wireEvents() {
+    const view = document.getElementById('view-obj');
+    if (!view) return;
+    view.addEventListener('click', event => {
+      const tab = event.target.closest('#month-tabs .month-tab:not(:disabled)');
+      if (tab) {
+        const value = tab.dataset.month;
+        if ((value === YEAR_KEY && state.annual) || (value === state.monthId && !state.annual)) return;
+        selectTab(value);
+        return;
+      }
+      const toggle = event.target.closest('[data-camp-toggle]');
+      if (toggle) {
+        const key = toggle.closest('.gasto-camp-block').dataset.campaign;
+        saveCampaignSettings(key, { collapsed: !campaignSettings(key).collapsed });
+        renderCampaignChart(key);
+      }
+    });
+    view.addEventListener('change', event => {
+      const input = event.target.closest('.gasto-camp-block input');
+      if (!input) return;
+      const block = input.closest('.gasto-camp-block');
+      const key = block.dataset.campaign;
+      if (input.closest('[data-camp-modes]')) {
+        saveCampaignSettings(key, { mode: input.value });
+      } else {
+        // Siempre queda al menos un indicador: desmarcar el ultimo lo deja como estaba.
+        const checked = [...block.querySelectorAll('[data-camp-metrics] input:checked')].map(item => item.value);
+        if (checked.length) saveCampaignSettings(key, { metrics: checked });
+      }
+      renderCampaignChart(key);
+    });
   }
 
   // Deja lista una version de la data (la del repo o la ya mezclada con Drive) y redibuja todo.
@@ -516,9 +1200,12 @@
     // Proyecciones reutiliza la misma serie diaria (real donde exista).
     window.TierraFilmsDays = state.days;
     state.months = (data.months || []).map(withRates);
-    const stored = state.monthId && state.monthId !== ALL && state.months.some(month => month.id === state.monthId) ? state.monthId : readStoredMonth();
-    const fallback = data.defaultMonth || (state.months.length ? state.months[state.months.length - 1].id : ALL);
-    state.monthId = stored === ALL || state.months.some(month => month.id === stored) ? stored : fallback;
+    buildGastoMonths();
+    // El mes elegido se conserva; si no existe, el guardado ('anual' es la pestana Anual) o el ultimo con datos.
+    const stored = state.monthId || readStoredMonth();
+    state.annual = state.annual || stored === YEAR_KEY;
+    const valid = id => gasto.months.some(month => month.key === id && month.hasData);
+    state.monthId = valid(state.monthId) ? state.monthId : valid(stored) ? stored : (gasto.latestKey || data.defaultMonth);
     renderAll();
     window.dispatchEvent(new CustomEvent('tierra-films:data-ready', { detail: data }));
   }
@@ -586,6 +1273,7 @@
   }
 
   async function init() {
+    wireEvents();
     try {
       let data = window.TIERRA_FILMS_RETAIL_DATA;
       if (!data) {
