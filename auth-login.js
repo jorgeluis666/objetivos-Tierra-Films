@@ -52,13 +52,6 @@
     }
     return 'v1-' + hash.toString(16);
   }
-  function loadReservationGoals() {
-    if (document.querySelector("script[src^=\"js/reservation-goals.js\"]")) return;
-    const script = document.createElement("script");
-    script.src = "js/reservation-goals.js";
-    script.defer = true;
-    document.head.appendChild(script);
-  }
   function init(opts) {
     opts = opts || {};
     const PASSWORD = opts.password || 'RB2026';
@@ -69,7 +62,6 @@
     // Azul de LR Suite: el mismo en todas las pantallas de acceso.
     const ACCENT = opts.accent || '#2563eb';
     const ACCENT_DARK = opts.accentDark || (opts.accent ? darken(ACCENT, .18) : '#1d4ed8');
-    loadReservationGoals();
     const style = document.createElement('style');
     style.textContent = CSS;
     document.head.appendChild(style);
