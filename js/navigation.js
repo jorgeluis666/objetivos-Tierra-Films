@@ -29,6 +29,13 @@
       source: 'Fuente: carpeta Google Ads TF Segmentacion',
       footer: 'Terminos de busqueda y ubicaciones',
     },
+    'view-week': {
+      title: 'Generación de Reporte',
+      caption: 'Semana de lunes a domingo',
+      status: 'Ultima semana cerrada del informe de Google Ads',
+      source: 'Fuente: informe semanal de Google Ads',
+      footer: 'La semana de lunes a domingo, lista para descargar en PDF',
+    },
   };
 
   function storedView() {
@@ -69,6 +76,7 @@
     if (viewId === 'view-projection') window.TierraFilmsProjections?.init();
     if (viewId === 'view-keywords') window.TierraFilmsKeywords?.init();
     if (viewId === 'view-segmentation') window.TierraFilmsSegmentation?.render();
+    if (viewId === 'view-week') window.TierraFilmsWeekReport?.init();
     if (viewId === 'view-obj') {
       window.TierraFilmsRefreshLabels?.();
       window.setTimeout(() => window.dispatchEvent(new Event('resize')), 0);
