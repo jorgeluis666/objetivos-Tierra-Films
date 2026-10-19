@@ -44,7 +44,6 @@ function main() {
   const css = readFile('css/dashboard.css').replaceAll('../assets/', 'assets/');
   const driveSync = readFile('js/drive-sync.js');
   const app = readFile('js/objectives.js');
-  const reservationGoals = readFile('js/reservation-goals.js');
   const projections = readFile('js/projections.js');
   const keywords = readFile('js/keywords.js');
   const searchInsights = readFile('js/search-insights.js');
@@ -66,7 +65,6 @@ function main() {
   html = html.replace(styleTag('css/dashboard.css'), `<style>${css}</style>`);
   html = html.replace(scriptTag('js/drive-sync.js'), `<script>${driveSync}</script>`);
   html = html.replace(scriptTag('js/objectives.js'), `<script>${app}</script>`);
-  html = html.replace(scriptTag('js/reservation-goals.js'), `<script>${reservationGoals}</script>`);
   html = html.replace(scriptTag('js/projections.js'), `<script>${projections}</script>`);
   html = html.replace(scriptTag('js/keywords.js'), `<script>${keywords}</script>`);
   html = html.replace(scriptTag('js/search-insights.js'), `<script>${searchInsights}</script>`);
