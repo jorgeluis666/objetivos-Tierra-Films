@@ -113,6 +113,48 @@ paneles de Amador y Aquarius.
      contra la semana anterior, junto a nuestras impresiones.
    - `Segmentacion geografica`: conversiones por ubicacion y accion, gasto con
      ubicacion identificada y lo que queda sin ubicacion.
+5. **Generacion de Reporte**: el reporte de la ultima semana cerrada de lunes a
+   domingo, con el orden del reporte que recibe el cliente y descarga en PDF
+   (ver [Generacion de Reporte](#generacion-de-reporte)).
+
+## Generacion de Reporte
+
+Pestana que arma el reporte de la ultima semana cerrada de lunes a domingo, con
+el mismo orden que el de las otras marcas de Lima Retail: portada, resumen del
+periodo, conversiones e inversion por dia, campanas, palabras clave y
+conclusiones.
+
+- **De donde salen los numeros:** de las mismas semanas de Google Ads que usa
+  Gasto Publicitario (`weeks` de `data/tierra-films-lima-retail-2026.json`, ya
+  mezcladas con lo que trae Drive) y de la serie diaria que arma ese modulo. No
+  hay una fuente nueva ni una lectura extra, asi que cada sincronizacion lo
+  actualiza solo.
+- **Que semana muestra:** la ultima de lunes a domingo ya cerrada (en hora de
+  Lima) que tenga datos. El selector deja ver las 12 anteriores. La semana en
+  curso no se lista: el reporte es de semana completa. Si el informe todavia no
+  llega a la semana que acaba de cerrar, lo avisa arriba.
+- **Las metricas son las de Google Ads**: inversion, impresiones, clics, CTR,
+  CPC, conversiones, costo por conversion y tasa de conversion, cada una con su
+  variacion contra la semana anterior. Esta cuenta es de Busqueda: no hay
+  alcance, frecuencia ni conjuntos de anuncios como en los tableros de Meta.
+- **Si el informe no cubre los siete dias** (`dataStart` / `dataEnd` de la
+  semana), el reporte lo avisa arriba y nombra los dias que faltan: los totales
+  pueden subir cuando se suba el informe nuevo.
+- **El grafico por dia** usa la serie diaria del modulo Gasto Publicitario:
+  Google Ads entrega la semana completa, asi que los dias sin informe diario se
+  reparten con el coste de cada dia como peso. El total de la semana es exacto;
+  el detalle diario, una aproximacion, y el panel lo dice.
+- **Palabras clave:** si el informe de palabras clave de busqueda cubre esa
+  misma semana, el reporte agrega las 10 con mas conversiones. Si no, la seccion
+  no aparece.
+- **Conclusiones:** las dos primeras vienen propuestas con lo que dice la semana
+  y se editan en la pestana; quedan guardadas por semana en el navegador
+  (`tierra_films_week_notes_v1`), no se publican con el tablero.
+- **Descargar PDF** abre el dialogo de impresion con el reporte solo (sin panel
+  lateral ni barra superior) y el nombre del archivo ya armado.
+
+El modulo es `js/report-week.js`; sus estilos y los de impresion estan al final
+de `css/dashboard.css`.
 
 ## Semanas que cruzan de mes
 
