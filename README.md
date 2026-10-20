@@ -113,48 +113,52 @@ paneles de Amador y Aquarius.
      contra la semana anterior, junto a nuestras impresiones.
    - `Segmentacion geografica`: conversiones por ubicacion y accion, gasto con
      ubicacion identificada y lo que queda sin ubicacion.
-5. **Generacion de Reporte**: el reporte de la ultima semana cerrada de lunes a
-   domingo, con el orden del reporte que recibe el cliente y descarga en PDF
+5. **Generacion de Reporte**: el Reporte de Publicidad del mes con el diseño del
+   modelo de Tierra Films y descarga en PDF
    (ver [Generacion de Reporte](#generacion-de-reporte)).
 
 ## Generacion de Reporte
 
-Pestana que arma el reporte de la ultima semana cerrada de lunes a domingo, con
-el mismo orden que el de las otras marcas de Lima Retail: portada, resumen del
-periodo, conversiones e inversion por dia, campanas, palabras clave y
-conclusiones.
+Pestana que arma el "Reporte de Publicidad" del mes con el diseño del modelo de
+Tierra Films (`Modelo Reporte Tierra Films`): laminas 16:9 con fondo claro,
+tarjetas blancas de borde fino y acentos en azul.
 
-- **De donde salen los numeros:** de las mismas semanas de Google Ads que usa
-  Gasto Publicitario (`weeks` de `data/tierra-films-lima-retail-2026.json`, ya
-  mezcladas con lo que trae Drive) y de la serie diaria que arma ese modulo. No
-  hay una fuente nueva ni una lectura extra, asi que cada sincronizacion lo
-  actualiza solo.
-- **Que semana muestra:** la ultima de lunes a domingo ya cerrada (en hora de
-  Lima) que tenga datos. El selector deja ver las 12 anteriores. La semana en
-  curso no se lista: el reporte es de semana completa. Si el informe todavia no
-  llega a la semana que acaba de cerrar, lo avisa arriba.
-- **Las metricas son las de Google Ads**: inversion, impresiones, clics, CTR,
-  CPC, conversiones, costo por conversion y tasa de conversion, cada una con su
-  variacion contra la semana anterior. Esta cuenta es de Busqueda: no hay
-  alcance, frecuencia ni conjuntos de anuncios como en los tableros de Meta.
-- **Si el informe no cubre los siete dias** (`dataStart` / `dataEnd` de la
-  semana), el reporte lo avisa arriba y nombra los dias que faltan: los totales
-  pueden subir cuando se suba el informe nuevo.
-- **El grafico por dia** usa la serie diaria del modulo Gasto Publicitario:
-  Google Ads entrega la semana completa, asi que los dias sin informe diario se
-  reparten con el coste de cada dia como peso. El total de la semana es exacto;
-  el detalle diario, una aproximacion, y el panel lo dice.
-- **Palabras clave:** si el informe de palabras clave de busqueda cubre esa
-  misma semana, el reporte agrega las 10 con mas conversiones. Si no, la seccion
-  no aparece.
-- **Conclusiones:** las dos primeras vienen propuestas con lo que dice la semana
-  y se editan en la pestana; quedan guardadas por semana en el navegador
-  (`tierra_films_week_notes_v1`), no se publican con el tablero.
-- **Descargar PDF** abre el dialogo de impresion con el reporte solo (sin panel
-  lateral ni barra superior) y el nombre del archivo ya armado.
+| Pagina | Contenido |
+| --- | --- |
+| Portada | Logo de Lima Retail, "Reporte de Publicidad", cliente, periodo ("1 – 18 Octubre 2026 \| Google Ads · Search"), una linea del mes y fecha de emision. |
+| Contenido | Resumen del mes, Palabras clave y Conclusiones, con su numero de pagina. |
+| Resumen del mes | Inversion, conversiones (con WhatsApp y formularios), costo por conversion, clics, impresiones, CPC medio, CTR y WhatsApp, con su variacion; clics y conversiones por dia. |
+| Palabras clave que convierten | Hasta 6 terminos ordenados por conversiones (coste, clics, conv., costo/conv., CTR), recuadro "Clave" y tarjeta "Analisis". |
+| Conclusiones del periodo | Tres tarjetas (el termino estrella, el costo por conversion y los terminos a depurar) y, en un mes en curso, la nota de que las metricas se consolidan al cierre. |
+| Cierre | Logo y firma de Lima Retail. |
 
-El modulo es `js/report-week.js`; sus estilos y los de impresion estan al final
-de `css/dashboard.css`.
+- **De donde salen los numeros:** de Gasto Publicitario, que los expone en
+  `window.TierraFilmsGasto` (`js/objectives.js`): el periodo del mes, sus
+  totales, la variacion contra el mes anterior (prorrateado a los mismos dias si
+  el mes esta en curso, "vs período ant."), las palabras clave del mes y las
+  conversiones por accion (WhatsApp y formularios). No hay una fuente nueva:
+  cada sincronizacion con Drive lo actualiza solo.
+- **Palabras clave:** las conversiones salen del informe de palabras clave del
+  mes. Si ese informe viene por accion de conversion (el de Drive, sin costo ni
+  clics), el costo, los clics y el CTR de cada palabra se toman del informe
+  semanal de palabras clave del mismo mes, y el pie de la tabla lo dice. La misma
+  palabra con dos concordancias va en una sola fila.
+- **Grafico por dia:** usa la serie diaria del modulo Gasto Publicitario. Google
+  Ads entrega clics y conversiones por semana, asi que por dia se reparten con el
+  coste de cada dia como peso, y el grafico lo aclara. Si el mes todavia no tiene
+  serie diaria, el grafico avisa que falta el informe de campana por dia.
+- **Textos:** la linea del grafico, el recuadro "Clave", el analisis y las
+  conclusiones vienen propuestos con lo que dicen los numeros. Se editan con un
+  clic sobre la lamina (`**texto**` va en negrita) y quedan guardados por mes en
+  el navegador (`tierra_films_report_notes_v2`); no se publican con el tablero.
+  "Restablecer textos" vuelve a los propuestos, sin dialogo de confirmacion.
+- **Descargar PDF** abre el dialogo de impresion con las laminas solas, una por
+  hoja de 13.33 x 7.5 in (el tamaño del modelo), y el nombre del archivo ya
+  armado. Activar "Graficos de fondo" si el navegador no lo hace solo.
+
+El modulo es `js/report-week.js` y su template es propio de Tierra Films: cada
+tablero de marca tiene el suyo, adaptado por la marca. Sus estilos y los de
+impresion estan al final de `css/dashboard.css`.
 
 ## Semanas que cruzan de mes
 

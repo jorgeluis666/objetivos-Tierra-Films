@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
-<link rel="stylesheet" href="css/dashboard.css?v=1.17.2">
+<link rel="stylesheet" href="css/dashboard.css?v=1.18.0">
 <style>
   .reservations-total-row td { height: auto !important; padding: 10px 12px !important; border-top: 2px solid #cbd5e1 !important; color: #0f172a !important; background: #f8fafc; font-size: 13px; font-weight: 800; vertical-align: middle; }
   .reservations-total-row .total-label { text-align: right; }
@@ -34,7 +34,7 @@
 <body>
 <div class="shell">
   <aside class="sidebar" id="sidebar">
-    <div class="s-brand"><div class="s-title">Tierra Films</div><div class="s-sub">BI Agencia Lima Retail <span class="app-version">v1.17.2</span></div></div>
+    <div class="s-brand"><div class="s-title">Tierra Films</div><div class="s-sub">BI Agencia Lima Retail <span class="app-version">v1.18.0</span></div></div>
     <div class="s-group-lbl">Modulos activos</div>
     <button title="Gasto Publicitario" class="s-item active" type="button" data-view-target="view-obj">
       <div class="s-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg></div>
@@ -54,7 +54,7 @@
     </button>
     <button title="Generación de Reporte" class="s-item" type="button" data-view-target="view-week">
       <div class="s-icon"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="14" x2="13" y2="14"/></svg></div>
-      <div class="s-text"><div class="s-title-nav">Generación de Reporte</div><div class="s-desc-nav">Semana de lunes a domingo</div></div>
+      <div class="s-text"><div class="s-title-nav">Generación de Reporte</div><div class="s-desc-nav">Reporte de Publicidad en PDF</div></div>
     </button>
     <div class="s-modulo-activo">
       <div class="s-ma-label">CUENTA</div>
@@ -311,34 +311,35 @@
 
       <section class="view" id="view-week">
         <h1 class="section-title">Generación de Reporte</h1>
-        <p class="section-desc">El reporte de la última semana cerrada de lunes a domingo, con el mismo orden que el de las otras marcas de Lima Retail: resumen del periodo, conversiones por día, campañas, palabras clave y conclusiones. Se arma con el informe semanal de Google Ads, así que solo hay que revisar las conclusiones y descargarlo en PDF.</p>
+        <p class="section-desc">El Reporte de Publicidad con el diseño del modelo de Tierra Films: portada, contenido, resumen del mes, palabras clave que convierten, conclusiones y cierre. Elige el mes; los textos del gráfico, la clave, el análisis y las conclusiones vienen propuestos y se editan con un clic sobre la página antes de descargar el PDF.</p>
         <div class="panel week-toolbar">
           <label class="gasto-tool-select" for="week-select">
-            <span class="sr-only">Semana del reporte</span>
-            <select id="week-select"><option value="">Cargando semanas...</option></select>
+            <span class="sr-only">Mes del reporte</span>
+            <select id="week-select"><option value="">Cargando meses...</option></select>
           </label>
           <div class="week-toolbar-meta">
             <span class="week-source" id="week-source"></span>
+            <button class="gasto-tool-btn" type="button" id="week-reset" title="Vuelve a los textos propuestos con los números del mes">Restablecer textos</button>
             <button class="gasto-tool-btn" type="button" id="week-print" title="Abre el diálogo de impresión para guardar el reporte como PDF">Descargar PDF</button>
           </div>
         </div>
-        <div id="week-report"><div class="panel"><div class="empty-state"><strong>Cargando la semana...</strong><span>Leyendo el informe semanal de Google Ads.</span></div></div></div>
+        <div id="week-report"><div class="panel"><div class="empty-state"><strong>Cargando el reporte...</strong><span>Leyendo los informes de Google Ads.</span></div></div></div>
       </section>
 
       <div class="site-footer"><span id="footer-source">Fuente: data/tierra-films-lima-retail-2026.json</span><span id="footer-status">Resultados de Google Ads</span></div>
     </div>
   </main>
 </div>
-<script src="js/drive-sync.js?v=1.17.2"></script>
-<script src="js/objectives.js?v=1.17.2"></script>
-<script src="js/projections.js?v=1.17.2"></script>
-<script src="js/keywords.js?v=1.17.2"></script>
-<script src="js/search-insights.js?v=1.17.2"></script>
-<script src="js/segmentation.js?v=1.17.2"></script>
-<script src="js/report-week.js?v=1.17.2"></script>
-<script src="js/navigation.js?v=1.17.2"></script>
-<script src="js/sidebar.js?v=1.17.2"></script>
-<script src="auth-login.js?v=1.17.2"></script>
+<script src="js/drive-sync.js?v=1.18.0"></script>
+<script src="js/objectives.js?v=1.18.0"></script>
+<script src="js/projections.js?v=1.18.0"></script>
+<script src="js/keywords.js?v=1.18.0"></script>
+<script src="js/search-insights.js?v=1.18.0"></script>
+<script src="js/segmentation.js?v=1.18.0"></script>
+<script src="js/report-week.js?v=1.18.0"></script>
+<script src="js/navigation.js?v=1.18.0"></script>
+<script src="js/sidebar.js?v=1.18.0"></script>
+<script src="auth-login.js?v=1.18.0"></script>
 <script>
   AuthLogin.init({ password: 'TF2026', brand: 'Tierra Films', title: 'Dashboard\nRetail 2026', sessionKey: 'tierra_films_auth' });
 </script>

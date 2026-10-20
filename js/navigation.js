@@ -31,10 +31,10 @@
     },
     'view-week': {
       title: 'Generación de Reporte',
-      caption: 'Semana de lunes a domingo',
-      status: 'Ultima semana cerrada del informe de Google Ads',
-      source: 'Fuente: informe semanal de Google Ads',
-      footer: 'La semana de lunes a domingo, lista para descargar en PDF',
+      caption: 'Reporte de Publicidad en PDF',
+      status: 'Mes elegido de los informes de Google Ads',
+      source: 'Fuente: informes de Google Ads',
+      footer: 'El mes elegido, listo para descargar en PDF',
     },
   };
 

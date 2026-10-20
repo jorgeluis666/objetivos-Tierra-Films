@@ -1734,6 +1734,18 @@
   }
 
   window.TierraFilmsFormat = { fmtMoney, fmtCount, fmtConv, fmtPercent, formatValue, shortDate, weekLabel, withRates, escapeHtml, MONTH_NAMES };
+  // Generacion de Reporte arma el PDF del mes con los mismos calculos de Gasto Publicitario: periodo y
+  // comparacion (mes anterior prorrateado), totales, palabras clave del mes y conversiones por accion.
+  window.TierraFilmsGasto = {
+    months: () => gasto.months.filter(month => month.hasData),
+    period: key => periodOf(gastoMonthByKey(key)),
+    totals: periodTotals,
+    previous: previousTotals,
+    keywords: keywordScope,
+    // El informe semanal de palabras clave del mes (costo, impresiones y clics por palabra, repartidos por dia).
+    weeklyKeywords: month => weeklyKeywordMonth(month),
+    actions: actionBlocks
+  };
   window.TierraFilmsRefreshLabels = updateSourceLabels;
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
