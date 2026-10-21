@@ -1,14 +1,16 @@
 (function () {
   // Generacion de Reporte: el PDF de publicidad con el diseño del modelo de Tierra Films ("Modelo Reporte
-  // Tierra Films"): laminas 16:9 con portada, contenido, resumen del mes (KPIs y clics y conversiones por
-  // dia), palabras clave que convierten, conclusiones y cierre.
+  // Tierra Films"): laminas 16:9 con portada, contenido, resumen de la semana (KPIs y clics y conversiones
+  // por dia), palabras clave que convierten, conclusiones y cierre.
   //
-  // No trae datos nuevos: el periodo, la comparacion con el mes anterior (prorrateado si el mes esta en
-  // curso), los totales, las palabras clave del mes y las conversiones por accion salen de Gasto
-  // Publicitario (window.TierraFilmsGasto), y la serie por dia de window.TierraFilmsDays, asi que cada
-  // sincronizacion con Drive lo actualiza solo. La lectura del grafico, el texto "Clave", el analisis y las
-  // conclusiones vienen propuestos con lo que dicen los numeros; el equipo los reescribe sobre la misma
-  // lamina y quedan guardados por mes en este navegador.
+  // El periodo es una semana de lunes a domingo (la ultima cerrada por defecto; la que esta en curso se
+  // compara con los mismos dias de la anterior). No trae datos nuevos: los totales salen de la serie por dia
+  // de Gasto Publicitario (window.TierraFilmsDays) o, si en esa semana la serie viene repartida, de la misma
+  // semana del informe semanal de campana o de palabras clave cuando su costo cuadra; las palabras clave, del
+  // informe por dia de Drive (data.keywordDays) o del
+  // informe semanal de palabras clave. Cada sincronizacion con Drive lo actualiza solo. La lectura del
+  // grafico, el texto "Clave", el analisis y las conclusiones vienen propuestos con lo que dicen los numeros;
+  // el equipo los reescribe sobre la misma lamina y quedan guardados por semana en este navegador.
   //
   // El template es propio de Tierra Films: cada tablero de marca tiene el suyo, adaptado por la marca.
   const BRAND = 'Tierra Films';
@@ -31,7 +33,7 @@
   };
   const icon = name => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name] || ICONS.chart}</svg>`;
 
-  const state = { month: '', wired: false };
+  const state = { week: '', wired: false };
 
   const G = () => window.TierraFilmsGasto;
   const F = () => window.TierraFilmsFormat;
@@ -53,126 +55,189 @@
   const quoted = items => list(items.map(item => `"${item}"`));
   const capitalize = text => text.charAt(0).toUpperCase() + text.slice(1);
 
-  // ── El mes del reporte ─────────────────────────────────────────────────
-  function months() {
-    if (!G()) return [];
-    return G().months().slice().reverse().map(month => {
-      const period = G().period(month.key);
-      if (!period) return null;
-      const from = month.firstDay;
-      const to = month.lastDay;
-      const short = month.shortName.toLowerCase();
-      const range = `${from} – ${to}`;
-      return {
-        id: month.key,
-        month,
-        period,
-        from,
-        to,
-        option: `${month.name} ${month.year}${period.closed ? '' : ` · ${from}–${to} (en curso)`}`,
-        labels: {
-          cover: period.closed ? `${month.name} ${month.year}` : `${range} ${month.name} ${month.year}`,
-          intro: period.closed
-            ? `${month.name} completo: campañas de búsqueda para contactos por WhatsApp y formularios.`
-            : `Primeros ${to - from + 1} días de ${month.name.toLowerCase()}: campañas de búsqueda para contactos por WhatsApp y formularios.`,
-          days: to - from + 1,
-          source: `Fuente: Google Ads · ${range} ${short} ${month.year}`,
-          analysisSource: `Fuente: análisis Lima Retail sobre Google Ads · ${range} ${short} ${month.year}`,
-          footer: `${BRAND} · Reporte Google Ads · ${period.closed ? `${month.name} ${month.year}` : `${from}-${to} ${month.name} ${month.year}`}`,
-          note: period.closed ? '' : `**Datos del período ${range} de ${month.name.toLowerCase()}.** Las métricas se consolidan al cierre del mes.`,
-          file: `${month.name}${month.year}${period.closed ? '' : `_${from}-${to}`}`,
-        },
-      };
-    }).filter(Boolean);
+  // ── La semana del reporte (lunes a domingo) ───────────────────────────
+  const DAY_MS = 86400000;
+  const SUMS = ['cost', 'impressions', 'clicks', 'conversions'];
+  const WEEKDAYS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+  const WEEKDAY_NAMES = ['lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado', 'domingo'];
+  const addDays = (iso, days) => new Date(Date.parse(`${iso}T00:00:00Z`) + days * DAY_MS).toISOString().slice(0, 10);
+  const spanDays = (from, to) => Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / DAY_MS) + 1;
+  const weekdayOf = iso => (new Date(`${iso}T00:00:00Z`).getUTCDay() + 6) % 7;
+  const mondayOf = iso => addDays(iso, -weekdayOf(iso));
+  const dayOf = iso => Number(iso.slice(8, 10));
+  const monthName = iso => F().MONTH_NAMES[Number(iso.slice(5, 7)) - 1].toLowerCase();
+  const data = () => window.TIERRA_FILMS_RETAIL_DATA || {};
+  const seriesDays = () => (Array.isArray(window.TierraFilmsDays) ? window.TierraFilmsDays : []).filter(day => isNum(day.cost));
+  const daysIn = (from, to) => seriesDays().filter(day => day.date >= from && day.date <= to);
+
+  // "12 – 18 de octubre 2026" o, si cruza de mes, "28 de setiembre – 4 de octubre 2026" (short: "28 set – 4 oct 2026").
+  function rangeText(from, to, short = false) {
+    const name = iso => (short ? monthName(iso).slice(0, 3) : monthName(iso));
+    const of = short ? ' ' : ' de ';
+    const year = iso => iso.slice(0, 4);
+    const start = from.slice(0, 7) === to.slice(0, 7) ? `${dayOf(from)}` : `${dayOf(from)}${of}${name(from)}${year(from) === year(to) ? '' : ` ${year(from)}`}`;
+    return `${start} – ${dayOf(to)}${of}${name(to)} ${year(to)}`;
   }
 
-  // Conversiones por accion del mes: WhatsApp (plugin y clic) y formularios.
-  function actions(period) {
-    const blocks = G().actions(period);
-    if (!blocks.length) return null;
-    const sum = test => blocks.reduce((total, block) => total + block.actions.filter(action => test.test(action.name)).reduce((acc, action) => acc + (Number(action.conversions) || 0), 0), 0);
-    return { whatsapp: sum(/whatsapp/i), forms: sum(/formulario|form/i) };
-  }
+  // "lunes 12 al domingo 18 de octubre" (con el mes en los dos extremos si cruza).
+  const dayText = (from, to) => `${WEEKDAY_NAMES[weekdayOf(from)]} ${dayOf(from)}${from.slice(0, 7) === to.slice(0, 7) ? '' : ` de ${monthName(from)}`} al ${WEEKDAY_NAMES[weekdayOf(to)]} ${dayOf(to)} de ${monthName(to)}`;
 
-  // Serie por dia del mes: la del modulo Gasto Publicitario (clics y conversiones reales donde el export
-  // por dia los trae; si no, repartidos desde la semana).
-  function dailySeries(item) {
-    const rows = (Array.isArray(window.TierraFilmsDays) ? window.TierraFilmsDays : [])
-      .filter(day => day.date.startsWith(item.id))
-      .filter(day => {
-        const d = Number(day.date.slice(8, 10));
-        return d >= item.from && d <= item.to;
-      });
+  function weekItem(monday, from, to, closed) {
+    const span = rangeText(from, to);
+    const short = rangeText(from, to, true);
+    const days = spanDays(from, to);
     return {
-      rows,
-      estimated: rows.some(day => day.estimated && (day.estimated.clicks || day.estimated.conversions)),
-      complete: rows.length === item.to - item.from + 1,
+      id: monday,
+      from,
+      to,
+      closed,
+      option: `Semana ${short}${closed ? '' : ' (en curso)'}`,
+      labels: {
+        cover: `Semana ${span}`,
+        intro: closed
+          ? `Del ${dayText(from, to)}: campañas de búsqueda para contactos por WhatsApp y formularios.`
+          : `Semana en curso, del ${dayText(from, to)}: campañas de búsqueda para contactos por WhatsApp y formularios.`,
+        days,
+        source: `Fuente: Google Ads · ${short}`,
+        analysisSource: `Fuente: análisis Lima Retail sobre Google Ads · ${short}`,
+        footer: `${BRAND} · Reporte Google Ads · Semana ${short}`,
+        note: closed ? '' : `**Semana en curso: datos del ${dayText(from, to)}.** Las métricas se consolidan al cierre de la semana, el domingo ${dayOf(addDays(monday, 6))}.`,
+        file: `Semana_${from}_al_${to}`,
+      },
     };
   }
 
-  // Palabras clave del mes, de mas a menos conversiones. Solo las que tuvieron actividad.
-  // El informe de Drive viene por accion de conversion: trae las conversiones de cada palabra pero no su costo
-  // ni sus clics. Esos salen del informe semanal de palabras clave del mismo mes, si lo hay, y las palabras que
-  // ahi gastaron sin aparecer en Drive entran con 0 conversiones (son las que hay que depurar).
-  function keywords(period) {
-    const scope = G().keywords(period);
-    let rows = scope.rows.map(row => Object.assign({}, row));
-    let hasMetrics = scope.hasMetrics;
-    let metricsFrom = null;
-    const weekly = !hasMetrics && period.months.length === 1 && G().weeklyKeywords ? G().weeklyKeywords(period.month) : null;
-    if (weekly && weekly.rows.length) {
-      const byKey = new Map(weekly.rows.map(row => [row.key, row]));
-      rows.forEach(row => {
-        const match = byKey.get(row.key);
-        byKey.delete(row.key);
-        ['cost', 'impressions', 'clicks'].forEach(field => { row[field] = match ? match[field] : 0; });
-      });
-      byKey.forEach(row => {
-        if (Number(row.cost) > 0) rows.push({ key: row.key, keyword: row.keyword, conversions: 0, cost: row.cost, impressions: row.impressions, clicks: row.clicks });
-      });
-      rows.forEach(row => {
-        row.ctr = Number(row.impressions) > 0 ? row.clicks / row.impressions : null;
-        row.costPerConversion = Number(row.conversions) > 0 && Number(row.cost) > 0 ? row.cost / row.conversions : null;
-      });
-      hasMetrics = true;
-      metricsFrom = { from: weekly.startDay, to: weekly.endDay };
+  // Semanas de lunes a domingo con datos, de la mas reciente a la mas antigua. La ultima puede estar en curso.
+  function weeks() {
+    const days = seriesDays();
+    if (!days.length) return [];
+    const first = days[0].date;
+    const last = days[days.length - 1].date;
+    const list = [];
+    for (let monday = mondayOf(first); monday <= last; monday = addDays(monday, 7)) {
+      const sunday = addDays(monday, 6);
+      list.push(weekItem(monday, monday < first ? first : monday, sunday > last ? last : sunday, sunday <= last));
     }
-    // La misma palabra con dos concordancias (amplia y frase) va en una sola fila, como la lee el cliente.
+    return list.reverse();
+  }
+
+  const ratio = (a, b) => (isNum(a) && isNum(b) && Number(b) !== 0 ? Number(a) / Number(b) : null);
+  const derive = totals => Object.assign(totals, {
+    ctr: ratio(totals.clicks, totals.impressions),
+    cpc: ratio(totals.cost, totals.clicks),
+    costPerConversion: ratio(totals.cost, totals.conversions),
+    conversionRate: ratio(totals.conversions, totals.clicks),
+  });
+
+  // Totales de un tramo de dias. Cada suma sale de los dias cuando todos la traen real (el costo diario lo es
+  // siempre); si no, del total de esa misma semana en el informe semanal de campana o en el de palabras clave,
+  // solo si su costo cuadra con el costo diario (hay semanas que esos informes traen incompletas). Si no hay
+  // de donde, la suma queda vacia: no se reparte nada.
+  function rangeTotals(from, to) {
+    const days = daysIn(from, to);
+    if (!days.length) return null;
+    const full = days.length === spanDays(from, to);
+    const source = data();
+    const dayCost = days.reduce((acc, day) => acc + Number(day.cost), 0);
+    const fits = week => week && week.start === from && week.end === to && isNum(week.cost) && Math.abs(week.cost - dayCost) <= Math.max(1, dayCost * 0.01);
+    const weeks = [(source.weeks || []).find(fits), ((source.keywords && source.keywords.weeks) || []).find(fits)].filter(Boolean);
+    const totals = {};
+    SUMS.forEach(field => {
+      const values = days.map(day => day[field]);
+      const real = full && values.every(isNum) && days.every(day => !(day.estimated && day.estimated[field]));
+      const week = weeks.find(item => isNum(item[field]));
+      totals[field] = real ? values.reduce((acc, value) => acc + Number(value), 0) : week ? Number(week[field]) : null;
+    });
+    return derive(totals);
+  }
+
+  // Serie por dia de la semana: la del modulo Gasto Publicitario (clics y conversiones reales donde el export
+  // por dia los trae; si no, repartidos desde la semana). Los dias sin clics ni conversiones (junio solo trae
+  // el costo diario) no entran.
+  function dailySeries(item) {
+    const rows = daysIn(item.from, item.to).filter(day => isNum(day.clicks) && isNum(day.conversions));
+    return {
+      rows,
+      estimated: rows.some(day => day.estimated && (day.estimated.clicks || day.estimated.conversions)),
+      complete: rows.length === spanDays(item.from, item.to),
+    };
+  }
+
+  const plainKeyword = text => String(text || '').replace(/^["[]+|["\]]+$/g, '').trim();
+
+  // Palabras clave de la semana, de mas a menos conversiones. Solo las que tuvieron actividad. Salen del
+  // informe por dia de Drive si cubre los siete dias (costo, clics y conversiones por termino, sin
+  // impresiones) o del informe semanal de palabras clave del repo (todas las metricas).
+  function keywords(item) {
+    const source = data();
+    const covered = iso => (source.keywordStatsByMonth || []).some(block => iso >= block.start && iso <= block.end);
+    const dates = Array.from({ length: spanDays(item.from, item.to) }, (_, index) => addDays(item.from, index));
+    let rows = [];
+    let kind = null;
+    let hasImpressions = false;
+    const daily = (source.keywordDays || []).filter(row => row.date >= item.from && row.date <= item.to);
+    const weekly = ((source.keywords && source.keywords.weeks) || []).find(week => week.start === item.from && week.end === item.to);
+    if (daily.length && dates.every(covered)) {
+      kind = 'daily';
+      hasImpressions = daily.every(row => isNum(row.impressions));
+      rows = daily;
+    } else if (weekly) {
+      kind = 'weekly';
+      hasImpressions = true;
+      rows = weekly.rows || [];
+    }
+    // La misma palabra con dos concordancias (amplia y frase) o en dos campanas va en una sola fila, como la lee el cliente.
     const byName = new Map();
     rows.forEach(row => {
-      const name = String(row.keyword || '').trim().toLowerCase();
-      if (!byName.has(name)) {
-        byName.set(name, Object.assign({}, row));
-        return;
-      }
+      const keyword = plainKeyword(row.keyword);
+      const name = keyword.toLowerCase();
+      if (!byName.has(name)) byName.set(name, { keyword, conversions: 0, cost: 0, clicks: 0, impressions: hasImpressions ? 0 : null });
       const entry = byName.get(name);
-      ['conversions', 'cost', 'impressions', 'clicks'].forEach(field => {
-        if (isNum(row[field])) entry[field] = (Number(entry[field]) || 0) + Number(row[field]);
+      ['conversions', 'cost', 'clicks', 'impressions'].forEach(field => {
+        if (isNum(row[field]) && isNum(entry[field])) entry[field] += Number(row[field]);
       });
     });
-    rows = [...byName.values()].map(row => Object.assign(row, {
-      ctr: Number(row.impressions) > 0 ? row.clicks / row.impressions : null,
-      costPerConversion: Number(row.conversions) > 0 && Number(row.cost) > 0 ? row.cost / row.conversions : null,
-    }));
-    rows = rows
+    const list = [...byName.values()]
+      .map(row => Object.assign(row, {
+        ctr: ratio(row.clicks, row.impressions),
+        conversionRate: ratio(row.conversions, row.clicks),
+        costPerConversion: Number(row.conversions) > 0 && Number(row.cost) > 0 ? row.cost / row.conversions : null,
+      }))
       .filter(row => Number(row.conversions) > 0 || Number(row.cost) > 0 || Number(row.clicks) > 0)
       .sort((left, right) => (right.conversions || 0) - (left.conversions || 0) || (right.cost || 0) - (left.cost || 0));
-    const total = rows.reduce((sum, row) => sum + (Number(row.conversions) || 0), 0);
-    return { rows, total, hasMetrics, metricsFrom, estimated: scope.estimated };
+    const total = list.reduce((sum, row) => sum + (Number(row.conversions) || 0), 0);
+    return { rows: list, total, hasMetrics: Boolean(kind), hasImpressions, source: kind };
+  }
+
+  // Campanas con actividad en la semana: las del informe por dia de cada campana o, en los dias que no cubre,
+  // las de la semana del informe semanal del repo.
+  function campaigns(item) {
+    const source = data();
+    const active = row => Number(row.cost) > 0 || Number(row.clicks) > 0;
+    const names = new Map();
+    const add = name => { if (name && !names.has(name.toLowerCase())) names.set(name.toLowerCase(), name); };
+    const byDay = (source.campaignDays || []).filter(row => row.date >= item.from && row.date <= item.to);
+    byDay.filter(active).forEach(row => add(row.campaign));
+    const daysWithRows = new Set(byDay.map(row => row.date));
+    if (daysWithRows.size < spanDays(item.from, item.to)) {
+      (source.weeks || []).filter(week => week.start <= item.to && week.end >= item.from)
+        .forEach(week => (week.campaigns || []).filter(active).forEach(row => add(row.campaign)));
+    }
+    return [...names.values()];
   }
 
   function buildReport(item) {
-    const current = G().totals(item.period);
-    const previous = G().previous(item.period);
+    const current = rangeTotals(item.from, item.to);
+    const previousFrom = addDays(item.from, -7);
+    const previous = previousFrom >= (seriesDays()[0] || {}).date ? rangeTotals(previousFrom, addDays(item.to, -7)) : null;
     return {
       item,
       labels: item.labels,
       current,
       previous,
-      actions: actions(item.period),
       days: dailySeries(item),
-      keywords: keywords(item.period),
-      campaigns: item.month.campaigns.filter(campaign => Number(campaign.cost) > 0 || Number(campaign.clicks) > 0),
+      keywords: keywords(item),
+      campaigns: campaigns(item),
     };
   }
 
@@ -252,7 +317,7 @@
       cards.push({
         icon: 'trend',
         title: `Costo por conversión de ${money(current.costPerConversion)}`,
-        text: `${count(current.conversions)} conversiones con ${money(current.cost)} de inversión. Es la base para comparar el próximo mes.`,
+        text: `${count(current.conversions)} conversiones con ${money(current.cost)} de inversión. Es la base para comparar la próxima semana.`,
       });
     }
     const wasted = rows.filter(row => !(row.conversions > 0) && Number(row.cost) > 0).sort((left, right) => right.cost - left.cost);
@@ -272,7 +337,7 @@
     return cards.slice(0, 3);
   }
 
-  // ── Textos guardados por mes ───────────────────────────────────────────
+  // ── Textos guardados por semana (la clave es el lunes) ─────────────────
   function readNotes() {
     try {
       const saved = JSON.parse(window.localStorage.getItem(NOTES_KEY) || '{}');
@@ -290,15 +355,15 @@
     }
   }
 
-  function saveNote(monthId, key, value) {
+  function saveNote(weekId, key, value) {
     const notes = readNotes();
-    notes[monthId] = Object.assign({}, notes[monthId] || {}, { [key]: value });
+    notes[weekId] = Object.assign({}, notes[weekId] || {}, { [key]: value });
     writeNotes(notes);
   }
 
-  function resetNotes(monthId) {
+  function resetNotes(weekId) {
     const notes = readNotes();
-    delete notes[monthId];
+    delete notes[weekId];
     writeNotes(notes);
   }
 
@@ -338,7 +403,7 @@
   function dailyChart(report) {
     const { rows } = report.days;
     if (!rows.length) {
-      return '<p class="rp-empty rp-chart-empty">El informe diario de este mes todavía no está en el tablero: la evolución por día aparece cuando se suba el informe de campaña por día.</p>';
+      return '<p class="rp-empty rp-chart-empty">Esta semana no tiene clics ni conversiones por día en el tablero: la evolución por día aparece cuando se suba el informe de campaña por día.</p>';
     }
     const width = 1160;
     const top = 16;
@@ -359,7 +424,7 @@
     const line = (values, color) => `
       <polyline points="${values.map((value, index) => `${x(index)},${y(value)}`).join(' ')}" fill="none" stroke="${color}" stroke-width="2.2" stroke-linejoin="round"/>
       ${values.map((value, index) => `<circle cx="${x(index)}" cy="${y(value)}" r="3.4" fill="#fff" stroke="${color}" stroke-width="1.8"/>`).join('')}`;
-    const labels = rows.map((day, index) => `<text x="${x(index)}" y="${bottom + 20}" text-anchor="middle" class="rp-axis big">${day.date.slice(8, 10)}</text>`).join('');
+    const labels = rows.map((day, index) => `<text x="${x(index)}" y="${bottom + 20}" text-anchor="middle" class="rp-axis big">${WEEKDAYS[weekdayOf(day.date)]} ${dayOf(day.date)}</text>`).join('');
     return `
       <svg class="rp-chart rp-chart-daily" viewBox="0 0 ${width} 262" preserveAspectRatio="xMidYMin meet" role="img" aria-label="Clics y conversiones por día">
         ${grid.join('')}
@@ -407,13 +472,13 @@
   function contentsPage(report, total) {
     const days = report.labels.days;
     const items = [
-      { title: 'Resumen del mes', desc: `Inversión, conversiones y costo por resultado ${report.item.period.closed ? 'del mes' : `de los primeros ${days} días`}, con la evolución diaria.`, icon: 'chart', page: 3 },
+      { title: 'Resumen de la semana', desc: `Inversión, conversiones y costo por resultado ${report.item.closed ? 'de la semana, de lunes a domingo' : `de los primeros ${days} días de la semana`}, con la evolución diaria.`, icon: 'chart', page: 3 },
       { title: 'Palabras clave', desc: 'Los términos de búsqueda que generaron contactos, su costo y eficiencia, y cuáles depurar.', icon: 'search', page: 4 },
-      { title: 'Conclusiones', desc: 'Las tres decisiones recomendadas para el próximo mes en base a los resultados.', icon: 'flag', page: 5 },
+      { title: 'Conclusiones', desc: 'Las tres decisiones recomendadas para la próxima semana en base a los resultados.', icon: 'flag', page: 5 },
     ];
     return `
       <section class="rp-page">
-        ${head('Contenido del reporte', 'Qué encontrarás en cada sección de este informe mensual.')}
+        ${head('Contenido del reporte', 'Qué encontrarás en cada sección de este informe semanal.')}
         <div class="rp-body rp-contents rp-contents-tall">
           ${items.map((item, index) => `
             <div class="rp-card rp-toc">
@@ -428,26 +493,27 @@
   }
 
   function summaryPage(report, notes, total) {
-    const { current, previous, actions: split } = report;
+    const { current, previous } = report;
     const prev = key => (previous ? previous[key] : null);
     const join = parts => parts.filter(Boolean).join(' · ');
     const costChange = change(current.costPerConversion, prev('costPerConversion'));
-    const splitText = split ? `${count(split.whatsapp)} WhatsApp · ${count(split.forms)} form.` : '';
+    const vs = report.item.closed ? 'vs semana ant.' : 'vs mismos días sem. ant.';
+    // Sin impresiones (el informe por dia de Drive no las trae) no van Impresiones ni CTR.
+    const impressions = isNum(current.impressions);
     const cards = [
-      kpi('Inversión', money(current.cost), previous ? `${delta(current.cost, prev('cost'))} vs período ant.` : 'Sin mes anterior'),
-      kpi('Conversiones', count(current.conversions), join([delta(current.conversions, prev('conversions')), splitText]) || 'Contactos registrados'),
+      kpi('Inversión', money(current.cost), previous ? `${delta(current.cost, prev('cost'))} ${vs}` : 'Sin semana anterior'),
+      kpi('Conversiones', count(current.conversions), delta(current.conversions, prev('conversions')) || 'Contactos registrados'),
       kpi('Costo x conversión', money(current.costPerConversion), costChange === null ? 'Inversión ÷ conversiones' : `${delta(current.costPerConversion, prev('costPerConversion'))} (${costChange <= 0 ? 'mejoró' : 'empeoró'})`),
-      kpi('Clics', count(current.clicks), join([delta(current.clicks, prev('clicks')), `CTR ${percent(current.ctr)}`])),
-      kpi('Impresiones', count(current.impressions), delta(current.impressions, prev('impressions')) || 'Veces que se mostraron'),
+      kpi('Clics', count(current.clicks), join([delta(current.clicks, prev('clicks')), impressions ? `CTR ${percent(current.ctr)}` : ''])),
+      impressions ? kpi('Impresiones', count(current.impressions), delta(current.impressions, prev('impressions')) || 'Veces que se mostraron') : '',
       kpi('CPC medio', money2(current.cpc), 'Costo por clic'),
-      kpi('CTR', percent(current.ctr), delta(current.ctr, prev('ctr')) || 'Clics ÷ impresiones'),
-      split ? kpi('WhatsApp', count(split.whatsapp), `+ ${count(split.forms)} ${Math.round(split.forms) === 1 ? 'formulario' : 'formularios'}`) : '',
+      impressions ? kpi('CTR', percent(current.ctr), delta(current.ctr, prev('ctr')) || 'Clics ÷ impresiones') : '',
     ].filter(Boolean);
     const chartNote = noteOr(notes, 'grafico', suggestChartNote(report));
     const estimated = report.days.rows.length && report.days.estimated;
     return `
       <section class="rp-page">
-        ${head('Resumen del mes', report.labels.intro)}
+        ${head('Resumen de la semana', report.labels.intro)}
         <div class="rp-body">
           <div class="rp-grid-5">${cards.join('')}</div>
           <div class="rp-card rp-chart-card rp-chart-wide">
@@ -459,9 +525,10 @@
               <span class="rp-legends"><span class="rp-legend"><i style="background:${CLICKS_COLOR}"></i>Clics</span><span class="rp-legend"><i style="background:${CONV_COLOR}"></i>Conversiones</span></span>
             </div>
             ${dailyChart(report)}
-            ${estimated || (report.days.rows.length && !report.days.complete) ? `<p class="rp-chart-foot">${[
-              estimated ? 'Clics y conversiones por día repartidos desde el total de cada semana (Google Ads no los entrega por día en este informe).' : '',
-              report.days.complete ? '' : `La serie por día llega hasta el ${Number(report.days.rows[report.days.rows.length - 1].date.slice(8, 10))}.`,
+            ${estimated || (report.days.rows.length && !report.days.complete) || !impressions ? `<p class="rp-chart-foot">${[
+              estimated ? 'Clics y conversiones por día repartidos desde el total de la semana (Google Ads no los entrega por día en este informe).' : '',
+              report.days.complete ? '' : 'La serie por día no cubre todos los días de la semana.',
+              impressions ? '' : 'Sin impresiones de esta semana (el informe por día de Google Ads no las trae): va sin impresiones ni CTR.',
             ].filter(Boolean).join(' ')}</p>` : ''}
           </div>
         </div>
@@ -470,7 +537,9 @@
   }
 
   function keywordsPage(report, notes, total) {
-    const { rows, total: conversions, hasMetrics } = report.keywords;
+    const { rows, total: conversions, hasMetrics, hasImpressions } = report.keywords;
+    // Sin impresiones por palabra (informe por dia) la ultima columna es la tasa de conversion en vez del CTR.
+    const lastColumn = row => (hasImpressions ? percent(row.ctr) : percent(row.conversionRate));
     const shown = rows.slice(0, MAX_KEYWORDS);
     const top = rows.find(row => row.conversions > 0);
     const body = shown.length ? shown.map((row, index) => {
@@ -481,18 +550,16 @@
         <td class="num">${hasMetrics ? count(row.clicks) : '—'}</td>
         <td class="num">${zero ? '<span class="rp-faint">0</span>' : conv2(row.conversions)}</td>
         <td class="num">${zero || !isNum(row.costPerConversion) ? '<span class="rp-faint">—</span>' : money2(row.costPerConversion)}</td>
-        <td class="num">${hasMetrics ? percent(row.ctr) : '—'}</td>
+        <td class="num">${hasMetrics ? lastColumn(row) : '—'}</td>
       </tr>`;
     }).join('') : '<tr><td colspan="6" class="rp-empty">Sin palabras clave con actividad en el período.</td></tr>';
-    const campaigns = report.campaigns.map(campaign => campaign.name);
+    const { campaigns } = report;
     const campaignLine = campaigns.length === 1 ? `Una sola campaña (${campaigns[0]}).` : campaigns.length ? `${campaigns.length} campañas: ${list(campaigns)}.` : '';
     const concentration = top && conversions > 0 ? ` "${top.keyword}" concentra ${count(top.conversions)} de ${count(conversions)} conversiones.` : '';
-    const { metricsFrom } = report.keywords;
-    const metricsNote = !hasMetrics
-      ? ' El informe de palabras clave del mes viene por acción de conversión: trae conversiones por término, sin costo ni clics.'
-      : metricsFrom
-        ? ` Costo, clics y CTR del informe semanal de palabras clave (${metricsFrom.from}–${metricsFrom.to} ${report.item.month.shortName.toLowerCase()}); conversiones del informe por acción de conversión.`
-        : '';
+    const metricsNote = {
+      daily: ' Costo, clics y conversiones por término del informe por día de Google Ads.',
+      weekly: ' Del informe semanal de palabras clave.',
+    }[report.keywords.source] || ' Sin informe de palabras clave que cubra esta semana.';
     return `
       <section class="rp-page">
         ${head('Palabras clave que convierten', 'Los términos de búsqueda que generaron contactos, ordenados por conversiones.')}
@@ -500,7 +567,7 @@
           <div class="rp-card rp-table-card">
             <table class="rp-table rp-keywords">
               <colgroup><col><col style="width:12%"><col style="width:10%"><col style="width:11%"><col style="width:17%"><col style="width:13%"></colgroup>
-              <thead><tr><th>Palabra clave</th><th class="num">Coste</th><th class="num">Clics</th><th class="num">Conv.</th><th class="num">Costo/conv.</th><th class="num">CTR</th></tr></thead>
+              <thead><tr><th>Palabra clave</th><th class="num">Coste</th><th class="num">Clics</th><th class="num">Conv.</th><th class="num">Costo/conv.</th><th class="num">${hasImpressions || !hasMetrics ? 'CTR' : 'Tasa conv.'}</th></tr></thead>
               <tbody>${body}</tbody>
             </table>
             <div class="rp-table-foot">${esc(`${campaignLine}${concentration}${metricsNote}`.trim())}</div>
@@ -550,7 +617,7 @@
     host.style.setProperty('--rp-scale', String(Math.min(1, host.clientWidth / PAGE_WIDTH)));
   }
 
-  function wireEditables(host, monthId) {
+  function wireEditables(host, weekId) {
     host.querySelectorAll('[data-note]').forEach(node => {
       try {
         node.contentEditable = 'plaintext-only';
@@ -561,7 +628,7 @@
       node.addEventListener('focus', () => { node.textContent = node.dataset.raw; });
       node.addEventListener('input', () => {
         node.dataset.raw = node.innerText.replace(/\n+$/, '');
-        saveNote(monthId, node.dataset.note, node.dataset.raw);
+        saveNote(weekId, node.dataset.note, node.dataset.raw);
       });
       node.addEventListener('blur', () => { node.innerHTML = rich(node.dataset.raw); });
     });
@@ -570,20 +637,24 @@
   function render() {
     const host = document.getElementById('week-report');
     if (!host || !G()) return;
-    const available = months();
+    const available = weeks();
     const select = document.getElementById('week-select');
     if (!available.length) {
-      if (select) select.innerHTML = '<option value="">Sin meses con datos</option>';
-      host.innerHTML = '<div class="panel"><div class="empty-state"><strong>Todavia no hay datos para el reporte</strong><span>El reporte se arma con los informes de Google Ads. En cuanto haya un mes con inversion, aparece aqui.</span></div></div>';
+      if (select) select.innerHTML = '<option value="">Sin semanas con datos</option>';
+      host.innerHTML = '<div class="panel"><div class="empty-state"><strong>Todavia no hay datos para el reporte</strong><span>El reporte se arma con los informes de Google Ads. En cuanto haya una semana con inversion, aparece aqui.</span></div></div>';
       return;
     }
-    if (!available.some(item => item.id === state.month)) state.month = available[0].id;
-    const item = available.find(entry => entry.id === state.month);
+    // Por defecto, la ultima semana cerrada (si todavia no hay ninguna, la que esta en curso).
+    if (!available.some(item => item.id === state.week)) state.week = (available.find(item => item.closed) || available[0]).id;
+    const item = available.find(entry => entry.id === state.week);
     if (select) {
-      select.innerHTML = available.map(entry => `<option value="${esc(entry.id)}"${entry.id === state.month ? ' selected' : ''}>${esc(entry.option)}</option>`).join('');
+      select.innerHTML = available.map(entry => `<option value="${esc(entry.id)}"${entry.id === state.week ? ' selected' : ''}>${esc(entry.option)}</option>`).join('');
     }
     const source = document.getElementById('week-source');
-    if (source) source.textContent = `Fuente: ${item.month.source === 'Drive' ? `Google Drive (${item.month.sourceFile})` : 'informes de Google Ads del repositorio'}`;
+    if (source) {
+      const files = [...new Set(G().months().filter(month => month.source === 'Drive' && month.key >= item.from.slice(0, 7) && month.key <= item.to.slice(0, 7)).map(month => month.sourceFile))];
+      source.textContent = `Fuente: ${files.length ? `Google Drive (${files.join(', ')})` : 'informes de Google Ads del repositorio'}`;
+    }
 
     const report = buildReport(item);
     const notes = readNotes()[item.id] || {};
@@ -603,7 +674,7 @@
 
   // El nombre del PDF lo pone el navegador con el titulo del documento: se cambia solo mientras imprime.
   function printReport() {
-    const item = months().find(entry => entry.id === state.month);
+    const item = weeks().find(entry => entry.id === state.week);
     if (!item) return;
     if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
     const title = document.title;
@@ -625,18 +696,18 @@
       const select = document.getElementById('week-select');
       if (select) {
         select.addEventListener('change', event => {
-          state.month = event.target.value;
+          state.week = event.target.value;
           render();
         });
       }
       const print = document.getElementById('week-print');
       if (print) print.addEventListener('click', printReport);
-      // Sin dialogo de confirmacion: el boton vuelve directo a los textos propuestos del mes.
+      // Sin dialogo de confirmacion: el boton vuelve directo a los textos propuestos de la semana.
       const reset = document.getElementById('week-reset');
       if (reset) {
         reset.addEventListener('click', () => {
-          if (!state.month) return;
-          resetNotes(state.month);
+          if (!state.week) return;
+          resetNotes(state.week);
           render();
         });
       }

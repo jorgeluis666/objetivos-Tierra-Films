@@ -113,44 +113,55 @@ paneles de Amador y Aquarius.
      contra la semana anterior, junto a nuestras impresiones.
    - `Segmentacion geografica`: conversiones por ubicacion y accion, gasto con
      ubicacion identificada y lo que queda sin ubicacion.
-5. **Generacion de Reporte**: el Reporte de Publicidad del mes con el diseño del
-   modelo de Tierra Films y descarga en PDF
+5. **Generacion de Reporte**: el Reporte de Publicidad de una semana de lunes a
+   domingo con el diseño del modelo de Tierra Films y descarga en PDF
    (ver [Generacion de Reporte](#generacion-de-reporte)).
 
 ## Generacion de Reporte
 
-Pestana que arma el "Reporte de Publicidad" del mes con el diseño del modelo de
-Tierra Films (`Modelo Reporte Tierra Films`): laminas 16:9 con fondo claro,
-tarjetas blancas de borde fino y acentos en azul.
+Pestana que arma el "Reporte de Publicidad" de una semana de lunes a domingo con
+el diseño del modelo de Tierra Films (`Modelo Reporte Tierra Films`): laminas
+16:9 con fondo claro, tarjetas blancas de borde fino y acentos en azul.
+
+El selector lista las semanas con datos, de la mas reciente a la mas antigua
+("Semana 12 – 18 oct 2026"), y abre en la ultima semana cerrada. Si la serie por
+dia llega a mitad de semana, esa semana aparece "(en curso)" y se compara con
+los mismos dias de la semana anterior.
 
 | Pagina | Contenido |
 | --- | --- |
-| Portada | Logo de Lima Retail, "Reporte de Publicidad", cliente, periodo ("1 – 18 Octubre 2026 \| Google Ads · Search"), una linea del mes y fecha de emision. |
-| Contenido | Resumen del mes, Palabras clave y Conclusiones, con su numero de pagina. |
-| Resumen del mes | Inversion, conversiones (con WhatsApp y formularios), costo por conversion, clics, impresiones, CPC medio, CTR y WhatsApp, con su variacion; clics y conversiones por dia. |
-| Palabras clave que convierten | Hasta 6 terminos ordenados por conversiones (coste, clics, conv., costo/conv., CTR), recuadro "Clave" y tarjeta "Analisis". |
-| Conclusiones del periodo | Tres tarjetas (el termino estrella, el costo por conversion y los terminos a depurar) y, en un mes en curso, la nota de que las metricas se consolidan al cierre. |
+| Portada | Logo de Lima Retail, "Reporte de Publicidad", cliente, periodo ("Semana 12 – 18 de octubre 2026 \| Google Ads · Search"), una linea de la semana y fecha de emision. |
+| Contenido | Resumen de la semana, Palabras clave y Conclusiones, con su numero de pagina. |
+| Resumen de la semana | Inversion, conversiones, costo por conversion, clics, impresiones, CPC medio y CTR, con su variacion contra la semana anterior; clics y conversiones de lunes a domingo. |
+| Palabras clave que convierten | Hasta 6 terminos ordenados por conversiones (coste, clics, conv., costo/conv. y CTR, o tasa de conversion si la semana no tiene impresiones), recuadro "Clave" y tarjeta "Analisis". |
+| Conclusiones del periodo | Tres tarjetas (el termino estrella, el costo por conversion y los terminos a depurar) y, en una semana en curso, la nota de que las metricas se consolidan al cierre. |
 | Cierre | Logo y firma de Lima Retail. |
 
-- **De donde salen los numeros:** de Gasto Publicitario, que los expone en
-  `window.TierraFilmsGasto` (`js/objectives.js`): el periodo del mes, sus
-  totales, la variacion contra el mes anterior (prorrateado a los mismos dias si
-  el mes esta en curso, "vs período ant."), las palabras clave del mes y las
-  conversiones por accion (WhatsApp y formularios). No hay una fuente nueva:
-  cada sincronizacion con Drive lo actualiza solo.
-- **Palabras clave:** las conversiones salen del informe de palabras clave del
-  mes. Si ese informe viene por accion de conversion (el de Drive, sin costo ni
-  clics), el costo, los clics y el CTR de cada palabra se toman del informe
-  semanal de palabras clave del mismo mes, y el pie de la tabla lo dice. La misma
-  palabra con dos concordancias va en una sola fila.
-- **Grafico por dia:** usa la serie diaria del modulo Gasto Publicitario. Google
-  Ads entrega clics y conversiones por semana, asi que por dia se reparten con el
-  coste de cada dia como peso, y el grafico lo aclara. Si el mes todavia no tiene
-  serie diaria, el grafico avisa que falta el informe de campana por dia.
+- **De donde salen los numeros:** de la serie por dia de Gasto Publicitario
+  (`window.TierraFilmsDays`, real donde el informe por dia de Drive la trae).
+  Si en esa semana los clics, las conversiones o las impresiones no vienen por
+  dia, se toma el total de la misma semana del informe semanal de campana o del
+  de palabras clave, solo si su costo cuadra con el costo diario (hay semanas que
+  esos informes traen incompletas). Si no hay de donde, el dato no se muestra: el
+  informe por dia de Drive no trae impresiones, asi que esas semanas van sin
+  Impresiones ni CTR y el grafico lo aclara. Las conversiones por accion
+  (WhatsApp y formularios) vienen por mes, asi que el reporte semanal no las
+  separa. No hay una fuente nueva: cada sincronizacion con Drive lo actualiza
+  solo.
+- **Palabras clave:** del informe por dia de la carpeta Campanas
+  (`data.keywordDays`: costo, clics y conversiones por termino y dia) cuando
+  cubre los siete dias; si no, del informe semanal de palabras clave de esa
+  semana. El pie de la tabla dice cual. La misma palabra con dos concordancias
+  va en una sola fila.
+- **Grafico por dia:** clics y conversiones de lunes a domingo, de la serie
+  diaria del modulo Gasto Publicitario. Donde Google Ads los entrega por semana,
+  por dia se reparten con el coste de cada dia como peso, y el grafico lo aclara.
+  Si la semana no tiene clics por dia (junio solo trae el costo diario), el
+  grafico avisa que falta el informe de campana por dia.
 - **Textos:** la linea del grafico, el recuadro "Clave", el analisis y las
   conclusiones vienen propuestos con lo que dicen los numeros. Se editan con un
-  clic sobre la lamina (`**texto**` va en negrita) y quedan guardados por mes en
-  el navegador (`tierra_films_report_notes_v2`); no se publican con el tablero.
+  clic sobre la lamina (`**texto**` va en negrita) y quedan guardados por semana
+  en el navegador (`tierra_films_report_notes_v2`); no se publican con el tablero.
   "Restablecer textos" vuelve a los propuestos, sin dialogo de confirmacion.
 - **Descargar PDF** abre el dialogo de impresion con las laminas solas, una por
   hoja de 13.33 x 7.5 in (el tamaño del modelo), y el nombre del archivo ya

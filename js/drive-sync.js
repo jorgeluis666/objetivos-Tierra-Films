@@ -173,7 +173,7 @@
       const impressions = exactImpressions ? num(row, 'impressions') : (clicks && ctr && Number.isFinite(ctr) ? clicks / ctr : 0);
       const values = { cost: num(row, 'cost'), clicks, conversions: num(row, 'conversions'), impressions };
       const monthId = day.slice(0, 7);
-      if (!months.has(monthId)) months.set(monthId, { days: new Map(), campaigns: new Map(), keywords: new Map(), first: day, last: day });
+      if (!months.has(monthId)) months.set(monthId, { days: new Map(), campaigns: new Map(), keywords: new Map(), keywordDays: new Map(), first: day, last: day });
       const month = months.get(monthId);
       if (day < month.first) month.first = day;
       if (day > month.last) month.last = day;
@@ -187,6 +187,8 @@
       if (cols.keyword >= 0 && clean(row[cols.keyword]) && clean(row[cols.keyword]) !== '--') {
         const keyword = clean(row[cols.keyword]);
         add(month.keywords, `${campaign}|${keyword}`, { keyword, campaign, group: cols.group >= 0 ? clean(row[cols.group]) : '' });
+        // Tambien por dia: Generacion de Reporte arma las palabras clave de cada semana.
+        add(month.keywordDays, `${day}|${campaign}|${keyword}`, { date: day, keyword, campaign });
       }
     });
     if (!months.size) return { skipped: `${name}: no tiene filas por día.` };
@@ -204,7 +206,8 @@
       return {
         month: monthId, start, end, totals, exactImpressions, campaigns,
         days: [...month.days.values()].sort((a, b) => a.date.localeCompare(b.date)),
-        keywords: [...month.keywords.values()]
+        keywords: [...month.keywords.values()],
+        keywordDays: [...month.keywordDays.values()].sort((a, b) => a.date.localeCompare(b.date))
       };
     });
     return { report: { kind: 'daily', name, modified: sheet.modified || '', months: items } };
@@ -497,6 +500,7 @@
     const dayMap = new Map((data.days || []).map(day => [day.date, day]));
     const campaignDays = (data.campaignDays || []).slice();
     const keywordStats = (data.keywordStatsByMonth || []).slice();
+    const keywordDays = (data.keywordDays || []).slice();
     Object.values(dailyMonths).forEach(item => {
       const byDate = new Map();
       item.days.forEach(row => {
@@ -515,6 +519,8 @@
       const index = keywordStats.findIndex(block => block.month === item.month);
       const block = { month: item.month, start: item.start, end: item.end, sourceFile: item.name, exactImpressions: item.exactImpressions, keywords: item.keywords.map(row => ({ keyword: row.keyword, campaign: row.campaign, group: row.group, cost: Math.round(row.cost * 100) / 100, clicks: row.clicks, conversions: Math.round(row.conversions * 100) / 100, impressions: item.exactImpressions ? row.impressions : null })) };
       if (index >= 0) keywordStats[index] = block; else keywordStats.push(block);
+      for (let index = keywordDays.length - 1; index >= 0; index -= 1) if (keywordDays[index].date.startsWith(item.month)) keywordDays.splice(index, 1);
+      (item.keywordDays || []).forEach(row => keywordDays.push({ date: row.date, keyword: row.keyword, campaign: row.campaign, cost: Math.round(row.cost * 100) / 100, clicks: row.clicks, conversions: Math.round(row.conversions * 100) / 100, impressions: item.exactImpressions ? row.impressions : null }));
       if (item.end > data.period.end) data.period.end = item.end;
       if (!applied.includes(item.name)) applied.push(item.name);
     });
@@ -522,6 +528,7 @@
       data.days = [...dayMap.values()].sort((a, b) => a.date.localeCompare(b.date));
       data.campaignDays = campaignDays.sort((a, b) => a.date.localeCompare(b.date));
       data.keywordStatsByMonth = keywordStats.sort((a, b) => a.month.localeCompare(b.month));
+      data.keywordDays = keywordDays.sort((a, b) => a.date.localeCompare(b.date));
     }
 
     const byMonth = (data.keywordConversionsByMonth || []).slice();
