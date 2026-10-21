@@ -299,6 +299,9 @@
       estimated,
       source: month.source || '',
       sourceFile: month.sourceFile || '',
+      impressionsFrom: month.impressionsFrom || '',
+      // Sumas aproximadas solo en el detalle por campana (p. ej. impresiones repartidas entre campanas).
+      campaignEstimated: Array.isArray(month.campaignEstimated) ? month.campaignEstimated : [],
       campaigns: monthCampaigns(month, totals),
       days: state.days.filter(day => day.date.startsWith(month.id)),
       hasData: SUMS.some(field => Number(totals[field]) > 0)
@@ -392,6 +395,7 @@
 
   // Sumas que en algun mes del periodo no son exactas (se marcan "est.").
   const periodEstimated = period => new Set(period.months.flatMap(month => month.estimated));
+  const campaignEstimatedSet = period => new Set(period.months.flatMap(month => month.estimated.concat(month.campaignEstimated)));
   const isEstimated = (estimated, uses) => uses.some(field => estimated.has(field));
 
   function periodTotals(period) {
@@ -549,6 +553,9 @@
     }
     const month = period.month;
     const from = month.source === 'Drive' ? `Google Drive (${month.sourceFile})` : month.source === 'serie diaria' ? 'la serie diaria de costo' : 'el informe mensual de Google Ads';
+    if (month.source === 'Drive' && !month.estimated.length && month.impressionsFrom) {
+      return ` Fuente: ${from}; impresiones del informe de palabras clave (${month.impressionsFrom}).`;
+    }
     if (month.source === 'Drive' && month.estimated.length === 1 && month.estimated[0] === 'impressions') {
       return ` Fuente: ${from}. Ese informe no trae impresiones: se aproximan con clics / CTR de cada fila y quedan cortas, porque solo cuentan las búsquedas con clics (est.).`;
     }
@@ -599,7 +606,7 @@
   // ── Distribucion de inversion por campana ──
   function renderDistribution(period, campaigns) {
     const total = periodTotals(period);
-    const estimated = periodEstimated(period);
+    const estimated = campaignEstimatedSet(period);
     const est = uses => estTag(isEstimated(estimated, uses));
     const budget = campaigns.filter(campaign => /^habilitad/.test(normalizeText(campaign.status))).reduce((sum, campaign) => sum + (Number(campaign.dailyBudget) || 0), 0);
     document.getElementById('gasto-dist-sub').textContent = `${period.label} ${period.year} | ${campaigns.length} ${campaigns.length === 1 ? 'campaña' : 'campañas'} con inversión, impresiones o clics. Estado y presupuesto vigentes en el último informe.`;
@@ -773,7 +780,7 @@
     const key = escapeHtml(campaign.key);
     const id = slug(campaign.key);
     const settings = campaignSettings(campaign.key);
-    const estimated = periodEstimated(period);
+    const estimated = campaignEstimatedSet(period);
     const previousEstimated = period.compare ? new Set(period.compare.month.estimated) : new Set();
     let comparison = '';
     if (period.annual) {
@@ -1230,7 +1237,11 @@
 
   // Cache por version de la data: se arma una vez por mes.
   function keywordMonth(month) {
-    if (!gasto.kwCache.has(month.key)) gasto.kwCache.set(month.key, platformKeywordMonth(month) || driveKeywordMonth(month) || weeklyKeywordMonth(month));
+    if (!gasto.kwCache.has(month.key)) {
+      const drive = driveKeywordMonth(month);
+      const full = drive && drive.hasMetrics && drive.hasImpressions ? drive : null;
+      gasto.kwCache.set(month.key, full || platformKeywordMonth(month) || drive || weeklyKeywordMonth(month));
+    }
     return gasto.kwCache.get(month.key);
   }
 
@@ -1279,8 +1290,8 @@
     const previous = keywordMonth(previousMonth);
     if (!previous) return { compare: null, reason: `Sin informe de palabras clave de ${previousMonth.name} para comparar.` };
     if (current.source !== previous.source) {
-      const what = { drive: 'del informe por acción de conversión', weekly: 'del informe semanal', platform: 'del informe por día' };
-      return { compare: null, reason: `Sin comparación: ${period.month.name} sale ${what[current.source]} y ${previousMonth.name}, ${what[previous.source]}.` };
+      const what = kw => ({ drive: kw.hasMetrics ? 'del informe de palabras clave' : 'del informe por acción de conversión', weekly: 'del informe semanal', platform: 'del informe por día' }[kw.source]);
+      return { compare: null, reason: `Sin comparación: ${period.month.name} sale ${what(current)} y ${previousMonth.name}, ${what(previous)}.` };
     }
     const sameDays = current.startDay === previous.startDay && current.endDay === previous.endDay;
     if ((current.complete && previous.complete) || sameDays) {
@@ -1339,7 +1350,8 @@
           ${scope.hasMetrics ? `${scope.hasImpressions ? `<td class="num">${fmtCount(row.impressions)}${est}</td>` : ''}<td class="num">${fmtCount(row.clicks)}${est}</td><td class="num">${fmtMoney(row.cpc)}</td>` : ''}
         </tr>`;
     }).join('');
-    const SOURCE_TEXT = { platform: 'del informe por día de la carpeta Campañas', drive: 'del informe por acción de conversión (carpeta Keywords)', weekly: 'del informe semanal de palabras clave' };
+    const driveFull = scope.months.some(({ kw }) => kw.source === 'drive' && kw.hasMetrics);
+    const SOURCE_TEXT = { platform: 'del informe por día de la carpeta Campañas', drive: driveFull ? 'del informe de palabras clave (carpeta Keywords)' : 'del informe por acción de conversión (carpeta Keywords)', weekly: 'del informe semanal de palabras clave' };
     const from = scope.sources.length === 1 ? SOURCE_TEXT[scope.sources[0]] : `de varios informes (${scope.months.map(({ month, kw }) => `${month.shortName}: ${{ platform: 'por día', drive: 'por acción', weekly: 'semanal' }[kw.source]}`).join(', ')})`;
     const notes = [`${rows.length} ${rows.length === 1 ? 'palabra clave' : 'palabras clave'} con ${scope.hasMetrics ? 'actividad' : 'conversiones'} en ${escapeHtml(scope.label)}, ${from}.`];
     if (byCost) notes.push(`${fmtMoney(kwCost)} de ${fmtMoney(campaignCost)} de la campaña${scope.mixed ? ` en ${scope.metricMonths.map(month => month.shortName).join(', ')}` : ''}${scope.estimated ? ' (semanas repartidas por días, est.)' : ''}.`);

@@ -304,7 +304,7 @@
     const header = rows[headerIndex];
     const at = (...labels) => labels.map(label => header.indexOf(label)).find(index => index >= 0) ?? -1;
     const cols = {
-      action: at('Acción de conversión'), status: at('Estado de palabras clave'), keyword: at('Palabra clave'),
+      action: at('Acción de conversión'), status: at('Estado de palabras clave', 'Estado de las palabras clave'), keyword: at('Palabra clave'),
       match: at('Tipo de concordancia'), impressions: at('Impr.', 'Impresiones'), clicks: at('Clics'),
       cost: at('Costo', 'Coste'), conversions: at('Conversiones')
     };
@@ -319,7 +319,8 @@
       const action = cols.action >= 0 ? clean(row[cols.action]) : '';
       const raw = clean(row[cols.keyword]);
       if (status.startsWith('Total')) {
-        if (status === 'Total: Cuenta' && (!action || action === '--')) account = metrics(row);
+        const accountRow = status === 'Total: Cuenta' || (!account && /^Total: (Tus palabras clave|Palabras clave de tu cuenta)/.test(status));
+        if (accountRow && (!action || action === '--')) account = metrics(row);
         return;
       }
       if (!raw || raw === '--') return;
@@ -456,6 +457,27 @@
         if (item.status) campaign.status = item.status;
       });
     }
+
+    Object.values(bestTotals).forEach(report => {
+      if (report.kind !== 'dailyMonth' || report.exactImpressions) return;
+      const kw = keywordMonths[report.month];
+      const account = kw && kw.data.account;
+      if (!account || !(account.impressions > 0) || kw.start !== report.start || kw.end !== report.end) return;
+      const month = data.months.find(item => item.id === report.month);
+      if (!month || month.sourceFile !== report.name) return;
+      if (data.totals) {
+        data.totals.impressions = Math.round((data.totals.impressions || 0) + account.impressions - (month.impressions || 0));
+        withRates(data.totals);
+      }
+      month.impressions = account.impressions;
+      month.ctr = month.impressions ? Math.round(month.clicks / month.impressions * 1e6) / 1e6 : null;
+      month.exact = true;
+      month.exactMetrics = [];
+      month.impressionsFrom = kw.name;
+      // Con una sola campana, sus impresiones son las de la cuenta; con varias, el reparto sigue siendo aproximado.
+      if (Array.isArray(month.records) && month.records.length === 1) month.records[0] = withRates(Object.assign({}, month.records[0], { impressions: account.impressions }));
+      else month.campaignEstimated = ['impressions'];
+    });
 
     const blocks = data.conversionActions || [];
     Object.values(bestActions).forEach(report => {
