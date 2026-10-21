@@ -3948,3 +3948,8 @@ button.topbar-pill[aria-expanded="true"] .status-chevron {
     margin: 0 auto;
   }
 }
+
+/* Informe por dia sin impresiones por palabra: fuera Impresiones y CTR del ranking */
+.gasto-kw-panel.no-impr .gasto-rank-table :is(th, td):is(:nth-child(8), :nth-child(10)) {
+  display: none;
+}
