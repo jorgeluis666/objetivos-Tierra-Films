@@ -116,6 +116,28 @@ paneles de Amador y Aquarius.
 5. **Generacion de Reporte**: el Reporte de Publicidad de una semana de lunes a
    domingo con el diseño del modelo de Tierra Films y descarga en PDF
    (ver [Generacion de Reporte](#generacion-de-reporte)).
+6. **Leads**: CRM de feedback del cliente, copia del modulo de Aquarius
+   (ver [Leads](#leads-crm-de-feedback-del-cliente)).
+
+Segmentacion esta oculto por ahora: su boton del panel lateral lleva `hidden`
+(`index.html`) y el tablero no lo reabre aunque fuera la ultima vista. Para
+volver a mostrarlo basta con quitar ese atributo.
+
+## Leads (CRM de feedback del cliente)
+
+Pestana **Leads** del panel lateral (`js/leads.js`). Una tabla por campana y mes: la inversion y los leads que
+reporta Google Ads (sus conversiones) se cargan solos de Gasto Publicitario (`TierraFilmsGasto.months()`), y el
+cliente completa en las columnas resaltadas lo que de verdad recibio: leads reales, calificados, ventas y monto
+vendido. Con eso el tablero calcula coincidencia, costo por lead real, costo por calificado, costo por venta y
+ROAS. Cada cociente usa solo las campanas y meses que tienen ese dato completo. En "Todo el ano" la tabla suma
+los meses y queda de solo lectura.
+
+- **Se habilita solo con campanas de leads o WhatsApp** (`detectObjective`): en Google Ads, Busqueda, Maximo
+  rendimiento y Demand Gen (no Shopping, Display ni Video). En Tierra Films entra VIDEOS CORPORATIVOS (Busqueda).
+- **Guardado**: por ahora en este navegador (aviso "Modo de prueba"). La hoja privada se conecta con el Web App
+  de `apps-script/crm-leads.gs` y `window.TIERRA_FILMS_CRM = { url, token }`, pero este tablero se publica sin
+  cifrar desde el repositorio publico, asi que el token no puede ir en el codigo: hace falta un lugar privado
+  para el (como el HTML cifrado de Aquarius) antes de conectarla. Lo que completa el cliente nunca va al repo.
 
 ## Generacion de Reporte
 

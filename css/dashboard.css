@@ -3953,3 +3953,164 @@ button.topbar-pill[aria-expanded="true"] .status-chevron {
 .gasto-kw-panel.no-impr .gasto-rank-table :is(th, td):is(:nth-child(8), :nth-child(10)) {
   display: none;
 }
+
+/* ===== 05 - Leads (CRM de feedback del cliente) ===== */
+/* Tabla por campana: la plataforma se carga sola y el cliente completa las columnas resaltadas (leads.js). */
+
+.retail-filters.crm-filters {
+  grid-template-columns: minmax(180px, 260px) minmax(180px, 1fr) minmax(150px, 200px);
+}
+
+.crm-where {
+  margin: 0;
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.crm-actions-filter .gasto-tool-btn {
+  align-self: flex-start;
+}
+
+.crm-mode {
+  margin-top: 0;
+}
+
+.kpi-strip.crm-kpis {
+  margin-bottom: 0;
+}
+
+.crm-summary-panel {
+  margin-top: 20px;
+}
+
+.crm-summary-table {
+  min-width: 1480px;
+}
+
+/* La campana queda fija a la izquierda: al desplazarse hasta las columnas del cliente sigue a la vista. */
+.crm-summary-table tbody td:first-child,
+.crm-summary-table thead tr:last-child th:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  box-shadow: 1px 0 0 var(--border), 9px 0 11px -8px rgba(15, 23, 42, .25);
+}
+
+.crm-summary-table tbody td:first-child { background: #fff; }
+.crm-summary-table thead tr:last-child th:first-child { background: #f8fafc; }
+.crm-summary-table tbody tr.gasto-total-row td:first-child { background: #f8fafc; }
+
+.crm-summary-table td.num small {
+  display: block;
+  margin-top: 3px;
+  color: #94a3b8;
+  font-size: 9px;
+  font-weight: 600;
+}
+
+.crm-strong {
+  color: var(--ink) !important;
+  font-weight: 700;
+}
+
+/* Columnas del cliente: fondo celeste y bordes de marca en todo el alto de la tabla. */
+.data-table .crm-client {
+  background: #f0f9ff;
+  border-right: 1px solid #bae6fd;
+  border-left: 1px solid #bae6fd;
+}
+
+.data-table th.crm-client {
+  color: var(--brand-text);
+  background: var(--brand-soft);
+}
+
+.data-table tr.gasto-total-row td.crm-client {
+  background: #e0f2fe;
+}
+
+.crm-group-row th {
+  padding-top: 8px;
+  padding-bottom: 6px;
+  border-bottom: 0;
+  background: transparent;
+}
+
+.crm-group-row th.crm-client-group {
+  border-top: 1px solid #bae6fd;
+  border-radius: 8px 8px 0 0;
+  color: var(--brand-text);
+  background: var(--brand-soft);
+  font-size: 9px;
+  letter-spacing: .08em;
+  text-align: center;
+}
+
+.crm-cell {
+  width: 96px;
+  height: 32px;
+  padding: 0 8px;
+  border: 1px solid #7dd3fc;
+  border-radius: 7px;
+  color: var(--ink);
+  background: #fff;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  text-align: right;
+  transition: border-color .15s, box-shadow .15s;
+}
+
+.crm-cell::placeholder {
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+.crm-cell:hover {
+  border-color: var(--brand);
+}
+
+.crm-cell:focus {
+  border-color: var(--brand);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(2, 132, 199, .18);
+}
+
+.crm-actions {
+  min-width: 130px;
+  white-space: nowrap;
+}
+
+.crm-row-status {
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.crm-row-status.ok { color: var(--green-text); }
+
+.crm-row-status.error {
+  display: inline-block;
+  max-width: 200px;
+  color: var(--red);
+  white-space: normal;
+}
+
+@media (max-width: 1180px) {
+  .kpi-strip.crm-kpis {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .retail-filters.crm-filters {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 680px) {
+  .kpi-strip.crm-kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

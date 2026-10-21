@@ -36,12 +36,21 @@
       source: 'Fuente: informes de Google Ads',
       footer: 'La semana elegida, lista para descargar en PDF',
     },
+    'view-leads': {
+      title: 'Leads',
+      caption: 'CRM de feedback del cliente',
+      status: 'Leads reales frente a las plataformas',
+      source: 'Fuente: CRM del cliente y Gasto Publicitario',
+      footer: 'Los leads del cliente no se guardan en el repositorio',
+    },
   };
 
   function storedView() {
     try {
       const value = window.localStorage.getItem(VIEW_KEY);
-      return VIEW_META[value] ? value : 'view-obj';
+      // Un modulo oculto en la barra lateral (boton con hidden) no se reabre desde localStorage.
+      const hidden = document.querySelector(`[data-view-target="${value}"][hidden]`);
+      return VIEW_META[value] && !hidden ? value : 'view-obj';
     } catch {
       return 'view-obj';
     }
@@ -77,6 +86,7 @@
     if (viewId === 'view-keywords') window.TierraFilmsKeywords?.init();
     if (viewId === 'view-segmentation') window.TierraFilmsSegmentation?.render();
     if (viewId === 'view-week') window.TierraFilmsWeekReport?.init();
+    if (viewId === 'view-leads') window.TierraFilmsLeads?.init();
     if (viewId === 'view-obj') {
       window.TierraFilmsRefreshLabels?.();
       window.setTimeout(() => window.dispatchEvent(new Event('resize')), 0);
