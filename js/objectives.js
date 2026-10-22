@@ -28,13 +28,14 @@
     { key: 'weekly', label: 'Por semana', daily: true },
     { key: 'monthly', label: 'Por mes', daily: false }
   ];
+  // color: el de su linea cuando los indicadores van juntos en un solo cuadro.
   const CAMPAIGN_METRICS = [
-    { key: 'cost', label: 'Inversión', unit: 'money' },
-    { key: 'conversions', label: 'Conversiones', unit: 'conv' },
-    { key: 'clicks', label: 'Clics', unit: 'count' },
-    { key: 'impressions', label: 'Impresiones', unit: 'count' },
+    { key: 'cost', label: 'Inversión', unit: 'money', color: '#0284c7' },
+    { key: 'conversions', label: 'Conversiones', unit: 'conv', color: '#0f766e' },
+    { key: 'clicks', label: 'Clics', unit: 'count', color: '#ea580c' },
+    { key: 'impressions', label: 'Impresiones', unit: 'count', color: '#7c3aed' },
     // Cociente: sale de sumar inversion y conversiones del dia, la semana o el mes; sin conversiones, hueco.
-    { key: 'costPerConversion', label: 'Costo por conversión', unit: 'money', ratio: ['cost', 'conversions'] }
+    { key: 'costPerConversion', label: 'Costo por conversión', unit: 'money', ratio: ['cost', 'conversions'], color: '#db2777' }
   ];
   const DEFAULT_METRICS = ['cost', 'conversions'];
   // better: hacia donde una variacion es buena (null = neutra). uses: sumas de las que depende el indicador.
@@ -673,7 +674,9 @@
       // Con serie diaria abre por dia; sin ella, el cuadro cae a Por mes. El acumulado no se ofrece: siempre
       // sube y hace ver un crecimiento que no hay (una vista guardada en acumulado vuelve a Por dia).
       mode: MODES.some(mode => mode.key === saved.mode) ? saved.mode : 'daily',
-      collapsed: saved.collapsed === true
+      collapsed: saved.collapsed === true,
+      // Varios indicadores en un solo cuadro (cada uno con su escala) en vez de paneles apilados.
+      combined: saved.combined === true
     };
   }
   function saveCampaignSettings(key, changes) {
@@ -940,19 +943,30 @@
 
   const MODE_TEXT = { daily: 'por día', weekly: 'por semana', monthly: 'por mes' };
 
-  // Un indicador: su linea (contra el mes anterior en las vistas diarias). Varios: uno por panel apilado.
-  function campaignSeries(metrics, modeKey, period, key) {
+  // Un indicador: su linea (contra el mes anterior en las vistas diarias). Varios: uno por panel apilado o,
+  // con combined, todos en un solo cuadro con un color cada uno. Cada punto lleva su valor.
+  function campaignSeries(metrics, modeKey, period, key, combined) {
     const what = modeKey === 'monthly' ? `${viewYear()}` : `${period.month.name} ${period.month.year}`;
     const anyEst = [];
     const datasets = metrics.map((metric, index) => {
       const points = pointsFor(metric, modeKey, period, key);
       if (points.est.some(Boolean)) anyEst.push(metric.label.toLowerCase());
-      const marked = modeKey === 'monthly' ? [period.annual ? points.values.reduce((at, value, i) => (value === null ? at : i), -1) : period.month.month - 1] : [];
-      return lineDataset(points, metric, Object.assign({ valueLabels: marked }, metrics.length > 1 ? { yAxisID: `y${index}` } : {}));
+      const extra = { valueLabels: true };
+      if (metrics.length > 1) extra.yAxisID = `y${index}`;
+      if (combined) {
+        Object.assign(extra, {
+          borderColor: metric.color, pointBorderColor: metric.color, labelColor: metric.color,
+          pointBackgroundColor: points.est.map(flag => (flag ? '#fff' : metric.color))
+        });
+      }
+      return lineDataset(points, metric, extra);
     });
     const labels = pointsFor(metrics[0], modeKey, period, key).labels;
-    const legend = [`<span><i class="legend-line" style="background:${CHART_COLOR}"></i><b>${metrics.length === 1 ? `${escapeHtml(metrics[0].label)} ${MODE_TEXT[modeKey]}` : `${metrics.length} indicadores ${MODE_TEXT[modeKey]}`}, ${escapeHtml(what)}</b></span>`];
-    if (metrics.length > 1) legend.push('<span>Cada indicador con su escala.</span>');
+    const legend = combined
+      ? metrics.map(metric => `<span><i class="legend-line" style="background:${metric.color}"></i><b>${escapeHtml(metric.label)}</b></span>`)
+        .concat(`<span>${MODE_TEXT[modeKey].replace(/^./, letter => letter.toUpperCase())}, ${escapeHtml(what)}. Cada indicador con su escala: compara la forma y lee el valor en el punto.</span>`)
+      : [`<span><i class="legend-line" style="background:${CHART_COLOR}"></i><b>${metrics.length === 1 ? `${escapeHtml(metrics[0].label)} ${MODE_TEXT[modeKey]}` : `${metrics.length} indicadores ${MODE_TEXT[modeKey]}`}, ${escapeHtml(what)}</b></span>`];
+    if (metrics.length > 1 && !combined) legend.push('<span>Cada indicador con su escala.</span>');
     // Con un indicador en vista diaria, el mes anterior en el mismo dia del mes.
     if (metrics.length === 1 && modeKey !== 'monthly' && modeKey !== 'weekly') {
       const previous = gastoMonthByKey(previousKey(period.month));
@@ -976,10 +990,12 @@
     : Number(value).toLocaleString('es-PE', { notation: Math.abs(value) >= 100000 ? 'compact' : 'standard', maximumFractionDigits: 1 }));
 
   // Con un indicador hay un solo eje y; con varios, un eje por indicador apilado en vertical (paneles con su
-  // escala) sobre el mismo eje x. Nunca dos escalas superpuestas.
-  function yScales(metrics) {
+  // escala) sobre el mismo eje x. En un solo cuadro (combined) cada indicador tiene su escala sin eje visible:
+  // dos escalas a la vista sobre las mismas lineas confunden, y el valor ya va en cada punto.
+  function yScales(metrics, combined) {
     const base = unit => ({ beginAtZero: true, border: { display: false }, ticks: { color: AXIS_COLOR, font: { size: 10 }, callback: value => tickValue(unit, value) } });
     if (metrics.length === 1) return { y: Object.assign(base(metrics[0].unit), { grace: '12%', grid: { color: GRID_COLOR } }) };
+    if (combined) return Object.fromEntries(metrics.map((metric, index) => [`y${index}`, { display: false, beginAtZero: true, grace: '18%' }]));
     // Chart.js apila de abajo hacia arriba en el orden de los ejes: se dan al reves para que el primero quede arriba.
     return Object.fromEntries(metrics.map((metric, index) => [`y${index}`, Object.assign(base(metric.unit), {
       stack: 'metrics',
@@ -993,21 +1009,54 @@
   }
 
   const CHART_PLUGINS = [{
-    // Etiqueta de valor en los puntos marcados (valueLabels).
+    // Valor en cada punto (valueLabels: true), menos los ceros (el punto ya esta en la base). Va arriba en un
+    // pico y abajo en un valle, para no montarse en la linea; si choca con otra etiqueta o se sale de su panel
+    // prueba el otro lado y, si tampoco cabe, se omite (queda en el tooltip).
     id: 'gastoValueLabels',
     afterDatasetsDraw(chart) {
       const ctx = chart.ctx;
+      const placed = [];
+      const overlaps = box => placed.some(other => !(box.right < other.left || box.left > other.right || box.bottom < other.top || box.top > other.bottom));
       ctx.save();
+      // Los nombres de los paneles (gastoPanelLabels) tambien ocupan lugar.
+      ctx.font = '600 11px Inter, sans-serif';
+      Object.values(chart.scales).forEach(scaleItem => {
+        if (!scaleItem.options.panelLabel) return;
+        const left = chart.chartArea.left + 4;
+        placed.push({ left, right: left + ctx.measureText(scaleItem.options.panelLabel).width + 8, top: scaleItem.top + 2, bottom: scaleItem.top + 18 });
+      });
       ctx.font = '600 10px Inter, sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillStyle = '#334155';
+      ctx.textBaseline = 'middle';
+      ctx.lineJoin = 'round';
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = 'rgba(255,255,255,.92)';
       chart.data.datasets.forEach((dataset, datasetIndex) => {
-        if (!Array.isArray(dataset.valueLabels)) return;
-        chart.getDatasetMeta(datasetIndex).data.forEach((point, index) => {
+        if (dataset.valueLabels !== true) return;
+        const meta = chart.getDatasetMeta(datasetIndex);
+        const scale = chart.scales[meta.yAxisID];
+        // Solo el panel de arriba puede usar el margen superior del grafico.
+        const top = scale.top <= chart.chartArea.top + 1 ? chart.chartArea.top - 22 : scale.top;
+        ctx.fillStyle = dataset.labelColor || '#334155';
+        meta.data.forEach((point, index) => {
           const value = dataset.data[index];
-          if (value === null || value === undefined || !dataset.valueLabels.includes(index)) return;
-          const text = dataset.unit === 'money' ? tickValue('money', Math.round(value)) : formatValue(value, dataset.unit);
-          ctx.fillText(text, point.x, point.y - 12);
+          if (value === null || value === undefined || Number(value) === 0) return;
+          // Soles sin decimales, salvo montos chicos (S/ 0.40 no debe leerse S/ 0).
+          const text = dataset.unit === 'money' && Math.abs(value) >= 10 ? tickValue('money', Math.round(value)) : formatValue(value, dataset.unit);
+          const half = ctx.measureText(text).width / 2 + 2;
+          const before = dataset.data[index - 1];
+          const after = dataset.data[index + 1];
+          const valley = isNum(before) && isNum(after) && value < before && value < after;
+          const sides = valley ? [point.y + 13, point.y - 12] : [point.y - 12, point.y + 13];
+          // Pegada al borde, la etiqueta se corre hacia adentro para no cortarse.
+          const x = Math.min(Math.max(point.x, half), chart.width - half);
+          const box = sides
+            .map(y => ({ y, left: x - half, right: x + half, top: y - 6, bottom: y + 6 }))
+            .find(item => item.top >= top && item.bottom <= scale.bottom && !overlaps(item));
+          if (!box) return;
+          placed.push(box);
+          ctx.strokeText(text, x, box.y);
+          ctx.fillText(text, x, box.y);
         });
       });
       ctx.restore();
@@ -1058,7 +1107,7 @@
     gasto.charts.delete(id);
   }
 
-  function drawCampaignChart(canvas, series, metrics, modeKey, period) {
+  function drawCampaignChart(canvas, series, metrics, modeKey, period, combined) {
     if (typeof Chart === 'undefined') {
       canvas.parentElement.innerHTML = '<div class="empty-state"><strong>Gráfico no disponible sin conexión.</strong><span>Los KPIs y las tablas siguen visibles.</span></div>';
       return;
@@ -1091,7 +1140,7 @@
         },
         scales: Object.assign({
           x: { grid: { display: false }, border: { color: '#bfdbfe' }, ticks: { color: AXIS_COLOR, font: { size: 10 }, autoSkip: true, maxTicksLimit: modeKey === 'monthly' ? 12 : 16 } }
-        }, yScales(metrics))
+        }, yScales(metrics, combined))
       },
       plugins: CHART_PLUGINS
     }));
@@ -1121,7 +1170,12 @@
     const metricsHost = block.querySelector('[data-camp-metrics]');
     const id = slug(key);
     keepFocus(modesHost, () => { modesHost.innerHTML = chipsHtml(modes, modeKey, `gasto-mode-${id}`); });
-    keepFocus(metricsHost, () => { metricsHost.innerHTML = chipsHtml(metrics, selected.map(metric => metric.key), `gasto-metric-${id}`, true); });
+    const combined = settings.combined && selected.length > 1;
+    // El boton de un solo cuadro aparece con dos o mas indicadores marcados.
+    const combineButton = selected.length > 1
+      ? `<button type="button" class="gasto-chip gasto-combine${combined ? ' active' : ''}" data-camp-combine aria-pressed="${combined}" title="${combined ? 'Volver a un panel por indicador' : 'Juntar los indicadores en un solo cuadro'}">Un solo cuadro</button>`
+      : '';
+    keepFocus(metricsHost, () => { metricsHost.innerHTML = chipsHtml(metrics, selected.map(metric => metric.key), `gasto-metric-${id}`, true) + combineButton; });
     // Nota del grafico: hasta donde llega la serie diaria y que viene repartido.
     const note = block.querySelector('[data-camp-note]');
     const notes = [];
@@ -1141,11 +1195,11 @@
     if (!canvas) return;
     destroyCampaignChart(canvas.id);
     if (settings.collapsed) return;
-    const series = campaignSeries(selected, modeKey, period, key);
-    // Cada panel extra suma alto para que ninguno quede aplastado.
-    canvas.parentElement.style.height = selected.length > 1 ? `${90 + 135 * selected.length}px` : '';
+    const series = campaignSeries(selected, modeKey, period, key, combined);
+    // Cada panel extra suma alto para que ninguno quede aplastado; en un solo cuadro, algo mas de alto para las etiquetas.
+    canvas.parentElement.style.height = combined ? '380px' : selected.length > 1 ? `${90 + 135 * selected.length}px` : '';
     block.querySelector('[data-camp-legend]').innerHTML = series.legend.join('');
-    drawCampaignChart(canvas, series, selected, modeKey, period);
+    drawCampaignChart(canvas, series, selected, modeKey, period, combined);
   }
 
   function destroyCampaignCharts() {
@@ -1574,6 +1628,13 @@
       if (toggle) {
         const key = toggle.closest('.gasto-camp-block').dataset.campaign;
         saveCampaignSettings(key, { collapsed: !campaignSettings(key).collapsed });
+        renderCampaignChart(key);
+        return;
+      }
+      const combine = event.target.closest('[data-camp-combine]');
+      if (combine) {
+        const key = combine.closest('.gasto-camp-block').dataset.campaign;
+        saveCampaignSettings(key, { combined: !campaignSettings(key).combined });
         renderCampaignChart(key);
         return;
       }

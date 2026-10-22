@@ -2479,6 +2479,16 @@
   box-shadow: 0 0 0 3px rgba(2, 132, 199, .2);
 }
 
+/* Boton "Un solo cuadro": al final de los indicadores, separado de las casillas. */
+.gasto-combine {
+  margin-left: auto;
+}
+
+.gasto-combine:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(2, 132, 199, .2);
+}
+
 .gasto-legend {
   display: flex;
   flex-wrap: wrap;
