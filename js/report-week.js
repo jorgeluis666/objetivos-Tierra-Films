@@ -129,15 +129,18 @@
     conversionRate: ratio(totals.conversions, totals.clicks),
   });
 
-  // Totales de un tramo de dias. Cada suma sale de los dias cuando todos la traen real (el costo diario lo es
-  // siempre); si no, del total de esa misma semana en el informe semanal de campana o en el de palabras clave,
-  // solo si su costo cuadra con el costo diario (hay semanas que esos informes traen incompletas). Si no hay
-  // de donde, la suma queda vacia: no se reparte nada.
+  // Totales de un tramo de dias. Una semana del informe semanal de campana de Drive (el total de la cuenta, con
+  // todas las campanas) manda tal cual, tambien si es la semana en curso. Si no, cada suma sale de los dias
+  // cuando todos la traen real (el costo diario lo es siempre); si no, del total de esa misma semana en el
+  // informe semanal del repo o en el de palabras clave, solo si su costo cuadra con el costo diario (hay
+  // semanas que esos informes traen incompletas). Si no hay de donde, la suma queda vacia: no se reparte nada.
   function rangeTotals(from, to) {
     const days = daysIn(from, to);
     if (!days.length) return null;
-    const full = days.length === spanDays(from, to);
     const source = data();
+    const drive = (source.weeks || []).find(week => week.source === 'Drive' && (week.dataStart || week.start) === from && (week.dataEnd || week.end) === to);
+    if (drive) return derive(Object.fromEntries(SUMS.map(field => [field, isNum(drive[field]) ? Number(drive[field]) : null])));
+    const full = days.length === spanDays(from, to);
     const dayCost = days.reduce((acc, day) => acc + Number(day.cost), 0);
     const fits = week => week && week.start === from && week.end === to && isNum(week.cost) && Math.abs(week.cost - dayCost) <= Math.max(1, dayCost * 0.01);
     const weeks = [(source.weeks || []).find(fits), ((source.keywords && source.keywords.weeks) || []).find(fits)].filter(Boolean);
@@ -229,7 +232,9 @@
   function buildReport(item) {
     const current = rangeTotals(item.from, item.to);
     const previousFrom = addDays(item.from, -7);
-    const previous = previousFrom >= (seriesDays()[0] || {}).date ? rangeTotals(previousFrom, addDays(item.to, -7)) : null;
+    const previousTotals = previousFrom >= (seriesDays()[0] || {}).date ? rangeTotals(previousFrom, addDays(item.to, -7)) : null;
+    // Sin costo de esos dias (la semana en curso contra un tramo de la anterior, sin serie por dia real) no hay comparacion.
+    const previous = previousTotals && isNum(previousTotals.cost) ? previousTotals : null;
     return {
       item,
       labels: item.labels,
@@ -501,7 +506,7 @@
     // Sin impresiones (el informe por dia de Drive no las trae) no van Impresiones ni CTR.
     const impressions = isNum(current.impressions);
     const cards = [
-      kpi('Inversión', money(current.cost), previous ? `${delta(current.cost, prev('cost'))} ${vs}` : 'Sin semana anterior'),
+      kpi('Inversión', money(current.cost), previous ? `${delta(current.cost, prev('cost'))} ${vs}` : report.item.closed ? 'Sin semana anterior' : 'Sin comparación: faltan los días de la semana anterior'),
       kpi('Conversiones', count(current.conversions), delta(current.conversions, prev('conversions')) || 'Contactos registrados'),
       kpi('Costo x conversión', money(current.costPerConversion), costChange === null ? 'Inversión ÷ conversiones' : `${delta(current.costPerConversion, prev('costPerConversion'))} (${costChange <= 0 ? 'mejoró' : 'empeoró'})`),
       kpi('Clics', count(current.clicks), join([delta(current.clicks, prev('clicks')), impressions ? `CTR ${percent(current.ctr)}` : ''])),

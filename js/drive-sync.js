@@ -82,8 +82,8 @@
   // Un informe por pestaña. El tipo sale de la fila de encabezados, como en el importador de Python.
   function parseSheet(sheet) {
     const rows = (sheet.rows || []).map(row => row.map(cell => (typeof cell === 'number' ? cell : clean(cell))));
-    // Una hoja importada de un CSV se llama como el archivo (con .csv): basta con el nombre del archivo.
-    const sameName = !sheet.sheet || sheet.sheet === sheet.file || sheet.sheet.replace(/\.csv$/i, '') === sheet.file;
+    // Una hoja importada de un CSV lleva el nombre del CSV ("Informe de campaña (5).csv"): basta con el nombre del archivo.
+    const sameName = !sheet.sheet || sheet.sheet === sheet.file || /\.csv$/i.test(sheet.sheet);
     const name = sameName ? sheet.file : `${sheet.file} > ${sheet.sheet}`;
     const locale = detectLocale(rows);
     const termsIndex = rows.findIndex(row => row.includes('Categoría de búsqueda'));
@@ -98,8 +98,10 @@
     if (headerIndex < 0) return { skipped: `${name}: no parece un informe de campaña de Google Ads.` };
     const header = rows[headerIndex];
     const first = header[0];
-    const kind = /^acci[oó]n de conversi[oó]n$/i.test(first) ? 'actions' : first === 'Estado de la campaña' ? 'period' : null;
-    if (!kind) return { skipped: `${name}: informe segmentado por "${first}"; por ahora el tablero lee el informe del mes sin segmentar o por accion de conversion.` };
+    // El informe del mes por semana ("Semana" en la primera columna) da el total del mes y, ademas, sus semanas.
+    const weekly = first === 'Semana';
+    const kind = /^acci[oó]n de conversi[oó]n$/i.test(first) ? 'actions' : first === 'Estado de la campaña' || weekly ? 'period' : null;
+    if (!kind) return { skipped: `${name}: informe segmentado por "${first}"; por ahora el tablero lee el informe del mes sin segmentar, por semana o por accion de conversion.` };
     const range = rows.slice(0, headerIndex).map(row => parseRange(row.find(cell => typeof cell === 'string' && cell) || '')).find(Boolean);
     if (!range) return { skipped: `${name}: no trae el rango de fechas en la cabecera.` };
     if (range.start.slice(0, 7) !== range.end.slice(0, 7)) return { skipped: `${name}: cubre varios meses (${range.start} a ${range.end}); sube un informe por mes.` };
@@ -112,8 +114,9 @@
     const body = rows.slice(headerIndex + 1);
     const accountRows = body.filter(row => row[statusCol] === 'Total: Cuenta');
     const hasLabel = row => kind === 'actions' && row[0] && row[0] !== '--';
+    const weekOf = row => (weekly && /^\d{4}-\d{2}-\d{2}$/.test(clean(row[0])) ? clean(row[0]) : '');
 
-    const accountRow = accountRows.find(row => !hasLabel(row));
+    const accountRow = accountRows.find(row => !hasLabel(row) && !weekOf(row));
     let totals = accountRow ? metricsOf(accountRow) : undefined;
     // Google Ads calcula el costo por conversion con las conversiones sin redondear (2.99 puede ser 2.9913).
     const cpaCol = col(['Costo/conv.', 'Coste/conv.']);
@@ -121,7 +124,7 @@
     if (!totals && kind === 'period') {
       // Sin fila de total: suma las filas por campaña.
       const campaignCol = header.indexOf('Campaña');
-      totals = body.filter(row => row[campaignCol] && row[campaignCol] !== '--' && !String(row[statusCol]).startsWith('Total'))
+      totals = body.filter(row => row[campaignCol] && row[campaignCol] !== '--' && !String(row[statusCol]).startsWith('Total') && (!weekly || weekOf(row)))
         .map(metricsOf)
         .reduce((sum, item) => Object.fromEntries(Object.keys(item).map(key => [key, (sum[key] || 0) + (item[key] || 0)])), {});
     }
@@ -135,6 +138,7 @@
       campaigns[campaign] = { name: campaign, status: clean(row[statusCol]), dailyBudget: budgetCol !== undefined ? parseNumber(row[budgetCol], locale) : null };
     });
     const report = { kind, name, file: sheet.file, modified: sheet.modified || '', month: range.start.slice(0, 7), start: range.start, end: range.end, totals: totals || null, campaigns: Object.values(campaigns) };
+    if (weekly && totals) Object.assign(report, weeklyDetail(body, { range, statusCol, campaignCol, metricsOf, weekOf, totals, month: report.month }));
     if (kind === 'actions') {
       const actions = accountRows.filter(hasLabel).map(row => ({ name: row[0], conversions: metricsOf(row).conversions || 0 }));
       if (!actions.length) return { skipped: `${name}: no tiene filas por accion de conversion.` };
@@ -142,6 +146,38 @@
       report.actions = { month: report.month, start: range.start, end: range.end, sourceFile: name, total: totals ? totals.conversions : actions.reduce((sum, a) => sum + a.conversions, 0), actions };
     }
     return { report };
+  }
+
+  const addDays = (iso, days) => new Date(Date.parse(`${iso}T00:00:00Z`) + days * 86400000).toISOString().slice(0, 10);
+  const SUM_KEYS = ['cost', 'impressions', 'clicks', 'conversions'];
+  const sumMetrics = items => Object.fromEntries(SUM_KEYS.map(key => [key, Math.round(items.reduce((sum, item) => sum + (Number(item[key]) || 0), 0) * 100) / 100]));
+
+  // Informe de campana del mes por semana: cada semana (de lunes a domingo, recortada al rango del informe) con
+  // el total de la cuenta y sus campanas, y las campanas del mes sumando sus semanas. Si el informe se descargo
+  // filtrando campanas, lo que el total de la cuenta tiene de mas va como "Otras campanas" para que el detalle
+  // sume el mes.
+  function weeklyDetail(body, { range, statusCol, campaignCol, metricsOf, weekOf, totals, month }) {
+    const campaignRows = body.filter(row => weekOf(row) && campaignCol >= 0 && clean(row[campaignCol]) && clean(row[campaignCol]) !== '--' && !String(row[statusCol]).startsWith('Total'));
+    const accountByWeek = new Map(body.filter(row => weekOf(row) && row[statusCol] === 'Total: Cuenta').map(row => [weekOf(row), metricsOf(row)]));
+    const starts = [...new Set([...accountByWeek.keys(), ...campaignRows.map(weekOf)])].sort();
+    const weeks = starts.map(start => {
+      const campaigns = campaignRows.filter(row => weekOf(row) === start).map(row => Object.assign({ campaign: clean(row[campaignCol]) }, metricsOf(row)));
+      const account = accountByWeek.get(start) || sumMetrics(campaigns);
+      const dataStart = start < range.start ? range.start : start;
+      const end = addDays(start, 6);
+      const dataEnd = end > range.end ? range.end : end;
+      return Object.assign({ start, month, dataStart, dataEnd, days: daysBetween(dataStart, dataEnd) }, sumMetrics([account]), { campaigns: campaigns.map(item => withRates(item)) });
+    });
+    const byCampaign = new Map();
+    campaignRows.forEach(row => {
+      const campaign = clean(row[campaignCol]);
+      if (!byCampaign.has(campaign)) byCampaign.set(campaign, []);
+      byCampaign.get(campaign).push(metricsOf(row));
+    });
+    const records = [...byCampaign.entries()].map(([campaign, items]) => Object.assign({ campaign }, sumMetrics(items)));
+    const rest = Object.fromEntries(SUM_KEYS.map(key => [key, Math.round(((Number(totals[key]) || 0) - records.reduce((sum, item) => sum + (Number(item[key]) || 0), 0)) * 100) / 100]));
+    if (records.length && rest.cost > 0.05) records.push(Object.assign({ campaign: 'Otras campañas' }, rest));
+    return { weeks, records };
   }
 
   // Informe por dia (p. ej. "Informe - Plataforma": Dia x anuncio x palabra clave de la busqueda). Da por dia,
@@ -443,12 +479,53 @@
         rangeEnd: report.end,
         daysWithData: daysBetween(report.start, report.end)
       });
-      // El detalle por campaña del repo ya no cuadra con el total nuevo; el informe por dia trae el suyo.
+      // El detalle por campaña del repo ya no cuadra con el total nuevo; el informe por dia y el semanal traen el suyo.
       delete month.records;
       if (fromDaily) month.records = report.campaigns.map(item => withRates({ campaign: item.name, cost: item.cost, impressions: item.impressions, clicks: item.clicks, conversions: item.conversions }));
+      if (report.records) month.records = report.records.map(item => withRates(Object.assign({}, item)));
+      if (report.weeks) {
+        month.weeks = report.weeks.map(week => week.start);
+        month.weekDays = report.weeks.reduce((sum, week) => sum + week.days, 0);
+      }
       applied.push(report.name);
       if (report.end > data.period.end) data.period.end = report.end;
     });
+
+    // Semanas de lunes a domingo: las del informe semanal de cada mes (el que dio el total del mes); una semana que
+    // cruza de mes junta los dos tramos. Si el otro mes no tiene informe semanal en Drive, la semana queda como la
+    // tiene el repo (o, si el repo no la tiene, con el tramo que hay).
+    const weekly = Object.values(bestTotals).filter(report => Array.isArray(report.weeks) && report.weeks.length);
+    if (weekly.length) {
+      const weeklyMonths = new Set(weekly.map(report => report.month));
+      const pieces = new Map();
+      weekly.forEach(report => report.weeks.forEach(piece => {
+        if (!pieces.has(piece.start)) pieces.set(piece.start, []);
+        pieces.get(piece.start).push(piece);
+      }));
+      const weeks = (data.weeks || []).slice();
+      pieces.forEach((items, start) => {
+        const end = addDays(start, 6);
+        const index = weeks.findIndex(week => week.start === start);
+        const complete = [start.slice(0, 7), end.slice(0, 7)].every(month => weeklyMonths.has(month));
+        if (index >= 0 && !complete) return;
+        const byCampaign = new Map();
+        items.forEach(piece => piece.campaigns.forEach(item => {
+          if (!byCampaign.has(item.campaign)) byCampaign.set(item.campaign, []);
+          byCampaign.get(item.campaign).push(item);
+        }));
+        const week = withRates(Object.assign({
+          start, end, source: 'Drive',
+          dataStart: items.map(piece => piece.dataStart).sort()[0],
+          dataEnd: items.map(piece => piece.dataEnd).sort().slice(-1)[0],
+          days: items.reduce((sum, piece) => sum + piece.days, 0),
+          daysByMonth: Object.fromEntries(items.map(piece => [piece.month, piece.days]))
+        }, sumMetrics(items), {
+          campaigns: [...byCampaign.entries()].map(([campaign, list]) => withRates(Object.assign({ campaign }, sumMetrics(list))))
+        }));
+        if (index >= 0) weeks[index] = week; else weeks.push(week);
+      });
+      data.weeks = weeks.sort((a, b) => a.start.localeCompare(b.start));
+    }
 
     // El presupuesto vigente es el del informe mas reciente (en setiembre paso de S/ 110 a S/ 112).
     const newest = Object.values(bestTotals).sort((a, b) => b.end.localeCompare(a.end))[0];
