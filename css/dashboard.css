@@ -4114,3 +4114,26 @@ button.topbar-pill[aria-expanded="true"] .status-chevron {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+/* Acceso a la hoja Consolidado Ads x CRM (se abre en otra pestaña; su data queda pendiente) */
+.s-link {
+  text-decoration: none;
+}
+
+.s-item.s-link::after {
+  content: "\2197";
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.s-link .module-status {
+  flex: 0 0 auto;
+  margin-left: 0;
+  border: 1px solid #fde68a;
+  color: #92400e;
+  background: #fffbeb;
+}
+
+.shell.sidebar-collapsed .s-link .module-status {
+  display: none;
+}
