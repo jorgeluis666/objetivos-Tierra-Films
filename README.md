@@ -40,9 +40,12 @@ paneles de Amador y Aquarius.
      datos.
    - **Distribución de inversión por campaña** (estado y presupuesto vigentes en
      el último informe) y, debajo, **un cuadro por campaña**: KPIs con variación,
-     gráfico con `Acumulado del mes`, `Por día`, `Por semana` y `Por mes` y chips
-     de indicadores (varios = paneles apilados, cada uno con su escala; uno solo
-     en vista diaria = contra el mes anterior en el mismo día). Lo repartido desde
+     gráfico con `Por día`, `Por semana` y `Por mes` (sin acumulado: siempre sube
+     y exagera el crecimiento) y chips de indicadores: inversión, conversiones,
+     clics, impresiones y costo por conversión (inversión / conversiones de cada
+     día, semana o mes; un día sin conversiones queda como hueco). Varios
+     indicadores van en paneles apilados, cada uno con su escala; uno solo en
+     vista diaria va contra el mes anterior en el mismo día. Lo repartido desde
      semanas va punteado con `(est.)`. Las vistas diarias necesitan la serie por
      día del mes (hoy: costo real del 1-jun al 20-set y el resto repartido de las
      semanas; octubre solo tiene Por mes). Dentro del cuadro: `Conversiones por

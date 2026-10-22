@@ -24,7 +24,6 @@
   // Vistas del grafico de cada campana. Las diarias salen de la serie por dia (window.TierraFilmsDays):
   // con una sola campana, la cuenta y la campana son lo mismo.
   const MODES = [
-    { key: 'cumulative', label: 'Acumulado del mes', daily: true },
     { key: 'daily', label: 'Por día', daily: true },
     { key: 'weekly', label: 'Por semana', daily: true },
     { key: 'monthly', label: 'Por mes', daily: false }
@@ -33,7 +32,9 @@
     { key: 'cost', label: 'Inversión', unit: 'money' },
     { key: 'conversions', label: 'Conversiones', unit: 'conv' },
     { key: 'clicks', label: 'Clics', unit: 'count' },
-    { key: 'impressions', label: 'Impresiones', unit: 'count' }
+    { key: 'impressions', label: 'Impresiones', unit: 'count' },
+    // Cociente: sale de sumar inversion y conversiones del dia, la semana o el mes; sin conversiones, hueco.
+    { key: 'costPerConversion', label: 'Costo por conversión', unit: 'money', ratio: ['cost', 'conversions'] }
   ];
   const DEFAULT_METRICS = ['cost', 'conversions'];
   // better: hacia donde una variacion es buena (null = neutra). uses: sumas de las que depende el indicador.
@@ -669,8 +670,9 @@
     const metrics = CAMPAIGN_METRICS.map(metric => metric.key).filter(metricKey => Array.isArray(saved.metrics) && saved.metrics.includes(metricKey));
     return {
       metrics: metrics.length ? metrics : DEFAULT_METRICS,
-      // Con serie diaria abre en el acumulado del mes; sin ella, el cuadro cae a Por mes.
-      mode: MODES.some(mode => mode.key === saved.mode) ? saved.mode : 'cumulative',
+      // Con serie diaria abre por dia; sin ella, el cuadro cae a Por mes. El acumulado no se ofrece: siempre
+      // sube y hace ver un crecimiento que no hay (una vista guardada en acumulado vuelve a Por dia).
+      mode: MODES.some(mode => mode.key === saved.mode) ? saved.mode : 'daily',
       collapsed: saved.collapsed === true
     };
   }
@@ -861,12 +863,23 @@
     MONTH_NAMES.forEach((_, index) => {
       const month = gastoMonthByKey(monthKeyOf(year, index + 1));
       const campaign = month && month.hasData ? month.campaigns.find(item => item.key === key) : null;
-      const ok = campaign && isActive(campaign) && isNum(campaign[metric.key]);
-      values.push(ok ? Number(campaign[metric.key]) : null);
-      est.push(Boolean(ok && month.estimated.includes(metric.key)));
+      // El costo por conversion del mes es el de derive (el que reporta Google Ads cuando lo trae).
+      const value = !campaign || !isActive(campaign) ? null
+        : metric.ratio ? (isNum(derive(campaign)[metric.key]) ? Number(derive(campaign)[metric.key]) : null)
+          : metricValue(campaign, metric);
+      values.push(value);
+      est.push(Boolean(value !== null && metricUses(metric).some(field => month.estimated.includes(field))));
     });
     return { labels: SHORT_NAMES, values, est };
   }
+
+  // Valor de un indicador del grafico en una fila (dia, semana o campana del mes); null si no hay dato.
+  const metricUses = metric => metric.ratio || [metric.key];
+  function metricValue(item, metric) {
+    if (metric.ratio) return ratio(item[metric.ratio[0]], item[metric.ratio[1]]);
+    return isNum(item[metric.key]) ? Number(item[metric.key]) : null;
+  }
+  const rowEstimated = (row, metric) => Boolean(row.estimated && metricUses(metric).some(field => row.estimated[field]));
 
   // Valores por dia del mes (indice 0 = dia 1); fuera de la serie, null.
   function dailyPoints(month, rows, metric) {
@@ -874,43 +887,32 @@
     const est = Array.from({ length: month.daysInMonth }, () => false);
     rows.forEach(row => {
       const index = Number(row.date.slice(8, 10)) - 1;
-      if (!isNum(row[metric.key])) return;
-      values[index] = Number(row[metric.key]);
-      est[index] = Boolean(row.estimated && row.estimated[metric.key]);
+      const value = metricValue(row, metric);
+      if (value === null) return;
+      values[index] = value;
+      est[index] = rowEstimated(row, metric);
     });
     return { labels: values.map((_, index) => `${index + 1}`), values, est };
-  }
-
-  function cumulativePoints(points) {
-    let total = 0;
-    let estimated = false;
-    // Despues del ultimo dia con dato la linea se corta (no se arrastra el acumulado).
-    const last = points.values.reduce((at, value, index) => (value === null ? at : index), -1);
-    return {
-      labels: points.labels,
-      values: points.values.map((value, index) => (index > last ? null : (total += value || 0))),
-      est: points.est.map((flag, index) => (estimated = estimated || flag) && index <= last)
-    };
   }
 
   // Por semana dentro del mes (lunes a domingo, cortadas en los bordes del mes).
   function weeklyPoints(month, rows, metric) {
     const groups = [];
     rows.forEach(row => {
-      if (!isNum(row[metric.key])) return;
+      if (!metricUses(metric).every(field => isNum(row[field]))) return;
       const date = new Date(`${row.date}T00:00:00Z`);
       const monday = new Date(date);
       monday.setUTCDate(date.getUTCDate() - ((date.getUTCDay() + 6) % 7));
       const start = monday.toISOString().slice(0, 10);
       let group = groups.find(item => item.start === start);
-      if (!group) groups.push(group = { start, first: row.date, last: row.date, value: 0, est: false });
+      if (!group) groups.push(group = { start, first: row.date, last: row.date, sums: {}, est: false });
       group.last = row.date;
-      group.value += Number(row[metric.key]);
-      group.est = group.est || Boolean(row.estimated && row.estimated[metric.key]);
+      metricUses(metric).forEach(field => { group.sums[field] = (group.sums[field] || 0) + Number(row[field]); });
+      group.est = group.est || rowEstimated(row, metric);
     });
     return {
       labels: groups.map(group => `${Number(group.first.slice(8, 10))}-${Number(group.last.slice(8, 10))} ${MONTH_SHORT[month.month - 1]}`),
-      values: groups.map(group => group.value),
+      values: groups.map(group => metricValue(group.sums, metric)),
       est: groups.map(group => group.est)
     };
   }
@@ -919,8 +921,7 @@
     if (modeKey === 'monthly') return monthlyPoints(metric, key);
     const rows = month === period.month ? campaignDaily(period, key) : campaignDays(month, key);
     if (modeKey === 'weekly') return weeklyPoints(month, rows, metric);
-    const daily = dailyPoints(month, rows, metric);
-    return modeKey === 'cumulative' ? cumulativePoints(daily) : daily;
+    return dailyPoints(month, rows, metric);
   }
 
   // Dataset con lo estimado punteado (segmentos que tocan un punto estimado) y puntos huecos.
@@ -937,7 +938,7 @@
     }, extra || {});
   }
 
-  const MODE_TEXT = { cumulative: 'acumulado del mes', daily: 'por día', weekly: 'por semana', monthly: 'por mes' };
+  const MODE_TEXT = { daily: 'por día', weekly: 'por semana', monthly: 'por mes' };
 
   // Un indicador: su linea (contra el mes anterior en las vistas diarias). Varios: uno por panel apilado.
   function campaignSeries(metrics, modeKey, period, key) {
@@ -947,7 +948,7 @@
       const points = pointsFor(metric, modeKey, period, key);
       if (points.est.some(Boolean)) anyEst.push(metric.label.toLowerCase());
       const marked = modeKey === 'monthly' ? [period.annual ? points.values.reduce((at, value, i) => (value === null ? at : i), -1) : period.month.month - 1] : [];
-      return lineDataset(points, metric, Object.assign({ valueLabels: marked, fill: metrics.length === 1 && modeKey === 'cumulative' }, metrics.length > 1 ? { yAxisID: `y${index}` } : {}));
+      return lineDataset(points, metric, Object.assign({ valueLabels: marked }, metrics.length > 1 ? { yAxisID: `y${index}` } : {}));
     });
     const labels = pointsFor(metrics[0], modeKey, period, key).labels;
     const legend = [`<span><i class="legend-line" style="background:${CHART_COLOR}"></i><b>${metrics.length === 1 ? `${escapeHtml(metrics[0].label)} ${MODE_TEXT[modeKey]}` : `${metrics.length} indicadores ${MODE_TEXT[modeKey]}`}, ${escapeHtml(what)}</b></span>`];
@@ -1107,7 +1108,7 @@
     const modes = rows.length ? MODES : MODES.filter(mode => !mode.daily);
     const modeKey = modes.some(mode => mode.key === settings.mode) ? settings.mode : 'monthly';
     // En una vista diaria solo los indicadores que la serie trae (junio, por ejemplo, solo tiene costo por dia).
-    const metrics = CAMPAIGN_METRICS.filter(metric => modeKey === 'monthly' || rows.some(row => isNum(row[metric.key])));
+    const metrics = CAMPAIGN_METRICS.filter(metric => modeKey === 'monthly' || rows.some(row => metricValue(row, metric) !== null));
     let selected = metrics.filter(metric => settings.metrics.includes(metric.key));
     if (!selected.length) selected = metrics.filter(metric => DEFAULT_METRICS.includes(metric.key));
     if (!selected.length) selected = metrics.slice(0, 1);
