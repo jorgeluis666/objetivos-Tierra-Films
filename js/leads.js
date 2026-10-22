@@ -11,9 +11,9 @@
  * marca no tiene ninguna, el modulo no aparece en el panel lateral.
  *
  * Lo que completa el cliente se guarda en una hoja de Google privada de la agencia, a traves del Web App de
- * apps-script/crm-leads.gs (URL y token en window.TIERRA_FILMS_CRM). Nunca pasa por el repositorio publico.
- * Este tablero se publica sin cifrar, asi que el token todavia no tiene donde vivir: mientras tanto se guarda en
- * este navegador y el modulo lo avisa (README > Leads).
+ * apps-script/crm-leads.gs (URL y token en window.TIERRA_FILMS_CRM, que el build incrusta desde los secrets
+ * TF_CRM_URL y TF_CRM_TOKEN dentro del HTML cifrado). Nunca pasa por el repositorio publico. Sin esos secrets
+ * se guarda en este navegador y el modulo lo avisa (README > Leads).
  */
 (function () {
   'use strict';

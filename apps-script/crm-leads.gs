@@ -9,7 +9,7 @@
  * 3. Ejecutar crearToken() una vez: crea la pestana y deja el token en el registro de ejecucion.
  * 4. Implementar > Nueva implementacion > Aplicacion web: ejecutar como "Yo", acceso "Cualquier usuario".
  *    Copiar la URL /exec.
- * 5. Conectar la URL y el token al tablero: README > Leads (pendiente, el tablero se publica sin cifrar).
+ * 5. Conectar la URL y el token al tablero: secrets TF_CRM_URL y TF_CRM_TOKEN de GitHub (README > Leads).
  * Si se cambia este codigo: Implementar > Gestionar implementaciones > editar > Version: Nueva version.
  * La URL y el token no cambian.
  *

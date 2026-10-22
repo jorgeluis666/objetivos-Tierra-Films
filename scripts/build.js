@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 
@@ -11,92 +12,79 @@ function readFile(relativePath) {
   return fs.readFileSync(path.join(ROOT, relativePath), 'utf8');
 }
 
-function copyDirectory(source, target) {
-  if (!fs.existsSync(source)) return;
-  fs.mkdirSync(target, { recursive: true });
-  for (const entry of fs.readdirSync(source, { withFileTypes: true })) {
-    const sourcePath = path.join(source, entry.name);
-    const targetPath = path.join(target, entry.name);
-    if (entry.isDirectory()) copyDirectory(sourcePath, targetPath);
-    else fs.copyFileSync(sourcePath, targetPath);
-  }
-}
+// GitHub Pages no tiene Basic Auth: con TF_PAGE_PASSWORD el tablero se cifra (AES-256-GCM, llave
+// PBKDF2-SHA256) dentro de deploy/pages-gate.html, que lo descifra en el navegador con la clave.
+// La salida es compatible con WebCrypto: el tag de GCM va pegado al final del texto cifrado.
+// Es el mismo esquema que los tableros de Aquarius y Hers.
+const PBKDF2_ITERATIONS = 600000;
 
-function escapeRegExp(text) {
-  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
-// La pantalla de acceso vive fuera del HTML inlineado, asi que dist/ necesita
-// una copia del script y de la imagen de fondo o el build sale sin login.
-function copyLoginAssets() {
-  for (const asset of ['auth-login.js', 'login-bg.jpg']) {
-    const source = path.join(ROOT, asset);
-    if (!fs.existsSync(source)) {
-      console.warn(`[build] falta ${asset}; dist quedara sin ese archivo`);
-      continue;
-    }
-    fs.copyFileSync(source, path.join(DIST_DIR, asset));
-  }
+function encryptPage(html, password) {
+  // Sal fija por marca (no es secreta): la llave que recuerda el navegador sigue sirviendo despues del deploy
+  // diario y solo deja de servir cuando cambia la clave. El iv si es nuevo en cada build.
+  const salt = crypto.createHash('sha256').update('lr-gate:tierra-films').digest().subarray(0, 16);
+  const iv = crypto.randomBytes(12);
+  const key = crypto.pbkdf2Sync(password.normalize('NFC'), salt, PBKDF2_ITERATIONS, 32, 'sha256');
+  const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
+  const data = Buffer.concat([cipher.update(html, 'utf8'), cipher.final(), cipher.getAuthTag()]);
+  const payload = JSON.stringify({
+    iterations: PBKDF2_ITERATIONS,
+    salt: salt.toString('base64'),
+    iv: iv.toString('base64'),
+    data: data.toString('base64'),
+  });
+  const template = readFile('deploy/pages-gate.html');
+  if (template.split('__PAYLOAD__').length !== 2) throw new Error('deploy/pages-gate.html debe contener __PAYLOAD__ exactamente una vez');
+  return template.replace('__PAYLOAD__', () => payload).replace(/\r\n?/g, '\n');
 }
 
 function main() {
   let html = readFile('index.html');
+  // Al incrustar el CSS la ruta pasa a resolverse desde dist/index.html,
+  // asi que '../assets/' tiene que quedar como 'assets/'.
   const css = readFile('css/dashboard.css').replaceAll('../assets/', 'assets/');
-  const driveSync = readFile('js/drive-sync.js');
-  const app = readFile('js/objectives.js');
-  const projections = readFile('js/projections.js');
-  const keywords = readFile('js/keywords.js');
-  const searchInsights = readFile('js/search-insights.js');
-  const segmentation = readFile('js/segmentation.js');
-  const reportWeek = readFile('js/report-week.js');
-  const leads = readFile('js/leads.js');
-  const navigation = readFile('js/navigation.js');
-  const sidebar = readFile('js/sidebar.js');
+  // '\\u003c' es el texto < (no el caracter <): un "</script>" en los datos cerraria el <script>.
   const data = readFile('data/tierra-films-lima-retail-2026.json').replace(/</g, '\\u003c');
   // Copia local de las carpetas de Drive (scripts/drive-snapshot.py); opcional.
   const snapshot = fs.existsSync(path.join(ROOT, 'data/drive-snapshot.json'))
     ? readFile('data/drive-snapshot.json').replace(/</g, '\\u003c')
     : 'null';
 
-  // Los assets llevan ?v=<version> para evitar caches viejos en GitHub Pages,
-  // asi que el build ubica cada etiqueta ignorando ese sufijo.
-  const styleTag = file => new RegExp('<link rel="stylesheet" href="' + escapeRegExp(file) + '(?:\\?[^"]*)?">');
-  const scriptTag = file => new RegExp('<script src="' + escapeRegExp(file) + '(?:\\?[^"]*)?"></script>');
+  // Los assets llevan ?v=<version> para evitar caches viejos, asi que el build ubica cada etiqueta
+  // ignorando ese sufijo. Reemplazos con funcion: una cadena de reemplazo interpretaria "$'" o "$&"
+  // dentro del codigo o de los datos.
+  html = html.replace(/<link rel="stylesheet" href="css\/dashboard\.css(?:\?[^"]*)?">/, () => `<style>${css}</style>`);
+  // Se incrustan, en el orden de index.html, todos los js/ que carga: no hay otra lista que mantener.
+  html = html.replace(/<script src="js\/([\w-]+\.js)(?:\?[^"]*)?"><\/script>/g, (_, file) => `<script>${readFile(`js/${file}`)}</script>`);
+  // dist/ solo lleva index.html, assets/ y CNAME: un css o js local que no se incruste quedaria roto.
+  if (/<link rel="stylesheet" href="(?!https:)|<script src="(?!https:)/.test(html)) {
+    throw new Error('index.html carga un css o js local que el build no incrusta');
+  }
 
-  html = html.replace(styleTag('css/dashboard.css'), `<style>${css}</style>`);
-  html = html.replace(scriptTag('js/drive-sync.js'), `<script>${driveSync}</script>`);
-  html = html.replace(scriptTag('js/objectives.js'), `<script>${app}</script>`);
-  html = html.replace(scriptTag('js/projections.js'), `<script>${projections}</script>`);
-  html = html.replace(scriptTag('js/keywords.js'), `<script>${keywords}</script>`);
-  html = html.replace(scriptTag('js/search-insights.js'), `<script>${searchInsights}</script>`);
-  html = html.replace(scriptTag('js/segmentation.js'), `<script>${segmentation}</script>`);
-  html = html.replace(scriptTag('js/report-week.js'), `<script>${reportWeek}</script>`);
-  html = html.replace(scriptTag('js/leads.js'), `<script>${leads}</script>`);
-  html = html.replace(scriptTag('js/navigation.js'), `<script>${navigation}</script>`);
-  html = html.replace(scriptTag('js/sidebar.js'), `<script>${sidebar}</script>`);
-  html = html.replace(
-    '</head>',
-    `<script>window.TIERRA_FILMS_RETAIL_DATA = ${data}; window.TIERRA_FILMS_DRIVE_SNAPSHOT = ${snapshot};</script></head>`
-  );
+  // CRM de leads: el Web App de la hoja privada (apps-script/crm-leads.gs). URL y token no viven en el
+  // repo: llegan por TF_CRM_URL y TF_CRM_TOKEN y solo quedan dentro del HTML cifrado.
+  const crmConfig = { url: process.env.TF_CRM_URL || '', token: process.env.TF_CRM_TOKEN || '' };
+  const crmJson = JSON.stringify(crmConfig).replace(/</g, '\\u003c');
+  if (crmConfig.url && crmConfig.token) console.log('[build] CRM de leads conectado a la hoja privada');
+  else console.warn('[build] sin TF_CRM_URL/TF_CRM_TOKEN: el modulo Leads guarda solo en el navegador');
+
+  html = html.replace('</head>', () => `<script>window.TIERRA_FILMS_RETAIL_DATA = ${data};window.TIERRA_FILMS_DRIVE_SNAPSHOT = ${snapshot};window.TIERRA_FILMS_CRM = ${crmJson};</script></head>`);
 
   try {
     fs.rmSync(DIST_DIR, { recursive: true, force: true });
   } catch (error) {
     console.warn(`[build] no se pudo limpiar dist completo: ${error.message}`);
   }
-  fs.mkdirSync(path.join(DIST_DIR, 'data'), { recursive: true });
-  fs.writeFileSync(DIST_HTML, html, 'utf8');
-  try {
-    fs.copyFileSync(
-      path.join(ROOT, 'data', 'tierra-films-lima-retail-2026.json'),
-      path.join(DIST_DIR, 'data', 'tierra-films-lima-retail-2026.json')
-    );
-    copyDirectory(path.join(ROOT, 'assets'), path.join(DIST_DIR, 'assets'));
-  } catch (error) {
-    console.warn(`[build] index actualizado; no se pudo copiar dist/data o assets: ${error.message}`);
-  }
+  fs.mkdirSync(DIST_DIR, { recursive: true });
+  // Los datos van dentro del HTML (cifrado con clave): dist/ no lleva la carpeta data/.
+  const pagePassword = process.env.TF_PAGE_PASSWORD || '';
+  fs.writeFileSync(DIST_HTML, pagePassword ? encryptPage(html, pagePassword) : html, 'utf8');
+  if (pagePassword) console.log('[build] dist/index.html cifrado con TF_PAGE_PASSWORD');
+  else console.warn('[build] sin TF_PAGE_PASSWORD: dist/index.html queda sin clave (solo para uso local)');
 
-  copyLoginAssets();
+  // El logo y el fondo del acceso se referencian por URL, no se incrustan.
+  fs.cpSync(path.join(ROOT, 'assets'), path.join(DIST_DIR, 'assets'), { recursive: true });
+  // Dominio propio en GitHub Pages; va junto al sitio igual que en los demas tableros de la agencia.
+  fs.copyFileSync(path.join(ROOT, 'CNAME'), path.join(DIST_DIR, 'CNAME'));
 
   console.log(`[build] escrito dist/index.html (${(fs.statSync(DIST_HTML).size / 1024).toFixed(1)} KB)`);
 }

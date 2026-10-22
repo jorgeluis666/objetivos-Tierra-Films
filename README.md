@@ -5,10 +5,10 @@ paneles de Amador y Aquarius.
 
 ## Acceso
 
-- Password del login: `TF2026`
-- Entrada local: `index.html`
-- Publicado: https://tierrafilms.limaretail.com (GitHub Pages desde `main`; el dominio sale del archivo `CNAME`)
-- Build: `dist/index.html`
+- URL publica: **https://tierrafilms.limaretail.com** (con clave, ver "Publicacion en tierrafilms.limaretail.com").
+- La clave no esta en el codigo: es el secret `TF_PAGE_PASSWORD` de GitHub.
+- Entrada local: `index.html` (sin clave)
+- Build publicado: `dist/index.html`
 
 ## Modulos
 
@@ -142,10 +142,11 @@ los meses y queda de solo lectura.
 
 - **Se habilita solo con campanas de leads o WhatsApp** (`detectObjective`): en Google Ads, Busqueda, Maximo
   rendimiento y Demand Gen (no Shopping, Display ni Video). En Tierra Films entra VIDEOS CORPORATIVOS (Busqueda).
-- **Guardado**: por ahora en este navegador (aviso "Modo de prueba"). La hoja privada se conecta con el Web App
-  de `apps-script/crm-leads.gs` y `window.TIERRA_FILMS_CRM = { url, token }`, pero este tablero se publica sin
-  cifrar desde el repositorio publico, asi que el token no puede ir en el codigo: hace falta un lugar privado
-  para el (como el HTML cifrado de Aquarius) antes de conectarla. Lo que completa el cliente nunca va al repo.
+- **Guardado**: sin la hoja privada, en este navegador (aviso "Modo de prueba"). La hoja se conecta con el Web
+  App de `apps-script/crm-leads.gs` (instrucciones al inicio del archivo): en GitHub > Settings > Secrets and
+  variables > Actions, crear `TF_CRM_URL` (la URL `/exec`) y `TF_CRM_TOKEN` (el token de `crearToken`). El
+  siguiente deploy los incrusta como `window.TIERRA_FILMS_CRM` dentro del HTML cifrado con `TF_PAGE_PASSWORD`;
+  nunca quedan en el repo. Lo que completa el cliente tampoco va al repo.
 
 ## Generacion de Reporte
 
@@ -384,7 +385,9 @@ mismo esquema que el tablero de Terminal Pesquero.
    - Ejecutar como: **Yo**.
    - Quien tiene acceso: **Cualquier persona**.
 4. Copia la URL que termina en `/exec` y pegala en `DRIVE_SYNC_URL`, al inicio
-   de `js/drive-sync.js`. Sube el cambio a `main`.
+   de `js/drive-sync.js`. Sube el cambio a `main`. El navegador llama a esa URL
+   directamente (`script.google.com`), asi que la sincronizacion sigue igual
+   detras de la pantalla de clave.
 
 Si luego cambias el script, usa **Implementar > Gestionar implementaciones >
 Editar > Nueva version** para que la URL siga siendo la misma. Si cambias
@@ -395,8 +398,9 @@ el disparador.
 Para sumar otra carpeta, agregala en `FOLDERS` (Apps Script) y en
 `FOLDER_URLS` (`js/drive-sync.js`) y publica una nueva version del script.
 
-Ojo: cualquiera con esa URL puede leer los informes de las carpetas. Como el repo
-es publico, la URL queda visible en `js/drive-sync.js`.
+Ojo: cualquiera con esa URL puede leer los informes de las carpetas. En el sitio
+publicado queda dentro del HTML cifrado, pero como el repo es publico sigue
+visible en `js/drive-sync.js`.
 
 ## Actualizar la data
 
@@ -431,4 +435,31 @@ semanas que cruzan de mes) y los graficos muestran el detalle dia a dia.
 npm.cmd run build
 ```
 
-El build incrusta los assets en `dist/index.html`. Si Windows bloquea `dist/data`, el script mantiene actualizado el HTML y muestra una advertencia.
+El resultado se genera en `dist/`: `index.html` (CSS, JS y datos incrustados), `assets/` y `CNAME`.
+Nada mas: `data/` (incluido `data/csv-backups`), `scripts/` y `apps-script/` no se publican.
+
+Con `TF_PAGE_PASSWORD=<clave> npm run build` el `index.html` sale cifrado, como en GitHub Pages
+(en PowerShell: `$env:TF_PAGE_PASSWORD='<clave>'; npm.cmd run build`). Para probarlo, servir `dist/` (por
+ejemplo `npx live-server dist`) y abrirlo: pide la clave. Usar una clave de prueba, no la real.
+
+## Publicacion en tierrafilms.limaretail.com (GitHub Pages)
+
+URL publica: **https://tierrafilms.limaretail.com**. Cada push a `main` la actualiza sola
+(`.github/workflows/deploy-pages.yml`, Actions > Publicar en GitHub Pages); no hay que tocar el DNS.
+
+- Pages publica con Actions (sube `dist/`): en **Settings > Pages > Build and deployment > Source** tiene que
+  decir **GitHub Actions**, no "Deploy from a branch". Con Actions el dominio propio se configura en
+  **Settings > Pages > Custom domain** y queda guardado en el repo; ademas `CNAME` (raiz) lleva el dominio y
+  `build.js` lo copia a `dist/`, igual que en los demas tableros de la agencia.
+- **Clave:** Pages no tiene Basic Auth, asi que `scripts/build.js` cifra el tablero completo (datos y JS) con
+  AES-256-GCM y una llave PBKDF2-SHA256 (600 000 iteraciones) derivada del secret **`TF_PAGE_PASSWORD`**
+  (Settings > Secrets and variables > Actions). `deploy/pages-gate.html` pide la clave y lo descifra en el
+  navegador; sin ella el HTML publicado no revela nada. Si falta el secret, o si `dist/index.html` sale sin
+  cifrar, el workflow falla en vez de publicar. Es el mismo esquema y diseno que Aquarius y Hers.
+- Es una sola clave compartida. Como el HTML cifrado es publico, se puede atacar sin limite de intentos: usar
+  una clave larga y aleatoria (16+ caracteres). Para cambiarla: editar el secret `TF_PAGE_PASSWORD` y volver a
+  ejecutar el workflow (Actions > Publicar en GitHub Pages > Run workflow).
+- Tras entrar, la llave (no la clave) queda en `sessionStorage` de esa pestana; con "Recordar en este equipo"
+  tambien en `localStorage`. La sal es fija por marca, asi que sirve entre deploys hasta que cambie la clave.
+- El repo es publico: lo que esta en `data/`, `js/drive-sync.js` y el historial de git (que incluye la clave
+  vieja del login) sigue visible en GitHub aunque el sitio vaya con clave.
