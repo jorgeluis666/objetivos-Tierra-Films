@@ -12,6 +12,9 @@
   const MONTH_SHORT = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'set', 'oct', 'nov', 'dic'];
   const SHORT_NAMES = MONTH_NAMES.map(name => name.slice(0, 3));
   const SUMS = ['cost', 'impressions', 'clicks', 'conversions'];
+  const SUM_NAMES = { cost: 'inversión', impressions: 'impresiones', clicks: 'clics', conversions: 'conversiones' };
+  // Sumas de las que sale cada cociente.
+  const RATE_USES = { ctr: ['clicks', 'impressions'], cpc: ['cost', 'clicks'], costPerConversion: ['cost', 'conversions'], conversionRate: ['conversions', 'clicks'] };
   const CHART_COLOR = '#0284c7';
   const AXIS_COLOR = '#7890b5';
   const GRID_COLOR = 'rgba(14,165,233,.16)';
@@ -244,6 +247,16 @@
     return Object.fromEntries(SUMS.map(field => [field, items.reduce((total, item) => (total === null || !isNum(item[field]) ? null : total + Number(item[field])), 0)]));
   }
   const scale = (totals, factor) => Object.fromEntries(SUMS.map(field => [field, isNum(totals[field]) ? totals[field] * factor : null]));
+  const listText = items => (items.length > 1 ? `${items.slice(0, -1).join(', ')} y ${items[items.length - 1]}` : items.join(''));
+
+  // Mes anterior en un mes en curso: las sumas del tramo real donde las hay y el resto prorrateado; cada cociente,
+  // del tramo si sus dos sumas son reales y si no, el del mes anterior completo (full).
+  function tramoTotals(totals, full, factor, tramo) {
+    const sums = Object.assign(scale(totals, factor), tramo);
+    const real = derive(sums);
+    return Object.assign(sums, Object.fromEntries(Object.entries(RATE_USES)
+      .map(([key, uses]) => [key, uses.every(field => field in tramo) ? real[key] : full[key]])));
+  }
 
   function campaignMeta(name) {
     const list = (state.data && state.data.campaigns) || [];
@@ -334,9 +347,10 @@
   }
   const viewYear = () => (selectedGastoMonth() || { year: limaToday().getUTCFullYear() }).year;
 
-  // Mes cerrado: contra el mes anterior completo. Mes en curso: la inversion contra el mismo tramo del mes
-  // anterior cuando hay costo diario real de esos dias; el resto, contra el mes anterior prorrateado a los
-  // mismos dias. CTR, CPC, costo y tasa de conversion son los del mes anterior (no cambian al prorratear).
+  // Mes cerrado: contra el mes anterior completo. Mes en curso: cada suma contra el mismo tramo del mes anterior
+  // cuando hay dato diario real de esos dias; las que no, contra el mes anterior prorrateado a los mismos dias.
+  // Un cociente (CTR, CPC, costo y tasa de conversion) sale del tramo si sus dos sumas son reales; si no, es el
+  // del mes anterior completo (no cambia al prorratear).
   function periodOf(month) {
     if (!month || !month.hasData) return null;
     const closed = month.complete || month.past;
@@ -348,24 +362,33 @@
       const factor = closed ? 1 : Math.min(1, days / previousDays);
       const full = dayRange(previous, previous.firstDay, previous.lastDay);
       if (factor >= 1) {
-        compare = { month: previous, factor: 1, label: full, short: full, costShort: full, costTramo: null };
+        compare = { month: previous, factor: 1, tramo: {}, label: full, shortFor: () => full };
       } else {
-        const tramo = previous.days.filter(day => {
+        const tramoDays = previous.days.filter(day => {
           const d = Number(day.date.slice(8, 10));
           return d >= month.firstDay && d <= month.lastDay;
         });
-        const realCost = tramo.length === days && tramo.every(day => isNum(day.cost) && !(day.estimated && day.estimated.cost));
-        const costTramo = realCost ? tramo.reduce((sum, day) => sum + Number(day.cost), 0) : null;
+        const tramo = {};
+        if (tramoDays.length === days) {
+          SUMS.forEach(field => {
+            if (tramoDays.every(day => isNum(day[field]) && !(day.estimated && day.estimated[field]))) {
+              tramo[field] = tramoDays.reduce((sum, day) => sum + Number(day[field]), 0);
+            }
+          });
+        }
+        const real = SUMS.filter(field => field in tramo);
         const tramoLabel = dayRange(previous, month.firstDay, month.lastDay);
+        const prorated = `${previous.name} prorrateado a ${days} ${days === 1 ? 'día' : 'días'}`;
         compare = {
           month: previous,
           factor,
-          costTramo,
-          label: realCost
-            ? `${tramoLabel} en inversión (costo diario real); el resto, ${previous.name} prorrateado a ${days} ${days === 1 ? 'día' : 'días'}`
-            : `${previous.name} prorrateado a ${days} ${days === 1 ? 'día' : 'días'}`,
-          short: `${previous.shortName} prorrateado`,
-          costShort: realCost ? tramoLabel : `${previous.shortName} prorrateado`
+          tramo,
+          label: real.length === SUMS.length
+            ? `${tramoLabel} (dato diario real)`
+            : real.length
+              ? `${tramoLabel} en ${listText(real.map(field => SUM_NAMES[field]))} (dato diario real); el resto, ${prorated}`
+              : prorated,
+          shortFor: uses => (uses.length && uses.every(field => field in tramo) ? tramoLabel : `${previous.shortName} prorrateado`)
         };
       }
     }
@@ -406,15 +429,16 @@
 
   function previousTotals(period) {
     if (!period.compare) return null;
-    const { month, factor, costTramo } = period.compare;
+    const { month, factor, tramo } = period.compare;
     const full = derive(Object.assign({}, month.totals, { reportedCostPerConversion: month.reportedCostPerConversion }));
     if (factor >= 1) return full;
-    const scaled = scale(month.totals, factor);
-    if (isNum(costTramo)) scaled.cost = costTramo;
-    return Object.assign(scaled, {
-      ctr: full.ctr, cpc: full.cpc, costPerConversion: full.costPerConversion, conversionRate: full.conversionRate
-    });
+    return tramoTotals(month.totals, full, factor, tramo);
   }
+
+  // Sumas del mes de comparacion que son aproximadas (las del tramo real no lo son).
+  const compareEstimated = period => new Set(period.compare
+    ? period.compare.month.estimated.filter(field => !(field in period.compare.tramo))
+    : []);
 
   // Campanas del periodo, de mayor a menor inversion (en Anual, sumadas por nombre).
   function periodCampaigns(period) {
@@ -443,17 +467,14 @@
   // La campana en el periodo de comparacion, con la misma regla que el total. El presupuesto no se prorratea.
   function previousCampaign(period, key) {
     if (!period.compare) return null;
-    const { month, factor, costTramo } = period.compare;
+    const { month, factor, tramo } = period.compare;
     const campaign = month.campaigns.find(item => item.key === key);
     if (!campaign || !isActive(campaign)) return null;
     const full = derive(campaign);
     if (factor >= 1) return full;
+    // El tramo real es de la cuenta: solo vale para la campana si es la unica del mes.
     const single = month.campaigns.length === 1;
-    const scaled = scale(campaign, factor);
-    if (single && isNum(costTramo)) scaled.cost = costTramo;
-    return Object.assign(scaled, {
-      ctr: full.ctr, cpc: full.cpc, costPerConversion: full.costPerConversion, conversionRate: full.conversionRate, dailyBudget: campaign.dailyBudget
-    });
+    return Object.assign(tramoTotals(campaign, full, factor, single ? tramo : {}), { dailyBudget: campaign.dailyBudget });
   }
 
   // ── Celdas compartidas ──
@@ -582,7 +603,7 @@
     }
     const current = periodTotals(period);
     const previous = previousTotals(period);
-    const previousEstimated = period.compare ? new Set(period.compare.month.estimated) : new Set();
+    const previousEstimated = compareEstimated(period);
     let average = null;
     if (period.annual) {
       // Mientras haya meses cerrados el mes en curso queda fuera: un mes a medias bajaria el promedio.
@@ -594,7 +615,7 @@
     document.getElementById('kpi-strip').innerHTML = KPIS.map(kpi => {
       let line = `<small>${kpi.hint}</small>`;
       if (previous) {
-        const label = kpi.key === 'cost' ? period.compare.costShort : period.compare.short;
+        const label = period.compare.shortFor(kpi.uses);
         line = deltaHtml(current[kpi.key], previous[kpi.key], kpi.better, `${label}${isEstimated(previousEstimated, kpi.uses) ? ' (est.)' : ''}`);
       } else if (average && kpi.perMonth) {
         line = `<small title="${escapeHtml(average.basis)}">Prom. mensual: ${formatValue(average[kpi.key], kpi.unit)}</small>`;
@@ -781,7 +802,7 @@
     const id = slug(campaign.key);
     const settings = campaignSettings(campaign.key);
     const estimated = campaignEstimatedSet(period);
-    const previousEstimated = period.compare ? new Set(period.compare.month.estimated) : new Set();
+    const previousEstimated = compareEstimated(period);
     let comparison = '';
     if (period.annual) {
       const months = campaign.months;

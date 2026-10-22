@@ -28,10 +28,12 @@ paneles de Amador y Aquarius.
    - **Periodo** con 8 KPIs: inversión, impresiones, clics, CTR, CPC prom.,
      conversiones, costo por conversión y tasa de conversión (conversiones /
      clics). Los cocientes salen de las sumas. Un mes cerrado se compara con el
-     mes anterior completo. El mes en curso compara la **inversión con el mismo
-     tramo del mes anterior** cuando hay costo diario real de esos días, y el
-     resto contra el mes anterior **prorrateado** a los mismos días (CTR, CPC,
-     costo y tasa son los del mes anterior); la bajada lo dice. El primer mes no
+     mes anterior completo. El mes en curso compara cada suma (inversión,
+     impresiones, clics, conversiones) **con el mismo tramo del mes anterior**
+     cuando hay dato diario real de esos días (el informe por día de la carpeta
+     Campañas), y la que no lo tenga contra el mes anterior **prorrateado** a los
+     mismos días. Un cociente sale del tramo si sus dos sumas son reales; si no,
+     es el del mes anterior completo. La bajada lo dice. El primer mes no
      tiene comparación. Anual muestra el promedio mensual de los meses cerrados.
      Un mes cuyas impresiones, clics o conversiones salen de repartir semanas
      (Agosto) las marca `(est.)`. El mes empieza el día 1 salvo el primero con
