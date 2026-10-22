@@ -586,6 +586,10 @@
         ['cost', 'clicks', 'conversions', 'impressions'].forEach(field => { day[field] += row[field]; });
         byDate.set(row.date, day);
       });
+      // Un dia del rango sin filas no tuvo actividad (Google Ads no lista los dias en 0): queda en 0, no estimado.
+      for (let date = item.start; date <= item.end; date = addDays(date, 1)) {
+        if (!byDate.has(date)) byDate.set(date, { date, cost: 0, clicks: 0, conversions: 0, impressions: 0 });
+      }
       byDate.forEach((day, date) => {
         const entry = Object.assign({}, dayMap.get(date) || { date }, { cost: Math.round(day.cost * 100) / 100, clicks: day.clicks, conversions: Math.round(day.conversions * 100) / 100 });
         if (item.exactImpressions) entry.impressions = day.impressions; else delete entry.impressions;
