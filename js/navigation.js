@@ -2,7 +2,7 @@
   const VIEW_KEY = 'tierra-films-active-view';
   const VIEW_META = {
     'view-obj': {
-      title: 'Gasto Publicitario',
+      title: 'Gasto publicitario',
       caption: 'Google Ads',
       status: 'Datos semanales de Google Ads',
       source: 'Fuente: data/tierra-films-lima-retail-2026.json',
@@ -11,23 +11,23 @@
     'view-projection': {
       title: 'Proyecciones',
       caption: 'Cierre de mes y metas',
-      status: 'Proyeccion sobre datos reales',
+      status: 'Proyección sobre datos reales',
       source: 'Fuente: data/tierra-films-lima-retail-2026.json',
-      footer: 'Proyeccion lineal segun el ritmo del mes',
+      footer: 'Proyección lineal según el ritmo del mes',
     },
     'view-keywords': {
-      title: 'Palabras Clave',
+      title: 'Palabras clave',
       caption: 'Cuota, ranking y calidad',
       status: 'Informe semanal de palabras clave',
-      source: 'Fuente: informe de palabras clave de busqueda',
+      source: 'Fuente: informe de palabras clave de búsqueda',
       footer: 'Cuota de impresiones y Ad Rank',
     },
     'view-segmentation': {
-      title: 'Segmentacion',
-      caption: 'Intencion de busqueda y zona',
-      status: 'Informes de la carpeta Segmentacion',
-      source: 'Fuente: carpeta Google Ads TF Segmentacion',
-      footer: 'Terminos de busqueda y ubicaciones',
+      title: 'Segmentación',
+      caption: 'Intención de búsqueda y zona',
+      status: 'Informes de la carpeta Segmentación',
+      source: 'Fuente: carpeta Google Ads TF Segmentación',
+      footer: 'Términos de búsqueda y ubicaciones',
     },
     'view-week': {
       title: 'Generación de Reporte',
@@ -40,7 +40,7 @@
       title: 'Leads',
       caption: 'CRM de feedback del cliente',
       status: 'Leads reales frente a las plataformas',
-      source: 'Fuente: CRM del cliente y Gasto Publicitario',
+      source: 'Fuente: CRM del cliente y Gasto publicitario',
       footer: 'Los leads del cliente no se guardan en el repositorio',
     },
   };

@@ -40,10 +40,10 @@
   const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
   const isNum = value => value !== null && value !== undefined && value !== '' && Number.isFinite(Number(value));
 
-  // ── Formatos del modelo ("S/ 330", "S/ 3.14", "10.27%", "5.99", "-71.1%") ─
+  // ── Formatos del modelo ("S/. 330", "S/. 3.14", "10.27%", "5.99", "-71.1%") ─
   const integer = new Intl.NumberFormat('es-PE', { maximumFractionDigits: 0 });
-  const money = value => (isNum(value) ? `S/ ${integer.format(Math.round(value))}` : '—');
-  const money2 = value => (isNum(value) ? `S/ ${Number(value).toFixed(2)}` : '—');
+  const money = value => (isNum(value) ? `S/. ${integer.format(Math.round(value))}` : '—');
+  const money2 = value => (isNum(value) ? `S/. ${Number(value).toFixed(2)}` : '—');
   const count = value => (isNum(value) ? integer.format(Math.round(value)) : '—');
   const percent = value => (isNum(value) ? `${(Number(value) * 100).toFixed(2).replace(/\.?0+$/, '')}%` : '—');
   const conv2 = value => (isNum(value) ? Number(value).toFixed(2) : '—');
@@ -646,7 +646,7 @@
     const select = document.getElementById('week-select');
     if (!available.length) {
       if (select) select.innerHTML = '<option value="">Sin semanas con datos</option>';
-      host.innerHTML = '<div class="panel"><div class="empty-state"><strong>Todavia no hay datos para el reporte</strong><span>El reporte se arma con los informes de Google Ads. En cuanto haya una semana con inversion, aparece aqui.</span></div></div>';
+      host.innerHTML = '<div class="panel"><div class="empty-state"><strong>Todavía no hay datos para el reporte</strong><span>El reporte se arma con los informes de Google Ads. En cuanto haya una semana con inversión, aparece aquí.</span></div></div>';
       return;
     }
     // Por defecto, la ultima semana cerrada (si todavia no hay ninguna, la que esta en curso).

@@ -35,30 +35,30 @@
     const metricHead = onlyConversions ? '' : '<th class="num">Impr.</th><th class="num">Clics</th><th class="num">Gasto</th><th class="num">Costo x conv.</th>';
     const row = item => {
       const share = total ? item.conversions / total : 0;
-      const metrics = onlyConversions ? '' : `<td class="num">${f.fmtCount(item.impressions)}</td><td class="num">${f.fmtCount(item.clicks)}</td><td class="num">${f.fmtMoney(item.cost)}</td><td class="num">${item.conversions ? f.fmtMoney(item.cost / item.conversions) : '-'}</td>`;
+      const metrics = onlyConversions ? '' : `<td class="num">${f.fmtCount(item.impressions)}</td><td class="num">${f.fmtCount(item.clicks)}</td><td class="num">${f.fmtMoney(item.cost)}</td><td class="num">${item.conversions ? f.fmtMoney(item.cost / item.conversions) : '—'}</td>`;
       return `<tr class="${item.conversions ? '' : 'is-muted'}">
         <td class="campaign-name">${f.escapeHtml(item.keyword)}${item.paused ? ' <span class="status-pill muted">detenida</span>' : ''}</td>
-        <td><span class="match-pill">${f.escapeHtml(item.match || '-')}</span></td>
+        <td><span class="match-pill">${f.escapeHtml(item.match || '—')}</span></td>
         <td class="num"><strong>${f.fmtConv(item.conversions)}</strong></td>
-        <td class="num"><span class="kw-share"><i style="width:${(share * 100).toFixed(2)}%"></i></span>${total && item.conversions ? `${Math.round(share * 100)}%` : '-'}</td>
-        ${actions.map(action => `<td class="num">${item.actions[action] ? f.fmtConv(item.actions[action]) : '-'}</td>`).join('')}
+        <td class="num"><span class="kw-share"><i style="width:${(share * 100).toFixed(2)}%"></i></span>${total && item.conversions ? `${Math.round(share * 100)}%` : '—'}</td>
+        ${actions.map(action => `<td class="num">${item.actions[action] ? f.fmtConv(item.actions[action]) : '—'}</td>`).join('')}
         ${metrics}
       </tr>`;
     };
     const acc = report.account;
     const note = onlyConversions
-      ? `El informe viene separado por accion de conversion, asi que por palabra clave solo trae conversiones.${acc ? ` En el mismo periodo la cuenta tuvo ${f.fmtCount(acc.impressions)} impresiones, ${f.fmtCount(acc.clicks)} clics y ${f.fmtMoney(acc.cost)} de gasto.` : ''}`
+      ? `El informe viene separado por acción de conversión, así que por palabra clave solo trae conversiones.${acc ? ` En el mismo periodo la cuenta tuvo ${f.fmtCount(acc.impressions)} impresiones, ${f.fmtCount(acc.clicks)} clics y ${f.fmtMoney(acc.cost)} de gasto.` : ''}`
       : '';
     const hidden = report.keywords.length - converting.length;
     const toggle = hidden > 0
-      ? `<button type="button" class="drive-more" data-keywords-toggle>${state.showAllKeywords ? 'Ver solo las que convierten' : `Ver tambien las ${hidden} sin conversiones`}</button>`
+      ? `<button type="button" class="drive-more" data-keywords-toggle>${state.showAllKeywords ? 'Ver solo las que convierten' : `Ver también las ${hidden} sin conversiones`}</button>`
       : '';
     return `
       <div class="panel campaigns-panel drive-panel">
         <div class="panel-head">
           <div>
             <div class="panel-title">Palabras clave que convierten | ${f.escapeHtml(rangeLabel(report.start, report.end))}</div>
-            <div class="panel-sub">Conversiones de cada palabra clave y por que accion llegaron. Fuente: ${f.escapeHtml(report.sourceFile)}.</div>
+            <div class="panel-sub">Conversiones de cada palabra clave y por qué acción llegaron. Fuente: ${f.escapeHtml(report.sourceFile)}.</div>
           </div>
           <div class="drive-total"><strong>${f.fmtConv(total)}</strong> conversiones · ${converting.length} de ${report.keywords.length} palabras</div>
         </div>
@@ -92,11 +92,11 @@
       <div class="drive-block-head">
         <div>
           <div class="sec-lbl">Desde Google Drive</div>
-          <p>Informes de la carpeta Google Ads TF Keywords, uno por mes. Tienen su propio selector de mes; el filtro de arriba no los cambia. Categorias de busqueda y ubicaciones estan en el modulo Segmentacion.</p>
+          <p>Informes de la carpeta Google Ads TF Keywords, uno por mes. Tienen su propio selector de mes; el filtro de arriba no los cambia. Categorías de búsqueda y ubicaciones están en el módulo Segmentación.</p>
         </div>
         ${links ? `<div class="drive-links">${links}</div>` : ''}
       </div>
-      ${blocks || '<div class="data-notice"><strong>Todavia no hay informe de Drive.</strong>Sube a la carpeta Keywords el informe de palabras clave por accion de conversion y aprieta Sincronizar.</div>'}`;
+      ${blocks || '<div class="data-notice"><strong>Todavía no hay informe de Drive.</strong>Sube a la carpeta Keywords el informe de palabras clave por acción de conversión y aprieta Sincronizar.</div>'}`;
     host.querySelectorAll('[data-kw-month]').forEach(button => button.addEventListener('click', () => { state.month = button.dataset.kwMonth; render(); }));
     const keywordsToggle = host.querySelector('[data-keywords-toggle]');
     if (keywordsToggle) keywordsToggle.addEventListener('click', () => { state.showAllKeywords = !state.showAllKeywords; render(); });

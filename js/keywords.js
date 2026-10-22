@@ -9,7 +9,7 @@
   const ALL = 'all';
   const PERIOD_KEY = 'tierra_films_keywords_period';
   const SERIES = {
-    impressions: { label: 'Impresiones', unit: 'count', color: '#0284c7', axis: 'y' },
+    impressions: { label: 'Impresiones', unit: 'count', color: '#2563eb', axis: 'y' },
     clicks: { label: 'Clics', unit: 'count', color: '#7c3aed', axis: 'y' },
     impressionShare: { label: 'Cuota de impresiones', unit: 'percent', color: '#0f766e', axis: 'y1' },
     lostRank: { label: 'Perdido por ranking', unit: 'percent', color: '#dc2626', axis: 'y1', dashed: true },
@@ -26,14 +26,14 @@
   const COMPONENTS = {
     expectedCtr: 'rendimiento esperado del anuncio',
     adRelevance: 'relevancia del anuncio',
-    landingExperience: 'experiencia en la pagina de destino'
+    landingExperience: 'experiencia en la página de destino'
   };
 
   const F = () => window.TierraFilmsFormat;
 
   function gradeCell(value) {
     const grade = GRADES[value];
-    return grade ? `<span class="grade-pill ${grade.cls}">${grade.label}</span>` : '<span class="no-data">-</span>';
+    return grade ? `<span class="grade-pill ${grade.cls}">${grade.label}</span>` : '<span class="no-data">—</span>';
   }
 
   // Reparte el gasto del periodo entre las notas de un componente de calidad.
@@ -51,11 +51,11 @@
   function pct(value, digits = 1) {
     return Number.isFinite(value) && value !== null
       ? `${(value * 100).toLocaleString('es-PE', { maximumFractionDigits: digits })}%`
-      : '-';
+      : '—';
   }
 
   function signed(value, digits = 1) {
-    if (!Number.isFinite(value)) return '-';
+    if (!Number.isFinite(value)) return '—';
     return `${value > 0 ? '+' : ''}${(value * 100).toLocaleString('es-PE', { maximumFractionDigits: digits })}%`;
   }
 
@@ -194,7 +194,7 @@
       ['Clics', f.fmtCount(current.clicks), `CTR ${pct(current.ctr, 2)}`],
       ['Cuota de impresiones', pct(current.impressionShare), 'De las subastas en las que competimos'],
       ['Perdido por ranking', pct(current.lostRank), 'No salimos por Ad Rank bajo'],
-      ['Nivel de calidad', current.qualityScore ? current.qualityScore.toLocaleString('es-PE', { maximumFractionDigits: 1 }) : '-', 'Promedio ponderado (sobre 10)'],
+      ['Nivel de calidad', current.qualityScore ? current.qualityScore.toLocaleString('es-PE', { maximumFractionDigits: 1 }) : '—', 'Promedio ponderado (sobre 10)'],
       ['CPC medio', f.fmtMoney(current.cpc), `${f.fmtMoney(current.cost)} de gasto`]
     ];
     document.getElementById('keywords-kpis').innerHTML = cards
@@ -212,7 +212,7 @@
       .join('');
     const canvas = document.getElementById('chart-keywords');
     if (typeof Chart === 'undefined') {
-      canvas.parentElement.innerHTML = '<div class="empty-state"><strong>Grafico no disponible sin conexion.</strong><span>La tabla sigue visible.</span></div>';
+      canvas.parentElement.innerHTML = '<div class="empty-state"><strong>Gráfico no disponible sin conexión.</strong><span>La tabla sigue visible.</span></div>';
       return;
     }
     if (state.chart) state.chart.destroy();
@@ -250,8 +250,8 @@
           }
         },
         scales: {
-          x: { grid: { display: false }, border: { color: '#bfdbfe' }, ticks: { color: '#7890b5', font: { size: 10 } } },
-          y: { beginAtZero: true, border: { display: false }, grid: { color: 'rgba(14,165,233,.16)' }, ticks: { color: '#7890b5', font: { size: 10 }, callback: value => f.fmtCount(value) } },
+          x: { grid: { display: false }, border: { color: '#cbd5e1' }, ticks: { color: '#94a3b8', font: { size: 10 } } },
+          y: { beginAtZero: true, border: { display: false }, grid: { color: 'rgba(15,23,42,.06)' }, ticks: { color: '#94a3b8', font: { size: 10 }, callback: value => f.fmtCount(value) } },
           y1: { beginAtZero: true, max: 1, position: 'right', border: { display: false }, grid: { drawOnChartArea: false }, ticks: { color: '#0f766e', font: { size: 10 }, callback: value => `${Math.round(value * 100)}%` } },
           y2: { display: false, beginAtZero: true, grid: { drawOnChartArea: false } }
         }
@@ -312,32 +312,32 @@
     if (auctionsChange !== null && shareChange !== null) {
       const byAuctions = Math.abs(auctionsChange) > Math.abs(shareChange);
       const detail = byAuctions
-        ? `Las subastas en las que el anuncio era elegible pasaron de ${f.fmtCount(auctionsPrev)} a ${f.fmtCount(auctionsLast)} (${signed(auctionsChange)}), mientras la cuota de impresiones se mantuvo alrededor de ${pct(last.impressionShare)} (${signed(shareChange)}). O sea, no es que perdieramos la pelea contra la competencia: el anuncio dejo de entrar a la subasta. Google estima esas impresiones elegibles con el estado de la campana, la puja y la calidad.`
-        : `Las subastas disponibles casi no se movieron (${signed(auctionsChange)}) pero nuestra cuota de impresiones paso de ${pct(prev.impressionShare)} a ${pct(last.impressionShare)} (${signed(shareChange)}): perdimos terreno frente a la competencia.`;
-      items.push(`<li><b>De donde viene la caida:</b> ${detail}</li>`);
+        ? `Las subastas en las que el anuncio era elegible pasaron de ${f.fmtCount(auctionsPrev)} a ${f.fmtCount(auctionsLast)} (${signed(auctionsChange)}), mientras la cuota de impresiones se mantuvo alrededor de ${pct(last.impressionShare)} (${signed(shareChange)}). O sea, no es que perdiéramos la pelea contra la competencia: el anuncio dejó de entrar a la subasta. Google estima esas impresiones elegibles con el estado de la campaña, la puja y la calidad.`
+        : `Las subastas disponibles casi no se movieron (${signed(auctionsChange)}) pero nuestra cuota de impresiones pasó de ${pct(prev.impressionShare)} a ${pct(last.impressionShare)} (${signed(shareChange)}): perdimos terreno frente a la competencia.`;
+      items.push(`<li><b>De dónde viene la caída:</b> ${detail}</li>`);
     }
 
     if (lastDays.length && prevDays.length) {
       const detail = quietDays.length
-        ? ` ${quietDays.length} de esos ${lastDays.length} dias gastaron menos de S/ 20 (${quietDays.map(day => `${f.shortDate(day.date)}: ${f.fmtMoney(day.cost)}`).join(', ')}).`
+        ? ` ${quietDays.length} de esos ${lastDays.length} días gastaron menos de S/. 20 (${quietDays.map(day => `${f.shortDate(day.date)}: ${f.fmtMoney(day.cost)}`).join(', ')}).`
         : '';
-      items.push(`<li><b>Lo confirma el gasto diario:</b> la semana paso de ${f.fmtMoney(sumCost(prevDays))} a ${f.fmtMoney(sumCost(lastDays))}, con el presupuesto diario sin tocar.${detail} Un gasto asi de bajo con presupuesto disponible apunta a la campana, no al mercado: puja o estrategia de puja, anuncios desaprobados, un problema de facturacion o la campana pausada.</li>`);
+      items.push(`<li><b>Lo confirma el gasto diario:</b> la semana pasó de ${f.fmtMoney(sumCost(prevDays))} a ${f.fmtMoney(sumCost(lastDays))}, con el presupuesto diario sin tocar.${detail} Un gasto así de bajo con presupuesto disponible apunta a la campaña, no al mercado: puja o estrategia de puja, anuncios desaprobados, un problema de facturación o la campaña pausada.</li>`);
     }
 
-    items.push(`<li><b>Problema de fondo:</b> en el periodo perdemos ${pct(aggregate(weeks).lostRank)} de las subastas por Ad Rank bajo (${pct(prev.lostRank)} y ${pct(last.lostRank)} en las dos ultimas semanas)${Number.isFinite(last.lostTopAbs) && last.lostTopAbs !== null ? `, y ${pct(last.lostTopAbs)} de la primera posicion absoluta` : ''}. Aun con la campana corriendo normal, solo captamos ${pct(aggregate(weeks).impressionShare)} de su mercado.</li>`);
+    items.push(`<li><b>Problema de fondo:</b> en el periodo perdemos ${pct(aggregate(weeks).lostRank)} de las subastas por Ad Rank bajo (${pct(prev.lostRank)} y ${pct(last.lostRank)} en las dos últimas semanas)${Number.isFinite(last.lostTopAbs) && last.lostTopAbs !== null ? `, y ${pct(last.lostTopAbs)} de la primera posición absoluta` : ''}. Aun con la campaña corriendo normal, solo captamos ${pct(aggregate(weeks).impressionShare)} de su mercado.</li>`);
 
     const cpcNote = Math.abs(cpcChange || 0) > 0.1
       ? `${f.fmtMoney(prev.cpc)} -> ${f.fmtMoney(last.cpc)} (${signed(cpcChange)}). Un CPC que baja mientras sube lo perdido por ranking es la firma de una puja que ya no compite.`
-      : `${f.fmtMoney(prev.cpc)} -> ${f.fmtMoney(last.cpc)} (${signed(cpcChange)}), practicamente igual, asi que la caida no viene de pagar menos por clic.`;
-    items.push(`<li><b>CPC medio:</b> ${cpcNote} En junio el CPC era ${f.fmtMoney(state.weeks[0].cpc)}, hoy es ${f.fmtMoney(last.cpc)}: la cuenta viene comprando trafico mas barato todo el periodo.</li>`);
+      : `${f.fmtMoney(prev.cpc)} -> ${f.fmtMoney(last.cpc)} (${signed(cpcChange)}), prácticamente igual, así que la caída no viene de pagar menos por clic.`;
+    items.push(`<li><b>CPC medio:</b> ${cpcNote} En junio el CPC era ${f.fmtMoney(state.weeks[0].cpc)}, hoy es ${f.fmtMoney(last.cpc)}: la cuenta viene comprando tráfico más barato todo el periodo.</li>`);
 
-    items.push(`<li><b>Cobertura:</b> ${prev.keywordsWithImpressions} palabras tuvieron impresiones la semana anterior y ${last.keywordsWithImpressions} la ultima, sobre ${state.data.catalog.filter(item => /habilitad/i.test(item.status)).length} habilitadas de ${state.data.catalog.length} en la cuenta. La mejor semana del periodo (${f.shortDate(best.start)}) llego a ${f.fmtCount(best.impressions)} impresiones.</li>`);
+    items.push(`<li><b>Cobertura:</b> ${prev.keywordsWithImpressions} palabras tuvieron impresiones la semana anterior y ${last.keywordsWithImpressions} la última, sobre ${state.data.catalog.filter(item => /habilitad/i.test(item.status)).length} habilitadas de ${state.data.catalog.length} en la cuenta. La mejor semana del periodo (${f.shortDate(best.start)}) llegó a ${f.fmtCount(best.impressions)} impresiones.</li>`);
 
     if (drops.length) {
       const top = drops.slice(0, 3)
         .map(item => `${F().escapeHtml(item.row.keyword)} (${f.fmtCount(item.before ? item.before.impressions : 0)} -> ${f.fmtCount(item.row.impressions)})`)
         .join(', ');
-      items.push(`<li><b>Donde se siente mas:</b> ${top}.</li>`);
+      items.push(`<li><b>Dónde se siente más:</b> ${top}.</li>`);
     }
 
     const periodRows = aggregateRows(weeks);
@@ -346,20 +346,20 @@
       const parts = components.map(component => {
         const { totals, known } = gradeShare(periodRows, component);
         const worst = totals.below / known;
-        return `<b>${COMPONENTS[component]}</b>: ${pct(worst, 0)} del gasto esta "por debajo de la media"${totals.above ? `, ${pct(totals.above / known, 0)} "por encima"` : ''}`;
+        return `<b>${COMPONENTS[component]}</b>: ${pct(worst, 0)} del gasto está "por debajo de la media"${totals.above ? `, ${pct(totals.above / known, 0)} "por encima"` : ''}`;
       });
       const guilty = components
         .map(component => ({ component, share: gradeShare(periodRows, component).below }))
         .map(item => Object.assign(item, { share: gradeShare(periodRows, item.component).totals.below / gradeShare(periodRows, item.component).known }))
         .sort((a, b) => b.share - a.share)[0];
-      items.push(`<li><b>Que parte del nivel de calidad falla:</b> ${parts.join('; ')}. El componente que mas arrastra el Ad Rank es <b>${COMPONENTS[guilty.component]}</b>${guilty.component === 'landingExperience' ? ': el anuncio no es el problema, la pagina a la que llega el clic si' : ''}.</li>`);
+      items.push(`<li><b>Qué parte del nivel de calidad falla:</b> ${parts.join('; ')}. El componente que más arrastra el Ad Rank es <b>${COMPONENTS[guilty.component]}</b>${guilty.component === 'landingExperience' ? ': el anuncio no es el problema, la página a la que llega el clic sí' : ''}.</li>`);
     }
     if (lowQuality.length) {
-      items.push(`<li><b>Calidad:</b> ${lowQuality.length} palabras estan en pausa marcadas como "baja calidad" y el nivel de calidad medio es ${aggregate(weeks).qualityScore ? aggregate(weeks).qualityScore.toLocaleString('es-PE', { maximumFractionDigits: 1 }) : '-'} sobre 10${weakRows.length ? `; las que tienen 4 o menos se llevan ${pct(totalCost ? weakCost / totalCost : null)} del gasto` : ''}. Con esa calidad, subir la puja cuesta mas caro de lo que deberia.</li>`);
+      items.push(`<li><b>Calidad:</b> ${lowQuality.length} palabras están en pausa marcadas como "baja calidad" y el nivel de calidad medio es ${aggregate(weeks).qualityScore ? aggregate(weeks).qualityScore.toLocaleString('es-PE', { maximumFractionDigits: 1 }) : '—'} sobre 10${weakRows.length ? `; las que tienen 4 o menos se llevan ${pct(totalCost ? weakCost / totalCost : null)} del gasto` : ''}. Con esa calidad, subir la puja cuesta más caro de lo que debería.</li>`);
     }
 
     host.innerHTML = items.join('');
-    summary.textContent = `Ultima semana comparada: ${f.shortDate(last.start)} - ${f.shortDate(last.end)}. El calculo se rehace solo cuando importas datos nuevos.`;
+    summary.textContent = `Última semana comparada: ${f.shortDate(last.start)} - ${f.shortDate(last.end)}. El cálculo se rehace solo cuando importas datos nuevos.`;
   }
 
   function renderTable() {
@@ -376,14 +376,14 @@
     document.getElementById('keywords-body').innerHTML = rows.map(row => {
       const before = previous.get(`${row.keyword}|${row.matchType}`);
       const impressionsDelta = before ? change(row.impressions, before.impressions) : null;
-      const quality = Number.isFinite(row.qualityScore) && row.qualityScore !== null ? row.qualityScore.toLocaleString('es-PE', { maximumFractionDigits: 1 }) : '-';
+      const quality = Number.isFinite(row.qualityScore) && row.qualityScore !== null ? row.qualityScore.toLocaleString('es-PE', { maximumFractionDigits: 1 }) : '—';
       const qualityClass = Number.isFinite(row.qualityScore) && row.qualityScore !== null && row.qualityScore <= 4 ? ' class="kw-low"' : '';
       const paused = /pausa|retirad/i.test(row.status || '');
       return `
         <tr>
           <td class="campaign-name"><span>${F().escapeHtml(row.keyword)}</span><small>${F().escapeHtml(row.matchType)}${paused ? ` | ${F().escapeHtml(row.status)}` : ''}</small></td>
           <td class="num">${f.fmtCount(row.impressions)}</td>
-          <td class="num delta-cell ${impressionsDelta === null ? '' : (impressionsDelta >= 0 ? 'up' : 'down')}">${impressionsDelta === null ? '-' : signed(impressionsDelta, 0)}</td>
+          <td class="num delta-cell ${impressionsDelta === null ? '' : (impressionsDelta >= 0 ? 'up' : 'down')}">${impressionsDelta === null ? '—' : signed(impressionsDelta, 0)}</td>
           <td class="num">${f.fmtCount(row.clicks)}</td>
           <td class="num">${pct(row.ctr, 2)}</td>
           <td class="num">${f.fmtMoney(row.cost)}</td>
@@ -414,7 +414,7 @@
         const data = window.TIERRA_FILMS_RETAIL_DATA;
         if (!data || !window.TierraFilmsFormat) return;
         if (!data.keywords || !Array.isArray(data.keywords.weeks) || !data.keywords.weeks.length) {
-          document.getElementById('view-keywords').innerHTML = '<div class="data-notice"><strong>Sin informe de palabras clave.</strong>Descarga en Google Ads el informe de palabras clave de busqueda segmentado por semana y vuelve a importarlo.</div>';
+          document.getElementById('view-keywords').innerHTML = '<div class="data-notice"><strong>Sin informe de palabras clave.</strong>Descarga en Google Ads el informe de palabras clave de búsqueda segmentado por semana y vuelve a importarlo.</div>';
           state.ready = true;
           return;
         }

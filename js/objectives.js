@@ -1,4 +1,6 @@
 (function () {
+  // Fuente de los gráficos: Inter, como el resto del tablero (Chart.js usa Helvetica por defecto).
+  if (typeof Chart !== 'undefined') Chart.defaults.font.family = 'Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif';
   const DATA_URL = 'data/tierra-films-lima-retail-2026.json';
   const SNAPSHOT_URL = 'data/drive-snapshot.json';
   const MONTH_STORAGE_KEY = 'tierra_films_selected_month';
@@ -8,16 +10,16 @@
   // Indicadores, vista y minimizado del grafico de cada campana, por campana.
   const CAMP_CHARTS_KEY = 'tierra_films_gasto_campaign_charts';
   const KW_COMPACT_KEY = 'tierra_films_gasto_kw_compact';
-  const MONTH_NAMES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Setiembre', 'Octubre', 'Noviembre', 'Diciembre'];
-  const MONTH_SHORT = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'set', 'oct', 'nov', 'dic'];
+  const MONTH_NAMES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+  const MONTH_SHORT = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
   const SHORT_NAMES = MONTH_NAMES.map(name => name.slice(0, 3));
   const SUMS = ['cost', 'impressions', 'clicks', 'conversions'];
   const SUM_NAMES = { cost: 'inversión', impressions: 'impresiones', clicks: 'clics', conversions: 'conversiones' };
   // Sumas de las que sale cada cociente.
   const RATE_USES = { ctr: ['clicks', 'impressions'], cpc: ['cost', 'clicks'], costPerConversion: ['cost', 'conversions'], conversionRate: ['conversions', 'clicks'] };
-  const CHART_COLOR = '#0284c7';
-  const AXIS_COLOR = '#7890b5';
-  const GRID_COLOR = 'rgba(14,165,233,.16)';
+  const CHART_COLOR = '#2563eb';
+  const AXIS_COLOR = '#94a3b8';
+  const GRID_COLOR = 'rgba(15,23,42,.06)';
   const PREVIOUS_COLOR = '#94a3b8';
   const EST_DASH = [6, 5];
   const CHEVRON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 15 6-6 6 6"/></svg>';
@@ -30,7 +32,7 @@
   ];
   // color: el de su linea cuando los indicadores van juntos en un solo cuadro.
   const CAMPAIGN_METRICS = [
-    { key: 'cost', label: 'Inversión', unit: 'money', color: '#0284c7' },
+    { key: 'cost', label: 'Inversión', unit: 'money', color: '#2563eb' },
     { key: 'conversions', label: 'Conversiones', unit: 'conv', color: '#0f766e' },
     { key: 'clicks', label: 'Clics', unit: 'count', color: '#ea580c' },
     { key: 'impressions', label: 'Impresiones', unit: 'count', color: '#7c3aed' },
@@ -81,25 +83,25 @@
   };
 
   const isNum = value => value !== null && value !== undefined && value !== '' && Number.isFinite(Number(value));
-  const fmtMoney = value => Number.isFinite(Number(value)) && value !== null ? `S/ ${Number(value).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-';
-  const fmtCount = value => Number.isFinite(Number(value)) && value !== null ? Number(value).toLocaleString('es-PE', { maximumFractionDigits: 0 }) : '-';
+  const fmtMoney = value => Number.isFinite(Number(value)) && value !== null ? `S/. ${Number(value).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—';
+  const fmtCount = value => Number.isFinite(Number(value)) && value !== null ? Number(value).toLocaleString('es-PE', { maximumFractionDigits: 0 }) : '—';
   // Conversiones: Google Ads reparte algunas (2.99, 0.99); se muestran con decimales solo si los hay.
   const fmtConv = value => {
     const number = Number(value);
-    if (!Number.isFinite(number) || value === null) return '-';
+    if (!Number.isFinite(number) || value === null) return '—';
     return Math.abs(number - Math.round(number)) < 0.005 ? fmtCount(number) : number.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
-  const fmtPercent = value => Number.isFinite(Number(value)) && value !== null ? `${(Number(value) * 100).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%` : '-';
+  const fmtPercent = value => Number.isFinite(Number(value)) && value !== null ? `${(Number(value) * 100).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%` : '—';
   const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
 
   function formatValue(value, unit, short = false) {
     if (unit === 'money') {
-      if (short && Number.isFinite(Number(value)) && Math.abs(Number(value)) >= 1000) return `S/ ${(Number(value) / 1000).toFixed(1)}k`;
+      if (short && Number.isFinite(Number(value)) && Math.abs(Number(value)) >= 1000) return `S/. ${(Number(value) / 1000).toFixed(1)}k`;
       return fmtMoney(value);
     }
     if (unit === 'percent') return fmtPercent(value);
     if (unit === 'conv') return fmtConv(value);
-    if (unit === 'decimal') return Number.isFinite(Number(value)) && value !== null ? Number(value).toLocaleString('es-PE', { maximumFractionDigits: 1 }) : '-';
+    if (unit === 'decimal') return Number.isFinite(Number(value)) && value !== null ? Number(value).toLocaleString('es-PE', { maximumFractionDigits: 1 }) : '—';
     return fmtCount(value);
   }
 
@@ -139,7 +141,7 @@
   }
 
   function deltaCell(value, inverse = false) {
-    if (value === null) return '<td class="num delta-cell">-</td>';
+    if (value === null) return '<td class="num delta-cell">—</td>';
     const good = inverse ? value < 0 : value > 0;
     const cls = Math.abs(value) < 0.005 ? '' : (good ? 'up' : 'down');
     const sign = value > 0 ? '+' : '';
@@ -300,7 +302,7 @@
     const estimated = SUMS.filter(field => !exact.includes(field));
     return {
       key: month.id,
-      label: month.label,
+      label: `${MONTH_NAMES[number - 1]} ${year}`,
       name: MONTH_NAMES[number - 1],
       shortName: SHORT_NAMES[number - 1],
       year,
@@ -502,7 +504,7 @@
 
   const shareCell = share => (isNum(share)
     ? `<td class="gasto-share-col"><span class="gasto-share"><span style="width:${Math.min(100, share * 100).toFixed(1)}%"></span></span><b>${fmtPercent(share)}</b></td>`
-    : '<td class="gasto-share-col"><span class="no-data">-</span></td>');
+    : '<td class="gasto-share-col"><span class="no-data">—</span></td>');
 
   // Un render que reemplaza el HTML de host no saca el foco del control que se estaba usando (pestana o chip).
   function keepFocus(host, render) {
@@ -633,7 +635,7 @@
     const est = uses => estTag(isEstimated(estimated, uses));
     const budget = campaigns.filter(campaign => /^habilitad/.test(normalizeText(campaign.status))).reduce((sum, campaign) => sum + (Number(campaign.dailyBudget) || 0), 0);
     document.getElementById('gasto-dist-sub').textContent = `${period.label} ${period.year} | ${campaigns.length} ${campaigns.length === 1 ? 'campaña' : 'campañas'} con inversión, impresiones o clics. Estado y presupuesto vigentes en el último informe.`;
-    const money = value => (isNum(value) ? fmtMoney(value) : '<span class="no-data">-</span>');
+    const money = value => (isNum(value) ? fmtMoney(value) : '<span class="no-data">—</span>');
     document.getElementById('gasto-dist-body').innerHTML = campaigns.map(campaign => `
       <tr>
         <td class="campaign-name"><span>${escapeHtml(campaign.label)}</span>${campaign.label !== campaign.name ? `<small>${escapeHtml(campaign.name)}</small>` : ''}</td>
@@ -652,7 +654,7 @@
       <tr class="gasto-total-row">
         <td>Total del periodo</td>
         <td></td>
-        <td class="num" title="Suma del presupuesto diario de las campañas habilitadas">${budget ? fmtMoney(budget) : '<span class="no-data">-</span>'}</td>
+        <td class="num" title="Suma del presupuesto diario de las campañas habilitadas">${budget ? fmtMoney(budget) : '<span class="no-data">—</span>'}</td>
         <td class="num">${fmtMoney(total.cost)}</td>
         <td class="gasto-share-col"><b>100%</b></td>
         <td class="num">${fmtCount(total.impressions)}</td>
@@ -932,7 +934,7 @@
     const solid = points.values.length <= 12;
     return Object.assign({
       label: metric.label, unit: metric.unit, data: points.values, est: points.est,
-      borderColor: CHART_COLOR, backgroundColor: 'rgba(2,132,199,.08)', borderWidth: 2, tension: 0.25, spanGaps: false,
+      borderColor: CHART_COLOR, backgroundColor: 'rgba(37,99,235,.08)', borderWidth: 2, tension: 0.25, spanGaps: false,
       segment: { borderDash: ctx => (points.est[ctx.p0DataIndex] || points.est[ctx.p1DataIndex] ? EST_DASH : undefined) },
       pointRadius: points.values.map(value => (value === null ? 0 : solid ? 4 : 2)),
       pointHoverRadius: 6,
@@ -986,7 +988,7 @@
   }
 
   const tickValue = (unit, value) => (unit === 'money'
-    ? `S/ ${Number(value).toLocaleString('es-PE', { maximumFractionDigits: 0 })}`
+    ? `S/. ${Number(value).toLocaleString('es-PE', { maximumFractionDigits: 0 })}`
     : Number(value).toLocaleString('es-PE', { notation: Math.abs(value) >= 100000 ? 'compact' : 'standard', maximumFractionDigits: 1 }));
 
   // Con un indicador hay un solo eje y; con varios, un eje por indicador apilado en vertical (paneles con su
@@ -1003,7 +1005,7 @@
       grace: '25%',
       // El tope de cada panel cae sobre el cero del panel de arriba: se omite para que no se encimen.
       ticks: Object.assign(base(metric.unit).ticks, { maxTicksLimit: 5, callback: (value, tickIndex, ticks) => (index > 0 && tickIndex === ticks.length - 1 ? '' : tickValue(metric.unit, value)) }),
-      grid: { color: ctx => (ctx.tick && ctx.tick.value === 0 ? '#bfdbfe' : GRID_COLOR) },
+      grid: { color: ctx => (ctx.tick && ctx.tick.value === 0 ? '#cbd5e1' : GRID_COLOR) },
       panelLabel: metric.label
     })]).reverse());
   }
@@ -1041,7 +1043,7 @@
         meta.data.forEach((point, index) => {
           const value = dataset.data[index];
           if (value === null || value === undefined || Number(value) === 0) return;
-          // Soles sin decimales, salvo montos chicos (S/ 0.40 no debe leerse S/ 0).
+          // Soles sin decimales, salvo montos chicos (S/. 0.40 no debe leerse S/. 0).
           const text = dataset.unit === 'money' && Math.abs(value) >= 10 ? tickValue('money', Math.round(value)) : formatValue(value, dataset.unit);
           const half = ctx.measureText(text).width / 2 + 2;
           const before = dataset.data[index - 1];
@@ -1139,7 +1141,7 @@
           }
         },
         scales: Object.assign({
-          x: { grid: { display: false }, border: { color: '#bfdbfe' }, ticks: { color: AXIS_COLOR, font: { size: 10 }, autoSkip: true, maxTicksLimit: modeKey === 'monthly' ? 12 : 16 } }
+          x: { grid: { display: false }, border: { color: '#cbd5e1' }, ticks: { color: AXIS_COLOR, font: { size: 10 }, autoSkip: true, maxTicksLimit: modeKey === 'monthly' ? 12 : 16 } }
         }, yScales(metrics, combined))
       },
       plugins: CHART_PLUGINS
@@ -1381,7 +1383,7 @@
   function variationCell(current, previous) {
     if (previous === null || previous === undefined) return '<span class="status-pill new">Nuevo</span>';
     const d = change(current, previous);
-    if (d === null) return '<span class="no-data">-</span>';
+    if (d === null) return '<span class="no-data">—</span>';
     return `<span class="status-pill ${d >= 0 ? 'green' : 'red'}">${d >= 0 ? '▲' : '▼'} ${pctText(d, 0)}</span>`;
   }
 
@@ -1420,7 +1422,7 @@
       return `<tr>
           ${keywordCell(row, 'gasto-kw-name')}
           <td class="num gasto-strong">${fmtConv(row.conversions)}</td>
-          ${compare ? `<td class="num">${before ? fmtConv(before.conversions) : '<span class="no-data">-</span>'}</td><td class="num">${variationCell(row.conversions, before ? before.conversions : null)}</td>` : ''}
+          ${compare ? `<td class="num">${before ? fmtConv(before.conversions) : '<span class="no-data">—</span>'}</td><td class="num">${variationCell(row.conversions, before ? before.conversions : null)}</td>` : ''}
           ${scope.hasMetrics ? `${scope.mixed ? '' : `<td class="num">${fmtMoney(row.costPerConversion)}</td>`}<td class="num">${fmtMoney(row.cost)}${est}</td>` : ''}
           ${shareCell(byCost ? (Number(row.cost) || 0) / kwCost : kwConv > 0 ? row.conversions / kwConv : null)}
           ${scope.hasMetrics ? `${scope.hasImpressions ? `<td class="num">${fmtCount(row.impressions)}${est}</td>` : ''}<td class="num">${fmtCount(row.clicks)}${est}</td><td class="num">${fmtMoney(row.cpc)}</td>` : ''}
@@ -1487,11 +1489,11 @@
       const before = compare ? compare.rows.get(row.key) : null;
       return `
         <tr>
-          <td class="gasto-rank-campaign" title="${escapeHtml(row.owner ? row.owner.name : '')}"><span>${escapeHtml(row.owner ? row.owner.label : '-')}</span></td>
+          <td class="gasto-rank-campaign" title="${escapeHtml(row.owner ? row.owner.name : '')}"><span>${escapeHtml(row.owner ? row.owner.label : '—')}</span></td>
           ${keywordCell(row, 'gasto-rank-keyword')}
           <td class="num gasto-strong">${fmtConv(row.conversions)}</td>
-          <td class="num">${before ? fmtConv(before.conversions) : '<span class="no-data">-</span>'}</td>
-          <td class="num">${compare ? variationCell(row.conversions, before ? before.conversions : null) : '<span class="no-data">-</span>'}</td>
+          <td class="num">${before ? fmtConv(before.conversions) : '<span class="no-data">—</span>'}</td>
+          <td class="num">${compare ? variationCell(row.conversions, before ? before.conversions : null) : '<span class="no-data">—</span>'}</td>
           <td class="num">${fmtMoney(row.costPerConversion)}</td>
           <td class="num">${fmtMoney(row.cost)}${est}</td>
           <td class="num">${fmtCount(row.impressions)}${est}</td>
@@ -1830,7 +1832,7 @@
       setSyncStatus('off', meta, detail, { at: state.snapshot ? state.snapshot.generatedAt : null, origin: state.snapshot ? 'copia' : '' });
       return;
     }
-    setSyncStatus('loading', '', clicked ? 'Leyendo las carpetas de Google Drive' : 'Trayendo el ultimo barrido de Drive');
+    setSyncStatus('loading', '', clicked ? 'Leyendo las carpetas de Google Drive' : 'Trayendo el último barrido de Drive');
     try {
       // Al abrir se usa el ultimo barrido (el automatico de las 10:00); el boton barre en el momento.
       const merged = drive.merge(state.base, await drive.fetchFolder({ fresh: clicked }));

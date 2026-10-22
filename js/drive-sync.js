@@ -10,7 +10,7 @@
   };
   const TIMEOUT_MS = 25000;
   const MONTHS = { enero: 1, febrero: 2, marzo: 3, abril: 4, mayo: 5, junio: 6, julio: 7, agosto: 8, septiembre: 9, setiembre: 9, octubre: 10, noviembre: 11, diciembre: 12 };
-  const MONTH_LABELS = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Setiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+  const MONTH_LABELS = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
   const METRIC_COLUMNS = {
     cost: ['Costo', 'Coste'],
     impressions: ['Impr.', 'Impresiones'],
@@ -107,7 +107,7 @@
     // El informe del mes por semana ("Semana" en la primera columna) da el total del mes y, ademas, sus semanas.
     const weekly = first === 'Semana';
     const kind = /^acci[oó]n de conversi[oó]n$/i.test(first) ? 'actions' : first === 'Estado de la campaña' || weekly ? 'period' : null;
-    if (!kind) return { skipped: `${name}: informe segmentado por "${first}"; por ahora el tablero lee el informe del mes sin segmentar, por semana o por accion de conversion.` };
+    if (!kind) return { skipped: `${name}: informe segmentado por "${first}"; por ahora el tablero lee el informe del mes sin segmentar, por semana o por acción de conversión.` };
     const range = rows.slice(0, headerIndex).map(row => parseRange(row.find(cell => typeof cell === 'string' && cell) || '')).find(Boolean);
     if (!range) return { skipped: `${name}: no trae el rango de fechas en la cabecera.` };
     if (range.start.slice(0, 7) !== range.end.slice(0, 7)) return { skipped: `${name}: cubre varios meses (${range.start} a ${range.end}); sube un informe por mes.` };
@@ -160,7 +160,7 @@
     if (weekly && totals) Object.assign(report, weeklyDetail(body, { range, statusCol, campaignCol, metricsOf, weekOf, month: report.month }));
     if (kind === 'actions') {
       const actions = accountRows.filter(hasLabel).map(row => ({ name: row[0], conversions: metricsOf(row).conversions || 0 }));
-      if (!actions.length) return { skipped: `${name}: no tiene filas por accion de conversion.` };
+      if (!actions.length) return { skipped: `${name}: no tiene filas por acción de conversión.` };
       actions.sort((a, b) => b.conversions - a.conversions);
       report.actions = { month: report.month, start: range.start, end: range.end, sourceFile: name, total: totals ? totals.conversions : actions.reduce((sum, a) => sum + a.conversions, 0), actions };
     }
@@ -299,7 +299,7 @@
           volume: volume && volume !== '--' ? volume : null, volumeChange: pct(row, 'volumeChange')
         };
       });
-    if (!categories.length) return { skipped: `${name}: no tiene categorias de busqueda.` };
+    if (!categories.length) return { skipped: `${name}: no tiene categorías de búsqueda.` };
     return { report: {
       kind: 'searchTerms', name, modified: sheet.modified || '', start: dates[0], end: dates[1],
       data: { start: dates[0], end: dates[1], compareStart: dates[2] || null, compareEnd: dates[3] || null, sourceFile: name, categories }
@@ -339,7 +339,7 @@
       if (action && values.conversions) item.actions[action] = (item.actions[action] || 0) + values.conversions;
       places.set(place, item);
     });
-    if (!places.size) return { skipped: `${name}: no tiene filas por ubicacion.` };
+    if (!places.size) return { skipped: `${name}: no tiene filas por ubicación.` };
     const list = [...places.values()]
       .map(item => Object.assign(item, { actions: Object.entries(item.actions).map(([action, conversions]) => ({ name: action, conversions })).sort((a, b) => b.conversions - a.conversions) }))
       .sort((a, b) => b.conversions - a.conversions || b.impressions - a.impressions);
@@ -462,7 +462,7 @@
       let month = data.months.find(item => item.id === report.month);
       // Un informe mas corto que lo que ya tiene el repo no lo reemplaza.
       if (month && month.rangeEnd && report.end < month.rangeEnd) {
-        notes.push(`${report.name}: llega al ${report.end} y el tablero ya tiene ${month.label} hasta el ${month.rangeEnd}; se deja el del repo.`);
+        notes.push(`${report.name}: llega al ${report.end} y el tablero ya tiene ${MONTH_LABELS[Number(month.id.slice(5, 7)) - 1]} ${month.id.slice(0, 4)} hasta el ${month.rangeEnd}; se deja el del repo.`);
         return;
       }
       if (!month) {
@@ -658,12 +658,12 @@
 
   // fresh: true pide un barrido en el momento (boton); si no, el ultimo barrido (el de las 10:00).
   async function fetchFolder(options = {}) {
-    if (!DRIVE_SYNC_URL) throw new Error('Falta conectar la carpeta de Drive (ver README > Sincronizacion con Drive).');
+    if (!DRIVE_SYNC_URL) throw new Error('Falta conectar la carpeta de Drive (ver README > Sincronización con Drive).');
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
     try {
       const response = await fetch(`${DRIVE_SYNC_URL}?${options.fresh ? 'fresh=1&' : ''}t=${Date.now()}`, { signal: controller.signal, cache: 'no-store' });
-      if (!response.ok) throw new Error(`Drive respondio HTTP ${response.status}.`);
+      if (!response.ok) throw new Error(`Drive respondió HTTP ${response.status}.`);
       const payload = await response.json();
       if (payload && payload.ok === false && payload.error) throw new Error(payload.error);
       if (!payload || !payload.ok || !Array.isArray(payload.sheets)) throw new Error('La respuesta de Drive no tiene el formato esperado.');

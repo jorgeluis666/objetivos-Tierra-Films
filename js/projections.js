@@ -10,14 +10,14 @@
   const CPA_KEY = 'tierra_films_projection_marginal_cpa';
   const METRICS = ['cost', 'impressions', 'clicks', 'conversions'];
   const CHART_METRICS = {
-    cost: { label: 'Gasto', unit: 'money', color: '#0284c7', drag: true },
+    cost: { label: 'Gasto', unit: 'money', color: '#2563eb', drag: true },
     conversions: { label: 'Conversiones', unit: 'count', color: '#7c3aed', drag: true },
-    costPerConversion: { label: 'Costo x conversion', unit: 'money', color: '#0f766e', drag: false }
+    costPerConversion: { label: 'Costo x conversión', unit: 'money', color: '#0f766e', drag: false }
   };
   const SCENARIOS = {
-    month: { label: 'Ritmo del mes', color: '#0f766e', desc: 'Acumulado del mes / dias con datos' },
-    recent: { label: 'Ultimas 4 semanas', color: '#db2777', desc: 'Promedio diario de los ultimos 28 dias' },
-    budget: { label: 'Presupuesto diario', color: '#64748b', desc: 'Gasta el presupuesto completo cada dia, con la eficiencia de las ultimas 4 semanas' }
+    month: { label: 'Ritmo del mes', color: '#0f766e', desc: 'Acumulado del mes / días con datos' },
+    recent: { label: 'Últimas 4 semanas', color: '#db2777', desc: 'Promedio diario de los últimos 28 días' },
+    budget: { label: 'Presupuesto diario', color: '#64748b', desc: 'Gasta el presupuesto completo cada día, con la eficiencia de las últimas 4 semanas' }
   };
   const SIM_COLOR = '#ea580c';
   const state = { ready: false, bound: false, data: null, metric: 'cost', scenario: 'month', goal: null, marginalCpa: null, chart: null, model: null, dragging: false, dragScale: null };
@@ -196,7 +196,7 @@
   }
 
   function gapBadge(value, reference, inverse = false) {
-    if (!Number.isFinite(value) || !Number.isFinite(reference) || reference === 0 || reference === null || value === null) return '<span class="projection-gap">-</span>';
+    if (!Number.isFinite(value) || !Number.isFinite(reference) || reference === 0 || reference === null || value === null) return '<span class="projection-gap">—</span>';
     const diff = value / reference - 1;
     const good = inverse ? diff <= 0 : diff >= 0;
     const sign = diff > 0 ? '+' : '';
@@ -213,12 +213,12 @@
     const monthlyBudget = fixed > 0 ? fixed : m.budget * m.daysInMonth;
     const prevConv = m.previous ? m.previous.conversions : null;
     const cards = [
-      [`Gasto al ${f.shortDate(m.lastDate)}`, f.fmtMoney(m.actual.cost), `${m.daysWithData} de ${m.daysInMonth} dias`],
+      [`Gasto al ${f.shortDate(m.lastDate)}`, f.fmtMoney(m.actual.cost), `${m.daysWithData} de ${m.daysInMonth} días`],
       ['Gasto proyectado', f.fmtMoney(close.cost), monthlyBudget ? `${f.fmtPercent(close.cost / monthlyBudget)} del presupuesto (${f.fmtMoney(monthlyBudget)})` : 'Al cierre del mes'],
       ['Conversiones proyectadas', f.fmtCount(close.conversions), prevConv ? `${f.fmtCount(prevConv)} en ${m.previous.label.split(' ')[0].toLowerCase()}${m.previous.exact || (m.previous.exactMetrics || []).includes('conversions') ? '' : ' (est.)'}` : `${f.fmtCount(m.actual.conversions)} reales`],
-      ['Costo x conversion', f.fmtMoney(close.costPerConversion), `Real a la fecha ${f.fmtMoney(m.actual.costPerConversion)}`],
+      ['Costo x conversión', f.fmtMoney(close.costPerConversion), `Real a la fecha ${f.fmtMoney(m.actual.costPerConversion)}`],
       ['Clics proyectados', f.fmtCount(close.clicks), `CPC ${f.fmtMoney(close.cpc)}`],
-      ['Dias restantes', String(m.remaining), `Del ${f.shortDate(addDays(m.lastDate, 1))} al ${m.daysInMonth} ${m.monthName.slice(0, 3)}`]
+      ['Días restantes', String(m.remaining), `Del ${f.shortDate(addDays(m.lastDate, 1))} al ${m.daysInMonth} ${m.monthName.slice(0, 3)}`]
     ];
     document.getElementById('projection-kpis').innerHTML = cards.map(([label, value, meta]) => `<div class="kpi-pill"><span>${label}</span><strong>${value}</strong><small>${meta}</small></div>`).join('');
   }
@@ -282,7 +282,7 @@
     }];
     datasets.push({
       key: 'projection',
-      label: `Proyeccion: ${SCENARIOS[state.scenario].label.toLowerCase()}`,
+      label: `Proyección: ${SCENARIOS[state.scenario].label.toLowerCase()}`,
       data: series.projection,
       borderColor: SCENARIOS[state.scenario].color,
       borderWidth: 2,
@@ -293,7 +293,7 @@
     });
     datasets.push({
       key: 'sim',
-      label: 'Simulacion (arrastra el nodo)',
+      label: 'Simulación (arrastra el nodo)',
       data: series.sim,
       borderColor: SIM_COLOR,
       backgroundColor: SIM_COLOR,
@@ -310,7 +310,7 @@
     }
 
     document.getElementById('projection-title').textContent = `Acumulado de ${meta.label.toLowerCase()} | ${m.monthLabel}`;
-    document.getElementById('projection-sub').textContent = `Datos reales al ${f.shortDate(m.lastDate)} (${m.daysWithData} dias) y proyeccion hasta el ${m.daysInMonth} de ${m.monthName}.`;
+    document.getElementById('projection-sub').textContent = `Datos reales al ${f.shortDate(m.lastDate)} (${m.daysWithData} días) y proyección hasta el ${m.daysInMonth} de ${m.monthName}.`;
     document.getElementById('projection-legend').innerHTML = datasets.map(dataset => {
       const dashed = dataset.borderDash ? ' dashed' : '';
       return `<span style="color:${dataset.borderColor}"><i class="legend-line${dashed}" style="${dashed ? '' : `background:${dataset.borderColor}`}"></i><b>${dataset.label}</b></span>`;
@@ -318,7 +318,7 @@
 
     const canvas = document.getElementById('chart-projection');
     if (typeof Chart === 'undefined') {
-      canvas.parentElement.innerHTML = '<div class="empty-state"><strong>Grafico no disponible sin conexion.</strong><span>La tabla de proyeccion sigue visible.</span></div>';
+      canvas.parentElement.innerHTML = '<div class="empty-state"><strong>Gráfico no disponible sin conexión.</strong><span>La tabla de proyección sigue visible.</span></div>';
       return;
     }
     if (state.chart) state.chart.destroy();
@@ -341,8 +341,8 @@
           }
         },
         scales: {
-          x: { grid: { display: false }, border: { color: '#bfdbfe' }, ticks: { color: '#7890b5', font: { size: 10 } } },
-          y: { beginAtZero: metric !== 'costPerConversion', ...(state.dragScale || {}), border: { display: false }, grid: { color: 'rgba(14,165,233,.16)' }, ticks: { color: '#7890b5', font: { size: 10 }, callback: value => f.formatValue(value, meta.unit, true) } }
+          x: { grid: { display: false }, border: { color: '#cbd5e1' }, ticks: { color: '#94a3b8', font: { size: 10 } } },
+          y: { beginAtZero: metric !== 'costPerConversion', ...(state.dragScale || {}), border: { display: false }, grid: { color: 'rgba(15,23,42,.06)' }, ticks: { color: '#94a3b8', font: { size: 10 }, callback: value => f.formatValue(value, meta.unit, true) } }
         }
       }
     });
@@ -351,12 +351,12 @@
     const lw = m.lastWeek;
     const avgWeekCost = m.rates.recent.cost * 7;
     const warn = lw && lw.days === 7 && lw.cost < avgWeekCost * 0.6
-      ? ` Ojo: la ultima semana (${f.weekLabel(lw)}) gasto ${f.fmtMoney(lw.cost)}, muy por debajo del promedio de ${f.fmtMoney(avgWeekCost)} por semana; si fue una pausa puntual, la proyeccion puede quedarse corta.`
+      ? ` Ojo: la última semana (${f.weekLabel(lw)}) gastó ${f.fmtMoney(lw.cost)}, muy por debajo del promedio de ${f.fmtMoney(avgWeekCost)} por semana; si fue una pausa puntual, la proyección puede quedarse corta.`
       : '';
     const dragNote = meta.drag
-      ? `Arrastra el nodo naranja del ultimo dia para simular otro cierre de ${meta.label.toLowerCase()}: el simulador recalcula el resto con el costo por conversion marginal.`
-      : 'El costo por conversion sale de dividir el gasto acumulado entre las conversiones acumuladas, asi que se simula desde las vistas de Gasto o Conversiones.';
-    document.getElementById('projection-note').textContent = `${dragNote} Google Ads entrega totales semanales: cada semana se reparte en partes iguales entre sus dias, por eso la linea real sube en tramos rectos.${warn}`;
+      ? `Arrastra el nodo naranja del último día para simular otro cierre de ${meta.label.toLowerCase()}: el simulador recalcula el resto con el costo por conversión marginal.`
+      : 'El costo por conversión sale de dividir el gasto acumulado entre las conversiones acumuladas, así que se simula desde las vistas de Gasto o Conversiones.';
+    document.getElementById('projection-note').textContent = `${dragNote} Google Ads entrega totales semanales: cada semana se reparte en partes iguales entre sus días, por eso la línea real sube en tramos rectos.${warn}`;
   }
 
   // El nodo final de la simulacion se arrastra con el mouse o el dedo.
@@ -450,13 +450,13 @@
     const prevName = prev ? `${prev.label.split(' ')[0]}${prev.exact ? '' : ' (est.)'}` : 'Mes anterior';
     document.getElementById('projection-actual-head').textContent = `Real al ${f.shortDate(m.lastDate)}`;
     document.getElementById('projection-close-head').textContent = `Cierre ${m.monthName}`;
-    document.getElementById('projection-sim-head').textContent = simulated ? 'Simulacion' : 'Simulacion (=)';
+    document.getElementById('projection-sim-head').textContent = simulated ? 'Simulación' : 'Simulación (=)';
     document.getElementById('projection-ref-head').textContent = prevName;
-    document.getElementById('projection-table-sub').textContent = `Escenario "${SCENARIOS[state.scenario].label}": ${SCENARIOS[state.scenario].desc.toLowerCase()}. Cierre = real + ritmo diario x ${m.remaining} dias restantes.`;
+    document.getElementById('projection-table-sub').textContent = `Escenario "${SCENARIOS[state.scenario].label}": ${SCENARIOS[state.scenario].desc.toLowerCase()}. Cierre = real + ritmo diario x ${m.remaining} días restantes.`;
     const rows = [
       ['Gasto', 'money', 'cost', false],
       ['Conversiones', 'count', 'conversions', false],
-      ['Costo x conversion', 'money', 'costPerConversion', true, true],
+      ['Costo x conversión', 'money', 'costPerConversion', true, true],
       ['Impresiones', 'count', 'impressions', false],
       ['Clics', 'count', 'clicks', false],
       ['CTR', 'percent', 'ctr', false, true],
@@ -466,11 +466,11 @@
       <tr class="${isRate ? 'projection-cost-row' : ''}">
         <td>${label}</td>
         <td class="num">${key === 'conversions' ? f.fmtConv(m.actual[key]) : f.formatValue(m.actual[key], unit)}</td>
-        <td class="num">${isRate ? '-' : f.formatValue(rate[key], unit === 'count' ? 'decimal' : unit)}</td>
+        <td class="num">${isRate ? '—' : f.formatValue(rate[key], unit === 'count' ? 'decimal' : unit)}</td>
         <td class="num projection-value">${f.formatValue(close[key], unit)}</td>
         <td class="num projection-sim-value">${f.formatValue(sim[key], unit)}</td>
-        <td class="num">${prev ? f.formatValue(prev[key], unit) : '-'}</td>
-        <td>${prev ? gapBadge(close[key], prev[key], inverse) : '-'}</td>
+        <td class="num">${prev ? f.formatValue(prev[key], unit) : '—'}</td>
+        <td>${prev ? gapBadge(close[key], prev[key], inverse) : '—'}</td>
       </tr>`).join('');
   }
 
@@ -501,7 +501,7 @@
       ? 'Lo que tendria que aportar cada semana restante para llegar al cierre simulado.'
       : 'Lo que aportaria cada semana restante del mes al ritmo actual.';
     if (!rows.length) {
-      body.innerHTML = '<tr><td colspan="6" class="table-empty">El mes ya esta cerrado con datos reales.</td></tr>';
+      body.innerHTML = '<tr><td colspan="6" class="table-empty">El mes ya está cerrado con datos reales.</td></tr>';
       return;
     }
     body.innerHTML = rows.map(row => {
@@ -509,7 +509,7 @@
       const conv = rate.conversions * row.days;
       return `
       <tr>
-        <td class="campaign-name"><span>${f.shortDate(row.start)} - ${f.shortDate(row.end)}</span><small>${row.days} ${row.days === 1 ? 'dia' : 'dias'}</small></td>
+        <td class="campaign-name"><span>${f.shortDate(row.start)} - ${f.shortDate(row.end)}</span><small>${row.days} ${row.days === 1 ? 'día' : 'días'}</small></td>
         <td class="num">${f.fmtMoney(cost)}</td>
         <td class="num">${f.fmtMoney(cost / row.days)}</td>
         <td class="num">${f.fmtCount(rate.impressions * row.days)}</td>
@@ -536,16 +536,16 @@
     const dailyCost = m.remaining ? extraCost / m.remaining : 0;
     const cards = [
       ['Conversiones al cierre', f.fmtCount(sim.conversions), `${f.fmtCount(m.actual.conversions)} reales + ${f.fmtCount(extraConv)} por lograr`, ''],
-      ['Gasto al cierre', f.fmtMoney(sim.cost), `${f.fmtMoney(extraCost)} en los ${m.remaining} dias que faltan`, ''],
-      ['Presupuesto diario', f.fmtMoney(dailyCost), m.budget ? `Actual ${f.fmtMoney(m.budget)} por dia` : '', m.budget && dailyCost > m.budget ? 'over' : 'ok'],
-      ['Costo x conversion del mes', f.fmtMoney(sim.costPerConversion), `Proyeccion base ${f.fmtMoney(base.costPerConversion)}`, sim.costPerConversion <= base.costPerConversion ? 'ok' : 'over']
+      ['Gasto al cierre', f.fmtMoney(sim.cost), `${f.fmtMoney(extraCost)} en los ${m.remaining} días que faltan`, ''],
+      ['Presupuesto diario', f.fmtMoney(dailyCost), m.budget ? `Actual ${f.fmtMoney(m.budget)} por día` : '', m.budget && dailyCost > m.budget ? 'over' : 'ok'],
+      ['Costo x conversión del mes', f.fmtMoney(sim.costPerConversion), `Proyección base ${f.fmtMoney(base.costPerConversion)}`, sim.costPerConversion <= base.costPerConversion ? 'ok' : 'over']
     ];
     document.getElementById('projection-sim-grid').innerHTML = cards.map(([label, value, meta, cls]) => `<div class="sim-card"><span>${label}</span><strong class="${cls}">${value}</strong><small>${meta}</small></div>`).join('');
     const diffConv = sim.conversions - base.conversions;
     const diffCost = sim.cost - base.cost;
     document.getElementById('projection-sim-note').textContent = isSimulated()
-      ? `Frente a la proyeccion base: ${diffConv > 0 ? '+' : ''}${f.fmtCount(diffConv)} conversiones y ${diffCost > 0 ? '+' : ''}${f.fmtMoney(diffCost)} de gasto, a ${f.fmtMoney(cpa)} cada conversion adicional. Cambia ese costo marginal si esperas que las conversiones extra salgan mas caras.`
-      : `La simulacion arranca en la proyeccion base del escenario "${SCENARIOS[state.scenario].label}". Arrastra el nodo naranja del grafico o escribe la meta: cada conversion adicional se valoriza a ${f.fmtMoney(cpa)}.`;
+      ? `Frente a la proyección base: ${diffConv > 0 ? '+' : ''}${f.fmtCount(diffConv)} conversiones y ${diffCost > 0 ? '+' : ''}${f.fmtMoney(diffCost)} de gasto, a ${f.fmtMoney(cpa)} cada conversión adicional. Cambia ese costo marginal si esperas que las conversiones extra salgan más caras.`
+      : `La simulación arranca en la proyección base del escenario "${SCENARIOS[state.scenario].label}". Arrastra el nodo naranja del gráfico o escribe la meta: cada conversión adicional se valoriza a ${f.fmtMoney(cpa)}.`;
   }
 
   function render() {
