@@ -92,7 +92,8 @@ function sweep_(origin) {
           const book = SpreadsheetApp.openById(file.getId());
           const zone = book.getSpreadsheetTimeZone();
           book.getSheets().forEach(sheet => {
-            sheets.push({ folder: key, file: name, sheet: sheet.getName(), modified, rows: cleanRows(sheet.getDataRange().getValues(), zone) });
+            const range = sheet.getDataRange();
+            sheets.push({ folder: key, file: name, sheet: sheet.getName(), modified, rows: cleanRows(range.getValues(), range.getDisplayValues(), zone) });
           });
         } else if (/\.csv$/i.test(name) || file.getMimeType() === MimeType.CSV) {
           sheets.push({ folder: key, file: name, sheet: name, modified, rows: readCsv(file.getBlob()) });
@@ -138,10 +139,13 @@ function json_(body) {
   return ContentService.createTextOutput(JSON.stringify(body)).setMimeType(ContentService.MimeType.JSON);
 }
 
-// Numeros quedan como numero; fechas como AAAA-MM-DD en la zona de la hoja.
-function cleanRows(rows, zone) {
-  return rows.map(row => row.map(cell => {
-    if (cell instanceof Date) return Utilities.formatDate(cell, zone, 'yyyy-MM-dd');
+// Numeros como se ven en la hoja: un CSV importado con otra configuracion regional guarda "9,977" como 9.977 o
+// "3.06" como fecha, pero los muestra como en el informe. Fechas reales como AAAA-MM-DD en la zona de la hoja.
+function cleanRows(rows, display, zone) {
+  return rows.map((row, r) => row.map((cell, c) => {
+    const shown = display[r][c];
+    if (cell instanceof Date) return /\d{4}/.test(shown) ? Utilities.formatDate(cell, zone, 'yyyy-MM-dd') : shown;
+    if (typeof cell === 'number') return shown;
     return cell;
   }));
 }

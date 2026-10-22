@@ -1,7 +1,7 @@
 (function () {
   // URL /exec de la aplicacion web de Apps Script (apps-script/drive-sync.gs).
   // Vacia: el tablero usa solo la data del repo y el boton avisa que falta la conexion.
-  const DRIVE_SYNC_URL = '';
+  const DRIVE_SYNC_URL = 'https://script.google.com/macros/s/AKfycbxwgC1TqIa7ZaitxYJsSfTLnlanvP4t1R7kZWrVLW0q44LUDwqSLMzQHtkouoIghL2A/exec';
   // Carpetas "Google Ads TF"; deben coincidir con FOLDERS en apps-script/drive-sync.gs.
   const FOLDER_URLS = {
     campanas: 'https://drive.google.com/drive/folders/1Zz5WjNFy0H37n0trSjhVx90NgPmqkyrO',
@@ -465,7 +465,8 @@
       if (report.kind !== 'dailyMonth' || report.exactImpressions) return;
       const kw = keywordMonths[report.month];
       const account = kw && kw.data.account;
-      if (!account || !(account.impressions > 0) || kw.start !== report.start || kw.end !== report.end) return;
+      // Menos impresiones que clics es imposible: la hoja leyo mal el numero (un CSV importado con "9,977" queda 9.977).
+      if (!account || !(account.impressions > 0) || account.impressions < (account.clicks || 0) || kw.start !== report.start || kw.end !== report.end) return;
       const month = data.months.find(item => item.id === report.month);
       if (!month || month.sourceFile !== report.name) return;
       if (data.totals) {
