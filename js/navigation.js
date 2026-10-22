@@ -3,7 +3,7 @@
   const VIEW_META = {
     'view-obj': {
       title: 'Gasto publicitario',
-      caption: 'Google Ads',
+      caption: 'Google Ads semanal',
       status: 'Datos semanales de Google Ads',
       source: 'Fuente: data/tierra-films-lima-retail-2026.json',
       footer: 'Resultados de Google Ads',
@@ -38,7 +38,7 @@
     },
     'view-leads': {
       title: 'Leads',
-      caption: 'CRM de feedback del cliente',
+      caption: 'CRM de feedback',
       status: 'Leads reales frente a las plataformas',
       source: 'Fuente: CRM del cliente y Gasto publicitario',
       footer: 'Los leads del cliente no se guardan en el repositorio',
@@ -75,9 +75,13 @@
       button.setAttribute('aria-current', active ? 'page' : 'false');
     });
 
+    // La bajada repite la descripcion del modulo en la barra lateral, como en Royal Baby. La pildora sigue a la
+    // sincronizacion (objectives.js) y lo propio de cada vista queda en su detalle ("En esta vista").
+    const sideDesc = document.querySelector(`.s-item[data-view-target="${viewId}"] .s-desc-nav`);
     document.getElementById('topbar-title').textContent = meta.title;
-    document.getElementById('topbar-caption').textContent = meta.caption;
-    document.getElementById('topbar-status').textContent = meta.status;
+    document.getElementById('topbar-caption').textContent = sideDesc ? sideDesc.textContent : meta.caption;
+    const viewStatus = document.getElementById('status-view');
+    if (viewStatus) viewStatus.textContent = meta.status;
     document.getElementById('footer-source').textContent = meta.source;
     document.getElementById('footer-status').textContent = meta.footer;
     saveView(viewId);

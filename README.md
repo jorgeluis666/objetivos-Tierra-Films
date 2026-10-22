@@ -14,12 +14,13 @@ paneles de Amador y Aquarius.
 
 1. **Gasto Publicitario**: resultados de Google Ads por campaña, mes a mes y en el
    acumulado del año.
-   - **Sincronización** (barra superior): la píldora dice hasta qué día llegan los
-     datos y de dónde salen (`auto 10:00`, `leído 15:37`, `copia 6 oct` o
-     `no se pudo leer`) y abre el detalle (datos, meses cargados, último y
-     próximo barrido, palabras clave, carpetas de Drive y lo que falta subir).
-     Al lado, el botón `Sincronizar`. Un error o un barrido de más de 30 horas
-     pone la píldora en ámbar. Ver [Sincronizacion con Drive](#sincronizacion-con-drive).
+   - **Sincronización** (barra superior, como Royal Baby): la píldora dice el estado
+     (`Sincronizado · hace 2 h`, `Recargando…`, `Copia guardada · hace 3 d`,
+     `Aún no sincronizado` o `No se pudo sincronizar`) y abre el detalle (lo de la
+     vista abierta, datos, meses cargados, último y próximo barrido, palabras
+     clave, carpetas de Drive y lo que falta subir). Al lado, el botón fantasma
+     `Actualizar`. Ver [Barra superior](#barra-superior) y
+     [Sincronizacion con Drive](#sincronizacion-con-drive).
    - **Pestañas** Enero a Diciembre y **Anual**. Mes sin informe, deshabilitado;
      punto en el último mes con datos. El mes elegido se guarda en
      `tierra_films_selected_month` (`anual` para Anual; el viejo `all` de "Todo el
@@ -260,9 +261,38 @@ S/ 124.88 mayor que el de la campaña (semana del 14 set), porque la cuenta
 incluye gasto fuera de `VIDEOS CORPORATIVOS`. El dashboard usa las filas por
 campaña.
 
+## Barra superior
+
+Igual que la de Royal Baby: queda fija al hacer scroll (blanca translucida con blur,
+70px de alto). A la izquierda, el boton para minimizar la barra lateral, el titulo
+del modulo y debajo la misma descripcion que muestra la barra lateral. A la
+derecha, la píldora de sincronizacion y el boton fantasma **Actualizar**.
+
+| Píldora | Color | Cuando |
+| --- | --- | --- |
+| `cargando…` | ámbar, punto latiendo | el tablero recien abre |
+| `Recargando…` | ámbar, punto latiendo | leyendo Drive (al abrir o con Actualizar) |
+| `Sincronizado · hace 2 h` | verde | el ultimo barrido se leyo bien |
+| `Sincronizado · hace 2 d` | ámbar | barrido de mas de 30 horas, o las carpetas no tienen informes que el tablero reconozca |
+| `Copia guardada · hace 3 d` | ámbar | Drive sin conectar: se ve `data/drive-snapshot.json` |
+| `Aún no sincronizado` | ámbar | Drive sin conectar y sin copia |
+| `No se pudo sincronizar` | rojo | fallo la lectura; el tablero sigue con lo que tenia |
+
+El tiempo es relativo a la hora del barrido y avanza solo cada minuto. Al pasar
+el mouse, la píldora dice hasta que dia llegan los datos y de donde salen
+(`Datos al 21 de octubre · auto 10:00`, `leído 15:37`, `copia 6 oct`,
+`sin conexión` o `no se pudo leer`). Al abrirla sale el detalle (tarjeta de
+330px): lo de la vista abierta (`En esta vista`), datos, meses cargados, ultimo y
+proximo barrido, palabras clave, `Fuentes en Google Drive` y lo que falta subir.
+
+El boton **Actualizar** (`#drive-sync`) hace lo mismo que el viejo Sincronizar:
+pide un barrido en el momento (`?fresh=1`). Mientras lee dice `Actualizando…`
+con el icono girando y queda deshabilitado; si la lectura falla dice
+`Reintentar` (misma funcion).
+
 ## Sincronizacion con Drive
 
-El boton **Sincronizar** de la barra superior lee las carpetas "Google Ads TF"
+El boton **Actualizar** de la barra superior lee las carpetas "Google Ads TF"
 de Google Drive del cliente y pone lo que encuentre encima de la data del repo.
 Tambien sincroniza solo al abrir el tablero; cada visita lee las carpetas en vivo.
 
@@ -295,7 +325,7 @@ Gasto Publicitario:
   los totales del mes y sus semanas de lunes a domingo (una semana que cruza de
   mes junta los dos tramos), sin detalle por dia.
 - Un informe que cubre varios meses o viene segmentado de otra forma se salta;
-  el motivo sale al pasar el mouse por el boton.
+  el motivo sale en el detalle de la píldora.
 - **Campaña excluida**: `Website traffic-Search-5` la creo el hackeo de la
   cuenta en setiembre y no cuenta en ningun indicador (`EXCLUDED_CAMPAIGNS` en
   `js/drive-sync.js`). Con filas por campaña, el total del mes es la suma de las
@@ -332,7 +362,7 @@ Segmentacion (tambien el informe mas reciente de cada tipo):
 `data/drive-snapshot.json` guarda una copia de lo que devolvieron las carpetas
 (se arma con `scripts/drive-snapshot.py`). El tablero la usa al abrir y la
 reemplaza en cuanto Drive responde; si Drive falla o todavia no esta conectado,
-se queda con la copia y el boton dice `Copia <fecha>`. Para renovarla con CSV
+se queda con la copia y la píldora dice `Copia guardada · hace N d`. Para renovarla con CSV
 descargados de las carpetas:
 
 ```bash
@@ -340,13 +370,14 @@ python scripts/drive-snapshot.py campanas="Accion de conversion setiembre 2026.c
 ```
 
 Por cada mes manda el informe que llega mas lejos. Si Drive trae menos dias que
-el repo, se queda el del repo. `Anual`, los KPIs, la píldora `Datos al ...` y
+el repo, se queda el del repo. `Anual`, los KPIs, el detalle de la píldora (`Datos al ...`) y
 Proyecciones se recalculan con lo nuevo; las vistas por día del cuadro de campaña
 y la tabla semanal siguen con el detalle del repo hasta volver a importarlo.
 
-Estados del boton: `Drive hh:mm` (verde, leido), `Reintentar` (rojo, fallo;
-el tablero sigue con lo que tenia) y `Sincronizar` en amarillo (falta la
-conexion).
+Estados (ver [Barra superior](#barra-superior)): `Sincronizado · hace …` en
+verde (leido), `No se pudo sincronizar` en rojo con el boton en `Reintentar`
+(fallo; el tablero sigue con lo que tenia) y `Copia guardada` o
+`Aún no sincronizado` en ámbar (falta la conexion).
 
 ### Barrido automatico a las 10:00
 
@@ -354,10 +385,11 @@ El Apps Script tiene un disparador que lee las tres carpetas **todos los dias a
 las 10:00 (hora de Lima)** y guarda el resultado en un archivo de Drive
 (`Tierra Films - barrido del tablero.json`, en el Drive de quien instala el
 script). Al abrir, el tablero trae ese ultimo barrido, asi carga rapido; el
-boton **Sincronizar** pide un barrido en el momento (`?fresh=1`). Si alguien lo
+boton **Actualizar** pide un barrido en el momento (`?fresh=1`). Si alguien lo
 aprieta varias veces seguidas, el script reusa el barrido del ultimo minuto.
 
-La píldora de la barra superior dice de donde salio la data:
+Al pasar el mouse por la píldora de la barra superior se ve de donde salio la
+data (la píldora dice el estado y el tiempo relativo del barrido):
 
 | Etiqueta | Significa |
 | --- | --- |
@@ -368,7 +400,7 @@ La píldora de la barra superior dice de donde salio la data:
 
 Al abrir la píldora sale el detalle: hora exacta del último barrido, el próximo
 (10:00 de Lima), las carpetas y lo que falta subir. Si el último barrido tiene
-más de 30 horas o la lectura falló, la píldora se pone ámbar.
+más de 30 horas, la píldora se pone ámbar; si la lectura falló, roja.
 
 ### Conectar la carpeta (una sola vez)
 

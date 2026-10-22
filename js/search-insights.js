@@ -96,7 +96,7 @@
         </div>
         ${links ? `<div class="drive-links">${links}</div>` : ''}
       </div>
-      ${blocks || '<div class="data-notice"><strong>Todavía no hay informe de Drive.</strong>Sube a la carpeta Keywords el informe de palabras clave por acción de conversión y aprieta Sincronizar.</div>'}`;
+      ${blocks || '<div class="data-notice"><strong>Todavía no hay informe de Drive.</strong>Sube a la carpeta Keywords el informe de palabras clave por acción de conversión y aprieta Actualizar.</div>'}`;
     host.querySelectorAll('[data-kw-month]').forEach(button => button.addEventListener('click', () => { state.month = button.dataset.kwMonth; render(); }));
     const keywordsToggle = host.querySelector('[data-keywords-toggle]');
     if (keywordsToggle) keywordsToggle.addEventListener('click', () => { state.showAllKeywords = !state.showAllKeywords; render(); });

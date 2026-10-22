@@ -562,7 +562,7 @@
     if (!host) return;
     const notes = missingMonths().map(key => {
       const [year, number] = key.split('-').map(Number);
-      return `<b>Pendiente:</b> ${escapeHtml(`${MONTH_NAMES[number - 1]} ${year}`)} no tiene informe de campaña. Súbelo a la carpeta Google Ads TF Campañas y pulsa Sincronizar, arriba a la derecha.`;
+      return `<b>Pendiente:</b> ${escapeHtml(`${MONTH_NAMES[number - 1]} ${year}`)} no tiene informe de campaña. Súbelo a la carpeta Google Ads TF Campañas y pulsa Actualizar, arriba a la derecha.`;
     });
     host.innerHTML = notes.map(note => `<p>${note}</p>`).join('');
     host.hidden = !notes.length;
@@ -1591,18 +1591,16 @@
     return period.annual ? `Anual ${period.year}` : period.month.label;
   }
 
+  // La pildora sigue a la sincronizacion en todas las vistas (renderSyncPill) y la bajada de la barra superior
+  // repite la descripcion de la barra lateral (navigation.js): aqui solo queda el pie.
   function updateSourceLabels() {
-    const status = document.getElementById('topbar-status');
     const source = document.getElementById('footer-source');
     const footerStatus = document.getElementById('footer-status');
-    const caption = document.getElementById('topbar-caption');
     if (!document.getElementById('view-obj').classList.contains('visible')) return;
     // La navegacion puede llamar antes de que termine la carga; renderAll() lo vuelve a hacer despues.
     if (!state.data) return;
-    if (status) status.textContent = syncPillLabel();
     if (source) source.textContent = `Fuente: ${state.data.sourceFile}`;
     if (footerStatus) footerStatus.textContent = `Periodo ${periodLabel()}`;
-    if (caption) caption.textContent = `Google Ads | ${periodLabel()}`;
   }
 
   function renderAll() {
@@ -1689,7 +1687,8 @@
     window.dispatchEvent(new CustomEvent('tierra-films:data-ready', { detail: data }));
   }
 
-  // El boton siempre dice "Sincronizar"; de donde salio la data y cuando lo dice la pildora (y su detalle).
+  // El boton fantasma dice "Actualizar" ("Reintentar" tras un error); de donde salio la data y cuando lo dice
+  // la pildora (y su detalle).
   function setSyncStatus(mode, meta, detail, extra = {}) {
     Object.assign(sync, { mode, meta, detail }, extra);
     const button = document.getElementById('drive-sync');
@@ -1697,7 +1696,7 @@
     if (button && text) {
       button.dataset.state = mode;
       button.disabled = mode === 'loading';
-      text.textContent = mode === 'loading' ? 'Sincronizando...' : 'Sincronizar';
+      text.textContent = mode === 'loading' ? 'Actualizando…' : mode === 'error' ? 'Reintentar' : 'Actualizar';
       button.title = mode === 'loading' ? 'Leyendo las carpetas de Google Drive' : 'Leer ahora las carpetas de Google Drive';
     }
     renderStatusCard();
@@ -1729,11 +1728,53 @@
   const sweepHours = () => (sync.at ? (Date.now() - new Date(sync.at).getTime()) / 3600000 : null);
   const isStale = () => sweepHours() !== null && sweepHours() > STALE_SWEEP_HOURS;
 
-  // "Datos al 5 de octubre | copia 6 oct" (o auto 10:00, leido 15:37, no se pudo leer).
+  // "Datos al 5 de octubre · copia 6 oct" (o auto 10:00, leído 15:37, no se pudo leer): va en el title de la
+  // pildora, que muestra el estado como Royal Baby.
   function syncPillLabel() {
     const latest = gastoMonthByKey(gasto.latestKey);
     const head = latest ? `Datos al ${latest.lastDay} de ${latest.name.toLowerCase()}` : 'Sin informes de campaña';
-    return sync.meta ? `${head} | ${sync.meta}` : head;
+    return sync.meta ? `${head} · ${sync.meta}` : head;
+  }
+
+  // "hace segundos", "hace 12 min", "hace 2 h", "hace 3 d".
+  function relativeLabel(stamp) {
+    const time = new Date(stamp).getTime();
+    if (!stamp || Number.isNaN(time)) return '';
+    const minutes = Math.max(0, Math.round((Date.now() - time) / 60000));
+    if (minutes < 1) return 'hace segundos';
+    if (minutes < 60) return `hace ${minutes} min`;
+    const hours = Math.round(minutes / 60);
+    return hours < 24 ? `hace ${hours} h` : `hace ${Math.round(hours / 24)} d`;
+  }
+
+  // Pildora como la de Royal Baby: "Sincronizado · hace 2 h" en verde, "Recargando…" en ambar con el punto
+  // latiendo, aviso en ambar (barrido de mas de 30 horas, carpetas sin informes, copia guardada, Drive sin
+  // conectar) y error en rojo. Vale para todas las vistas.
+  function renderSyncPill() {
+    const pill = document.getElementById('data-status-btn');
+    const text = document.getElementById('topbar-status');
+    if (!pill || !text) return;
+    let tone = 'ok';
+    let label;
+    if (sync.mode === 'idle' || sync.mode === 'loading') {
+      tone = 'loading';
+      label = sync.mode === 'idle' ? 'cargando…' : 'Recargando…';
+    } else if (sync.mode === 'error') {
+      tone = 'err';
+      label = 'No se pudo sincronizar';
+    } else if (sync.origin === 'copia' && sync.at) {
+      tone = 'warn';
+      label = `Copia guardada · ${relativeLabel(sync.at)}`;
+    } else if (sync.mode === 'off' || !sync.at) {
+      tone = 'warn';
+      label = 'Aún no sincronizado';
+    } else {
+      tone = sync.mode === 'warn' || isStale() ? 'warn' : 'ok';
+      label = `Sincronizado · ${relativeLabel(sync.at)}`;
+    }
+    pill.className = `topbar-pill sync ${tone}`;
+    text.textContent = label;
+    pill.title = state.data ? `${syncPillLabel()}. Ver el detalle de la sincronización` : 'Ver el detalle de la sincronización';
   }
 
   function renderStatusCard() {
@@ -1779,9 +1820,8 @@
       status.classList.toggle('is-error', sync.mode === 'error');
       status.classList.toggle('is-ok', sync.mode === 'ok');
     }
-    // Un error o un barrido viejo tine la pildora de ambar en todas las vistas.
-    const pill = document.getElementById('data-status-btn');
-    if (pill) pill.classList.toggle('warn', sync.mode === 'error' || sync.mode === 'warn' || isStale());
+    // Un error tine la pildora de rojo y un barrido viejo, de ambar, en todas las vistas.
+    renderSyncPill();
   }
 
   function wireStatusCard() {
@@ -1873,11 +1913,16 @@
     } catch (error) {
       renderError(error.message);
       console.error(error);
+      // Sin la data del repo no hay nada que sincronizar: la pildora queda en rojo.
+      sync.mode = 'error';
+      renderSyncPill();
       return;
     }
     const button = document.getElementById('drive-sync');
     if (button) button.addEventListener('click', syncDrive);
     syncDrive();
+    // "hace 2 min" avanza solo mientras el tablero queda abierto.
+    window.setInterval(renderSyncPill, 60000);
   }
 
   window.TierraFilmsFormat = { fmtMoney, fmtCount, fmtConv, fmtPercent, formatValue, shortDate, weekLabel, withRates, escapeHtml, MONTH_NAMES };

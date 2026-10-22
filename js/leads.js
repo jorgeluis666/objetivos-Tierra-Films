@@ -413,8 +413,9 @@
   function updateTopbar() {
     const view = document.getElementById('view-leads');
     if (!view || !view.classList.contains('visible')) return;
-    const status = document.getElementById('topbar-status');
-    if (status) status.textContent = `${isRemote() ? 'CRM en la hoja privada' : 'CRM en este navegador'} | ${state.scope === YEAR_SCOPE ? `Todo ${yearOfScope()}` : monthLabel(state.scope)}`;
+    // Va en el detalle de la pildora ("En esta vista"); la pildora sigue a la sincronizacion.
+    const status = document.getElementById('status-view');
+    if (status) status.textContent = `${isRemote() ? 'CRM en la hoja privada' : 'CRM en este navegador'} · ${state.scope === YEAR_SCOPE ? `Todo ${yearOfScope()}` : monthLabel(state.scope)}`;
   }
 
   // El modulo aparece en el panel lateral solo si la marca tiene campanas de leads o WhatsApp.

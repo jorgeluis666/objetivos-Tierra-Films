@@ -285,7 +285,7 @@
     const e = f.escapeHtml;
     const host = document.getElementById('seg-geo');
     if (!places || !places.places.length) {
-      host.innerHTML = '<div class="data-notice"><strong>Falta el informe de ubicaciones.</strong>Sube a la carpeta Segmentación el "Informe de ubicaciones" y aprieta Sincronizar.</div>';
+      host.innerHTML = '<div class="data-notice"><strong>Falta el informe de ubicaciones.</strong>Sube a la carpeta Segmentación el "Informe de ubicaciones" y aprieta Actualizar.</div>';
       return;
     }
     const total = places.places.reduce((sum, place) => sum + place.conversions, 0);

@@ -1512,99 +1512,6 @@
   }
 }
 
-/* Boton de sincronizacion con la carpeta de Google Drive */
-.topbar-meta {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.drive-sync {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  height: 32px;
-  padding: 0 13px;
-  border: 1px solid var(--brand);
-  border-radius: 99px;
-  color: #fff;
-  background: var(--brand);
-  box-shadow: 0 1px 2px rgba(37, 99, 235, .25);
-  font-size: 11px;
-  font-weight: 700;
-  white-space: nowrap;
-  cursor: pointer;
-}
-
-.drive-sync:hover:not(:disabled) {
-  border-color: #1d4ed8;
-  background: #1d4ed8;
-}
-
-.drive-sync:focus-visible {
-  outline: 2px solid #93c5fd;
-  outline-offset: 2px;
-}
-
-.drive-sync-meta {
-  padding: 2px 7px;
-  border-radius: 99px;
-  color: #fff;
-  background: rgba(255, 255, 255, .2);
-  font-size: 9px;
-  font-weight: 700;
-}
-
-.drive-sync-meta:empty {
-  display: none;
-}
-
-.drive-sync svg {
-  width: 13px;
-  height: 13px;
-  fill: none;
-  stroke: currentColor;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  stroke-width: 2;
-}
-
-.drive-sync[data-state="loading"] {
-  cursor: progress;
-}
-
-.drive-sync[data-state="loading"] svg {
-  animation: drive-spin 1s linear infinite;
-}
-
-.drive-sync[data-state="ok"] .drive-sync-meta {
-  color: #065f46;
-  background: #d1fae5;
-}
-
-.drive-sync[data-state="warn"] .drive-sync-meta,
-.drive-sync[data-state="off"] .drive-sync-meta {
-  color: #92400e;
-  background: #fef3c7;
-}
-
-.drive-sync[data-state="error"] .drive-sync-meta {
-  color: #b91c1c;
-  background: #fee2e2;
-}
-
-@keyframes drive-spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .drive-sync[data-state="loading"] svg {
-    animation: none;
-  }
-}
-
 /* 03 - Palabras clave | informes de la carpeta de Drive */
 .drive-block {
   margin-top: 28px;
@@ -2863,7 +2770,7 @@ body.gasto-table-fullscreen {
 }
 
 /* ===== Sincronizacion (barra superior derecha) ===== */
-/* La pildora abre el detalle de la sincronizacion y el boton Sincronizar (#drive-sync) va a su lado. */
+/* La pildora abre el detalle de la sincronizacion y el boton Actualizar (#drive-sync) va a su lado. */
 
 .data-status {
   position: relative;
@@ -4226,4 +4133,223 @@ button.topbar-pill[aria-expanded="true"] .status-chevron {
 .crm-summary-table thead tr:last-child th:first-child,
 .crm-summary-table tbody tr.gasto-total-row td:first-child {
   background: #f8fbff;
+}
+
+/* ===== Fase 2: barra superior como Royal Baby ===== */
+/* Fija al hacer scroll, translúcida y con blur. A la derecha, la píldora de sincronización (abre el detalle)
+   y el botón fantasma Actualizar, que llama a la misma sincronización de siempre. */
+
+/* Lo que se desplaza hasta un ancla o con scrollIntoView queda debajo de la barra fija, no tapado. */
+html {
+  scroll-padding-top: 86px;
+}
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  min-height: 70px;
+  padding: 12px 30px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(255, 255, 255, .88);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 1px 0 rgba(15, 23, 42, .02);
+}
+
+.topbar-title {
+  color: var(--ink);
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.topbar-caption {
+  margin-top: 3px;
+  color: #64748b;
+  font-size: 11px;
+}
+
+.topbar-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Píldora: ok en verde suave, cargando en ámbar con el punto latiendo, aviso en ámbar y error en rojo. */
+.topbar-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 12px;
+  border-radius: 20px;
+  color: var(--text-2, #52647d);
+  background: #f1f5f9;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.45;
+  white-space: nowrap;
+}
+
+button.topbar-pill {
+  border: 1px solid transparent;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background .2s, color .2s, border-color .15s;
+}
+
+.topbar-pill.sync .sync-dot {
+  width: 7px;
+  height: 7px;
+  flex: none;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.topbar-pill.sync.ok {
+  color: #047857;
+  background: #d1fae5;
+}
+
+.topbar-pill.sync.loading,
+.topbar-pill.sync.warn {
+  color: #b45309;
+  background: #fef3c7;
+}
+
+.topbar-pill.sync.err {
+  color: #b91c1c;
+  background: #fee2e2;
+}
+
+.topbar-pill.sync.loading .sync-dot {
+  animation: topbar-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes topbar-pulse {
+  50% {
+    opacity: .35;
+  }
+}
+
+/* Detalle de la sincronización: tarjeta de 330px como la de Royal Baby. */
+.data-status-card {
+  width: 330px;
+  border-radius: 11px;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, .14);
+}
+
+.data-status-head {
+  margin-bottom: 8px;
+  font-weight: 700;
+}
+
+.data-status-head.data-status-sub {
+  margin: 12px 0 6px;
+}
+
+.data-status-row {
+  font-size: 11px;
+}
+
+.data-status-row span {
+  color: var(--text-2, #52647d);
+}
+
+.data-status-row strong,
+.data-status-row a {
+  font-weight: 600;
+}
+
+.data-status-note {
+  background: var(--brand-soft);
+  font-size: 11px;
+}
+
+/* Botón fantasma: borde fino, fondo blanco y texto del color de marca, con el ícono de recarga. */
+.topbar-refresh {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  color: var(--brand);
+  background: #fff;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.2;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background .15s, border-color .15s;
+}
+
+.topbar-refresh:hover:not(:disabled) {
+  border-color: var(--brand-border);
+  background: var(--brand-soft);
+}
+
+.topbar-refresh:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+.topbar-refresh:disabled {
+  cursor: progress;
+  opacity: .7;
+}
+
+.topbar-refresh svg {
+  width: 13px;
+  height: 13px;
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.topbar-refresh.is-busy svg,
+.topbar-refresh[data-state="loading"] svg {
+  animation: topbar-spin 1s linear infinite;
+}
+
+@keyframes topbar-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .topbar-pill.sync.loading .sync-dot,
+  .topbar-refresh.is-busy svg,
+  .topbar-refresh[data-state="loading"] svg {
+    animation: none;
+  }
+}
+
+/* Celular: la barra se apila (título arriba, píldora y Actualizar abajo) y el detalle toma el ancho de la
+   barra, que por ser fija es su referencia. */
+@media (max-width: 760px) {
+  .topbar {
+    flex-wrap: wrap;
+    padding-right: 18px;
+    padding-left: 18px;
+  }
+
+  .topbar-meta {
+    flex-wrap: wrap;
+  }
+
+  .data-status {
+    position: static;
+  }
+
+  .data-status-card {
+    top: calc(100% - 4px);
+    right: 16px;
+    left: 16px;
+    width: auto;
+  }
 }
