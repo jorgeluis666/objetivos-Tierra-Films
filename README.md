@@ -275,8 +275,26 @@ Gasto Publicitario:
 - **Informe por accion de conversion** (`Acción de conversión` en la primera
   columna): da el desglose por accion y, con su fila `Total: Cuenta` sin
   accion, tambien los totales del mes.
-- Un informe que cubre varios meses o viene segmentado por Dia/Semana se salta;
+- **Rendimiento de la campaña por dia** (`Día`, `Campaña`, `Clics`, `Impr.`,
+  `Coste`, `Conversiones`), uno por mes (`Tierra Films - Octubre 2026`, ...): el
+  formato recomendado. Da los totales del mes y la serie real por dia y por
+  campaña de todas las metricas. Un dia del rango sin filas es un dia sin
+  actividad (Google Ads no lista los dias en 0) y queda en 0. Con la columna
+  `Palabra clave de la Búsqueda` (el "Informe - Plataforma") da tambien las
+  palabras clave por dia; sin `Impr.`, las impresiones se aproximan.
+- **Informe de campaña del mes por semana** (`Semana` en la primera columna): da
+  los totales del mes y sus semanas de lunes a domingo (una semana que cruza de
+  mes junta los dos tramos), sin detalle por dia.
+- Un informe que cubre varios meses o viene segmentado de otra forma se salta;
   el motivo sale al pasar el mouse por el boton.
+- **Campaña excluida**: `Website traffic-Search-5` la creo el hackeo de la
+  cuenta en setiembre y no cuenta en ningun indicador (`EXCLUDED_CAMPAIGNS` en
+  `js/drive-sync.js`). Con filas por campaña, el total del mes es la suma de las
+  campañas que cuentan, aunque el informe venga filtrado.
+- **Presupuesto**: el diario sale del informe mas reciente que lo traiga (o del
+  repo: VIDEOS CORPORATIVOS paso de S/ 112 a S/ 250 el 21 de octubre). El del
+  mes, si `monthlyBudgets` del JSON del repo lo fija (octubre: S/ 3,500); si
+  no, el diario por los dias del mes. Lo usa Proyecciones.
 
 Palabras Clave (se muestra el informe mas reciente de cada tipo, con su propio
 rango; el filtro de mes del modulo no lo cambia):

@@ -20,6 +20,12 @@
 
   const clean = value => String(value ?? '').trim();
 
+  // Campanas que no cuentan en ningun indicador: "Website traffic-Search-5" la creo el hackeo de la cuenta en
+  // setiembre. Sus filas se descartan y, si el informe solo la trae dentro del total de la cuenta (informe
+  // filtrado por campana), el total del mes sale de las campanas listadas.
+  const EXCLUDED_CAMPAIGNS = ['website traffic-search-5'];
+  const excludedCampaign = name => EXCLUDED_CAMPAIGNS.includes(clean(name).toLowerCase());
+
   // Las hojas traen numeros de verdad; los CSV, texto. Google Ads exporta segun el idioma de la
   // cuenta: es-PE ("2461,69", "1.247", "8,34%") o en ("1,124", "186.01%"). Cada hoja se mira entera.
   function detectLocale(rows) {
@@ -128,17 +134,30 @@
         .map(metricsOf)
         .reduce((sum, item) => Object.fromEntries(Object.keys(item).map(key => [key, (sum[key] || 0) + (item[key] || 0)])), {});
     }
-    // Presupuesto diario y estado de cada campaña en el periodo del informe.
+    // Con filas por campana, el total del mes es la suma de las campanas listadas que cuentan: deja fuera la
+    // campana excluida y lo que un informe filtrado solo trae dentro del total de la cuenta. El costo por
+    // conversion de Google Ads vale solo si esa suma es el total de la cuenta.
     const campaignCol = header.indexOf('Campaña');
+    const campaignRows = kind === 'period' && campaignCol >= 0
+      ? body.filter(row => clean(row[campaignCol]) && clean(row[campaignCol]) !== '--' && !String(row[statusCol]).startsWith('Total') && (!weekly || weekOf(row)))
+      : [];
+    const counted = campaignRows.filter(row => !excludedCampaign(row[campaignCol]));
+    if (totals && counted.length) {
+      const listed = counted.map(metricsOf).reduce((sum, item) => Object.fromEntries(Object.keys(item).map(key => [key, (sum[key] || 0) + (item[key] || 0)])), {});
+      Object.keys(listed).forEach(key => { listed[key] = Math.round(listed[key] * 100) / 100; });
+      const same = Math.abs((listed.cost || 0) - (totals.cost || 0)) < 0.05;
+      totals = Object.assign(listed, { reportedCostPerConversion: same ? totals.reportedCostPerConversion : null });
+    }
+    // Presupuesto diario y estado de cada campaña en el periodo del informe.
     const budgetCol = col(['Presupuesto']);
     const campaigns = {};
     body.forEach(row => {
       const campaign = campaignCol >= 0 ? clean(row[campaignCol]) : '';
-      if (!campaign || campaign === '--' || String(row[statusCol]).startsWith('Total')) return;
+      if (!campaign || campaign === '--' || String(row[statusCol]).startsWith('Total') || excludedCampaign(campaign)) return;
       campaigns[campaign] = { name: campaign, status: clean(row[statusCol]), dailyBudget: budgetCol !== undefined ? parseNumber(row[budgetCol], locale) : null };
     });
     const report = { kind, name, file: sheet.file, modified: sheet.modified || '', month: range.start.slice(0, 7), start: range.start, end: range.end, totals: totals || null, campaigns: Object.values(campaigns) };
-    if (weekly && totals) Object.assign(report, weeklyDetail(body, { range, statusCol, campaignCol, metricsOf, weekOf, totals, month: report.month }));
+    if (weekly && totals) Object.assign(report, weeklyDetail(body, { range, statusCol, campaignCol, metricsOf, weekOf, month: report.month }));
     if (kind === 'actions') {
       const actions = accountRows.filter(hasLabel).map(row => ({ name: row[0], conversions: metricsOf(row).conversions || 0 }));
       if (!actions.length) return { skipped: `${name}: no tiene filas por accion de conversion.` };
@@ -153,16 +172,15 @@
   const sumMetrics = items => Object.fromEntries(SUM_KEYS.map(key => [key, Math.round(items.reduce((sum, item) => sum + (Number(item[key]) || 0), 0) * 100) / 100]));
 
   // Informe de campana del mes por semana: cada semana (de lunes a domingo, recortada al rango del informe) con
-  // el total de la cuenta y sus campanas, y las campanas del mes sumando sus semanas. Si el informe se descargo
-  // filtrando campanas, lo que el total de la cuenta tiene de mas va como "Otras campanas" para que el detalle
-  // sume el mes.
-  function weeklyDetail(body, { range, statusCol, campaignCol, metricsOf, weekOf, totals, month }) {
-    const campaignRows = body.filter(row => weekOf(row) && campaignCol >= 0 && clean(row[campaignCol]) && clean(row[campaignCol]) !== '--' && !String(row[statusCol]).startsWith('Total'));
+  // sus campanas y, como total, la suma de las campanas que cuentan (el total de la cuenta solo si el informe no
+  // trae filas por campana); las campanas del mes suman sus semanas.
+  function weeklyDetail(body, { range, statusCol, campaignCol, metricsOf, weekOf, month }) {
+    const campaignRows = body.filter(row => weekOf(row) && campaignCol >= 0 && clean(row[campaignCol]) && clean(row[campaignCol]) !== '--' && !String(row[statusCol]).startsWith('Total') && !excludedCampaign(row[campaignCol]));
     const accountByWeek = new Map(body.filter(row => weekOf(row) && row[statusCol] === 'Total: Cuenta').map(row => [weekOf(row), metricsOf(row)]));
     const starts = [...new Set([...accountByWeek.keys(), ...campaignRows.map(weekOf)])].sort();
     const weeks = starts.map(start => {
       const campaigns = campaignRows.filter(row => weekOf(row) === start).map(row => Object.assign({ campaign: clean(row[campaignCol]) }, metricsOf(row)));
-      const account = accountByWeek.get(start) || sumMetrics(campaigns);
+      const account = campaignRows.length ? sumMetrics(campaigns) : accountByWeek.get(start);
       const dataStart = start < range.start ? range.start : start;
       const end = addDays(start, 6);
       const dataEnd = end > range.end ? range.end : end;
@@ -175,8 +193,6 @@
       byCampaign.get(campaign).push(metricsOf(row));
     });
     const records = [...byCampaign.entries()].map(([campaign, items]) => Object.assign({ campaign }, sumMetrics(items)));
-    const rest = Object.fromEntries(SUM_KEYS.map(key => [key, Math.round(((Number(totals[key]) || 0) - records.reduce((sum, item) => sum + (Number(item[key]) || 0), 0)) * 100) / 100]));
-    if (records.length && rest.cost > 0.05) records.push(Object.assign({ campaign: 'Otras campañas' }, rest));
     return { weeks, records };
   }
 
@@ -203,7 +219,7 @@
       if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return;
       if (cols.status >= 0 && clean(row[cols.status]).startsWith('Total')) return;
       const campaign = cols.campaign >= 0 ? clean(row[cols.campaign]) : '';
-      if (campaign.startsWith('Total')) return;
+      if (campaign.startsWith('Total') || excludedCampaign(campaign)) return;
       const clicks = num(row, 'clicks');
       const ctr = cols.ctr >= 0 ? parsePercent(row[cols.ctr], locale) : null;
       const impressions = exactImpressions ? num(row, 'impressions') : (clicks && ctr && Number.isFinite(ctr) ? clicks / ctr : 0);
@@ -345,7 +361,7 @@
     const cols = {
       action: at('Acción de conversión'), status: at('Estado de palabras clave', 'Estado de las palabras clave'), keyword: at('Palabra clave'),
       match: at('Tipo de concordancia'), impressions: at('Impr.', 'Impresiones'), clicks: at('Clics'),
-      cost: at('Costo', 'Coste'), conversions: at('Conversiones')
+      cost: at('Costo', 'Coste'), conversions: at('Conversiones'), campaign: at('Campaña')
     };
     if (cols.conversions < 0) return { skipped: `${name}: falta la columna de conversiones.` };
     const num = (row, key) => (cols[key] >= 0 ? parseNumber(row[cols[key]], locale) || 0 : 0);
@@ -362,7 +378,7 @@
         if (accountRow && (!action || action === '--')) account = metrics(row);
         return;
       }
-      if (!raw || raw === '--') return;
+      if (!raw || raw === '--' || (cols.campaign >= 0 && excludedCampaign(row[cols.campaign]))) return;
       const match = MATCH_TYPES[clean(row[cols.match])] || clean(row[cols.match]).replace(/^Concordancia (de )?/i, '');
       const key = `${raw}|${match}`;
       // Frase y exacta llegan como "palabra" y [palabra]; el tipo ya va en su columna.
@@ -544,6 +560,8 @@
       const account = kw && kw.data.account;
       // Menos impresiones que clics es imposible: la hoja leyo mal el numero (un CSV importado con "9,977" queda 9.977).
       if (!account || !(account.impressions > 0) || account.impressions < (account.clicks || 0) || kw.start !== report.start || kw.end !== report.end) return;
+      // El total de ese informe debe ser el mismo gasto del mes: si no (trae la campana excluida), sus impresiones no sirven.
+      if (account.cost > 0 && Math.abs(account.cost - (report.totals.cost || 0)) > 0.05) return;
       const month = data.months.find(item => item.id === report.month);
       if (!month || month.sourceFile !== report.name) return;
       if (data.totals) {

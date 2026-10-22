@@ -207,7 +207,10 @@
     const m = state.model;
     const f = F();
     const close = baseClose();
-    const monthlyBudget = m.budget * m.daysInMonth;
+    // El presupuesto del mes, si el repo lo fija (octubre: S/ 3,500, con el diario subido a S/ 250 el 21); si no,
+    // el diario por los dias del mes.
+    const fixed = Number(((window.TIERRA_FILMS_RETAIL_DATA || {}).monthlyBudgets || {})[m.monthId]);
+    const monthlyBudget = fixed > 0 ? fixed : m.budget * m.daysInMonth;
     const prevConv = m.previous ? m.previous.conversions : null;
     const cards = [
       [`Gasto al ${f.shortDate(m.lastDate)}`, f.fmtMoney(m.actual.cost), `${m.daysWithData} de ${m.daysInMonth} dias`],

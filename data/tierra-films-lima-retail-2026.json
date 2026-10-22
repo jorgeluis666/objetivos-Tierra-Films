@@ -30,7 +30,7 @@
       "name": "VIDEOS CORPORATIVOS",
       "status": "Habilitada",
       "type": "Búsqueda",
-      "dailyBudget": 112.0,
+      "dailyBudget": 250.0,
       "budgetType": "Diario",
       "currency": "PEN",
       "optimizationScore": 0.9671
@@ -11324,5 +11324,9 @@
         }
       ]
     }
-  ]
+  ],
+  "monthlyBudgets": {
+    "2026-10": 3500
+  },
+  "monthlyBudgetsNote": "Presupuesto del mes de Google Ads. Octubre 2026: S/ 3,500; el 21 de octubre el diario de VIDEOS CORPORATIVOS paso de S/ 112 a S/ 250 para consumirlo."
 }
