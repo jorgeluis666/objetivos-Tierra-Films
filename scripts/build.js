@@ -67,7 +67,21 @@ function main() {
   if (crmConfig.url && crmConfig.token) console.log('[build] CRM de leads conectado a la hoja privada');
   else console.warn('[build] sin TF_CRM_URL/TF_CRM_TOKEN: el modulo Leads guarda solo en el navegador');
 
-  html = html.replace('</head>', () => `<script>window.TIERRA_FILMS_RETAIL_DATA = ${data};window.TIERRA_FILMS_DRIVE_SNAPSHOT = ${snapshot};window.TIERRA_FILMS_CRM = ${crmJson};</script></head>`);
+  // Correos de la alerta de Google Ads (ruedita de Notificaciones): el Web App de
+  // apps-script/alertas-destinatarios.gs. URL y clave no viven en el repo: llegan por TF_ALERTAS_URL y
+  // TF_ALERTAS_TOKEN y solo quedan dentro del HTML cifrado. Sin ellas la ruedita muestra la lista del
+  // repositorio (data/alertas-config.json) sin poder guardarla.
+  const alertas = {
+    url: process.env.TF_ALERTAS_URL || '',
+    token: process.env.TF_ALERTAS_TOKEN || '',
+    porDefecto: (JSON.parse(readFile('data/alertas-config.json')).destinatarios || [])
+      .map(destinatario => ({ nombre: destinatario.nombre || '', email: destinatario.email })),
+  };
+  const alertasJson = JSON.stringify(alertas).replace(/</g, '\\u003c');
+  if (alertas.url && alertas.token) console.log('[build] correos de las alertas conectados al Web App');
+  else console.warn('[build] sin TF_ALERTAS_URL/TF_ALERTAS_TOKEN: la ruedita de Notificaciones no puede guardar');
+
+  html = html.replace('</head>', () => `<script>window.TIERRA_FILMS_RETAIL_DATA = ${data};window.TIERRA_FILMS_DRIVE_SNAPSHOT = ${snapshot};window.TIERRA_FILMS_CRM = ${crmJson};window.TIERRA_FILMS_ALERTAS = ${alertasJson};</script></head>`);
 
   try {
     fs.rmSync(DIST_DIR, { recursive: true, force: true });

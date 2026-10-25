@@ -266,7 +266,9 @@ campaña.
 Igual que la de Royal Baby: queda fija al hacer scroll (blanca translucida con blur,
 70px de alto). A la izquierda, el boton para minimizar la barra lateral, el titulo
 del modulo y debajo la misma descripcion que muestra la barra lateral. A la
-derecha, la píldora de sincronizacion y el boton fantasma **Actualizar**.
+derecha, la campanita de **Notificaciones** (ver [Notificaciones y alerta de Google
+Ads](#notificaciones-y-alerta-de-google-ads)), la píldora de sincronizacion y el boton fantasma
+**Actualizar**.
 
 | Píldora | Color | Cuando |
 | --- | --- | --- |
@@ -473,6 +475,58 @@ Nada mas: `data/` (incluido `data/csv-backups`), `scripts/` y `apps-script/` no 
 Con `TF_PAGE_PASSWORD=<clave> npm run build` el `index.html` sale cifrado, como en GitHub Pages
 (en PowerShell: `$env:TF_PAGE_PASSWORD='<clave>'; npm.cmd run build`). Para probarlo, servir `dist/` (por
 ejemplo `npx live-server dist`) y abrirlo: pide la clave. Usar una clave de prueba, no la real.
+
+## Notificaciones y alerta de Google Ads
+
+El mismo sistema de alertas de Royal Baby, con los numeros de Google Ads. Tiene dos caras y las dos
+salen del mismo calculo (`js/alertas-core.js`): el ultimo mes con inversion, su ritmo diario y el
+cierre proyectado (ritmo x dias del mes, igual que Proyecciones), frente a dos referencias: el
+**presupuesto del mes** (`monthlyBudgets` de la data) y el **mes anterior**, llevado a mes completo
+cuando su informe quedo a medias.
+
+**La campanita de la barra superior** (`js/notificaciones.js`, a la izquierda de la píldora de
+sincronizacion) muestra los avisos del mes y, con un clic, abre el modulo donde se ve ese numero:
+
+| Aviso | Cuando aparece |
+| --- | --- |
+| Cierre del gasto vs presupuesto | hay presupuesto del mes; rojo si el cierre pasa el 115 %, ámbar sobre 105 % o por debajo del 80 % |
+| Conversiones al cierre vs mes anterior | rojo bajo el 80 %, ámbar bajo el 95 % |
+| Costo por conversion vs mes anterior | ámbar si sube mas de 10 %, rojo sobre 30 % |
+| Campañas que gastan sin conversiones | alguna campaña del mes gasto y no convirtio |
+| La campaña que sostiene el mes | informativo: cuanta conversion concentra y a que costo |
+
+La ruedita del panel abre la lista de **correos de la alerta** (nombre opcional y correo, hasta 25).
+La lista vive en el Web App de `apps-script/alertas-destinatarios.gs` (propiedades del script, no en
+el repo): el tablero publicado la edita con la URL y la clave que el build deja dentro del HTML
+cifrado, y la alerta la lee antes de cada envio. Mientras nadie guardo una lista, o si el Web App no
+responde, se usan los destinatarios de `data/alertas-config.json`; una lista guardada vacia no envia
+nada.
+
+**El correo** (`scripts/alertas.js`, con la estetica del tablero) sale por
+`.github/workflows/alertas-semanales.yml`:
+
+- **Lunes a las 6:00 p. m. de Lima**, una vez por semana.
+- **Cuando entran datos nuevos**: push a `main` que toque
+  `data/tierra-films-lima-retail-2026.json` o `data/drive-snapshot.json`, y solo si cambiaron las
+  cifras del mes desde el ultimo envio (se compara una huella guardada en `data/alertas-envios.json`).
+- A mano: `Actions > Alerta semanal de Google Ads > Run workflow`, con «Simulación» para no enviar y
+  «Reenviar» para mandarla aunque ya haya salido esa semana.
+- En local, sin enviar nada: `node scripts/alertas.js --preview correo.html` escribe el correo en un
+  archivo y `node scripts/alertas.js --dry-run` muestra a quien iria.
+
+El correo lee la data del repo y, si existe, le mezcla `data/drive-snapshot.json` con el mismo
+`merge()` del tablero (`js/drive-sync.js`), asi que muestra los mismos numeros que la pagina.
+
+**Puesta en marcha** (una vez): ejecutar `instalar()` en el Web App de
+`apps-script/alertas-destinatarios.gs`, implementarlo como aplicacion web con acceso «Cualquier
+persona» y crear los secrets:
+
+| Secret | Para que |
+| --- | --- |
+| `TF_ALERTAS_URL`, `TF_ALERTAS_TOKEN` | la lista de correos que se edita en el tablero (build y alerta) |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` | cuenta alertas@limaretail.com del hosting, que tambien es el remitente |
+| `RESEND_API_KEY` | alternativa si no hay SMTP |
+| variable `DASHBOARD_URL` | opcional, si el enlace del correo debe ser otro que el de `data/alertas-config.json` |
 
 ## Publicacion en tierrafilms.limaretail.com (GitHub Pages)
 

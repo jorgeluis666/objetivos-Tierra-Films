@@ -33,13 +33,16 @@ jobs:
           # CRM de leads (modulo Leads): Web App de la hoja privada. Sin ellos el modulo guarda en el navegador.
           TF_CRM_URL: ${{ secrets.TF_CRM_URL }}
           TF_CRM_TOKEN: ${{ secrets.TF_CRM_TOKEN }}
+          # Correos de la alerta (ruedita de Notificaciones): Web App alertas-destinatarios.gs.
+          TF_ALERTAS_URL: ${{ secrets.TF_ALERTAS_URL }}
+          TF_ALERTAS_TOKEN: ${{ secrets.TF_ALERTAS_TOKEN }}
         run: |
           # Sin clave no se publica: el tablero quedaria abierto a cualquiera con el enlace.
           if [ -z "$TF_PAGE_PASSWORD" ]; then echo "::error::Falta el secret TF_PAGE_PASSWORD"; exit 1; fi
           node scripts/build.js
           # Ultimo control: lo que se sube tiene que ser la pantalla de acceso, no el tablero en claro.
           grep -q 'id="gate-payload"' dist/index.html || { echo "::error::dist/index.html no salio cifrado"; exit 1; }
-          if grep -qE 'TIERRA_FILMS_(RETAIL_DATA|DRIVE_SNAPSHOT|CRM)' dist/index.html; then echo "::error::dist/index.html trae los datos en claro"; exit 1; fi
+          if grep -qE 'TIERRA_FILMS_(RETAIL_DATA|DRIVE_SNAPSHOT|CRM|ALERTAS)' dist/index.html; then echo "::error::dist/index.html trae los datos en claro"; exit 1; fi
           if [ -e dist/data ]; then echo "::error::dist/ no debe llevar data/"; exit 1; fi
 
       - uses: actions/upload-pages-artifact@v3
