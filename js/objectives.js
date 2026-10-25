@@ -66,7 +66,7 @@
   // Estado de la sincronizacion para la pildora: mode (idle, loading, ok, warn, off, error), meta (texto corto),
   // detail (lo que leyo o el error), at (cuando fue el barrido) y origin (automatico, manual, copia...).
   const sync = { mode: 'idle', meta: '', detail: '', at: null, origin: '', schedule: null };
-  const SWEEP_HOUR = 10;
+  const SWEEP_HOURS = [6, 13, 18];
   // Sin barrido en mas de un dia y algo, la pildora pasa a ambar.
   const STALE_SWEEP_HOURS = 30;
   const gasto = {
@@ -1717,12 +1717,13 @@
     return !withDay && today ? time : `${date.getDate()} ${MONTH_SHORT[date.getMonth()]}, ${time}`;
   }
 
-  // Proximo barrido de las 10:00 de Lima (UTC-5 todo el ano).
+  // Proxima extracción de Nexus en Lima (UTC-5 todo el ano).
   function nextSweepLabel() {
     const now = new Date();
-    const next = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), SWEEP_HOUR + 5, 0));
-    if (next <= now) next.setUTCDate(next.getUTCDate() + 1);
-    return `${stampLabel(next)} · todos los días`;
+    const lima = new Date(now.getTime() - 5 * 3600000);
+    const candidates = SWEEP_HOURS.map(hour => new Date(Date.UTC(lima.getUTCFullYear(), lima.getUTCMonth(), lima.getUTCDate(), hour + 5)));
+    const next = candidates.find(date => date > now) || new Date(candidates[0].getTime() + 86400000);
+    return `${stampLabel(next)} · 06:00, 13:00 y 18:00 (Lima). Publicación después del barrido de Drive, aprox. 30 min más tarde`;
   }
 
   const sweepHours = () => (sync.at ? (Date.now() - new Date(sync.at).getTime()) / 3600000 : null);
@@ -1746,7 +1747,7 @@
     const connected = Boolean(drive && drive.configured);
     set('status-data', latest ? escapeHtml(`${dayRange(latest, latest.firstDay, latest.lastDay)} ${latest.year}${latest.complete ? '' : ' (mes en curso)'}`) : 'Sin informes');
     set('status-months', withData.length ? escapeHtml(`${withData.length} ${withData.length === 1 ? 'mes' : 'meses'} con informe de campaña (${withData[0].shortName} a ${withData[withData.length - 1].shortName})`) : 'Ninguno');
-    const origin = { automatico: 'automático de las 10:00', manual: 'con el botón', inicial: 'inicial', instalacion: 'al instalar', prueba: 'de prueba' }[sync.origin] || '';
+    const origin = { automatico: 'automático tras la extracción de Nexus', manual: 'con el botón', inicial: 'inicial', instalacion: 'al instalar', prueba: 'de prueba' }[sync.origin] || '';
     let sweepText = 'Consultando...';
     if (sync.mode === 'error') sweepText = 'No se pudo leer Drive';
     else if (sync.origin === 'copia') sweepText = `Copia guardada del ${stampLabel(sync.at)} (Drive sin conectar)`;
@@ -1766,7 +1767,7 @@
     const notes = [];
     if (sync.mode === 'error') notes.push('La última lectura de Drive falló: el tablero sigue con lo que tenía.');
     else if (!connected) notes.push('Drive no está conectado: el tablero muestra la copia guardada. Falta publicar el Apps Script (README > Conectar la carpeta).');
-    else if (isStale()) notes.push('No hay barrido desde hace más de un día: revisa el activador de las 10:00 en Apps Script.');
+    else if (isStale()) notes.push('No hay barrido desde hace más de un día: revisa el activadores de las 06:30, 13:30 y 18:30 en Apps Script.');
     if (latest && !latest.complete) notes.push(`${latest.name} está en curso: el informe llega hasta el ${latest.lastDay} de ${latest.name.toLowerCase()}.`);
     if (latest && !latest.days.length) notes.push(`Falta el informe de campaña por Día de ${latest.name.toLowerCase()} para ver clics, impresiones y conversiones diarias reales.`);
     const missing = missingMonths();
