@@ -917,6 +917,128 @@
   }
 }
 
+/* ===== Acciones sugeridas ===== */
+/* Tarjetas blancas con borde fino, sin barras de color: el tono de cada accion va solo en la
+   casilla, que es lo unico que hay que distinguir de un vistazo. */
+.acciones-panel {
+  margin-top: 24px;
+}
+
+.acciones-estado {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.acciones-contador {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.acciones-estado small {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.acciones-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.accion {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.accion:hover {
+  border-color: #93c5fd;
+}
+
+.accion input[type="checkbox"] {
+  width: 17px;
+  height: 17px;
+  margin: 1px 0 0;
+  flex: none;
+  accent-color: var(--brand);
+  cursor: pointer;
+}
+
+.accion.red input[type="checkbox"] {
+  accent-color: var(--red);
+}
+
+.accion.amber input[type="checkbox"] {
+  accent-color: #d97706;
+}
+
+.accion-cuerpo {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.accion-titulo {
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.accion-porque {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+/* La ruta de Google Ads: se lee como lo que es, un camino de menus. */
+.accion-donde {
+  margin-top: 2px;
+  color: #526987;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+/* Hecha: se queda en la lista, apagada, para que se vea lo que ya se movio este mes. */
+.accion.hecha {
+  background: #f8fafc;
+}
+
+.accion.hecha .accion-titulo {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+.accion.hecha .accion-porque,
+.accion.hecha .accion-donde {
+  opacity: .65;
+}
+
+.acciones-vacio {
+  padding: 22px;
+  border: 1px dashed var(--border);
+  border-radius: 9px;
+  color: var(--muted);
+  font-size: 11px;
+  text-align: center;
+}
+
+.acciones-nota {
+  margin: 12px 0 0;
+  color: #94a3b8;
+  font-size: 10px;
+  line-height: 1.5;
+}
+
 .projection-panel {
   margin-top: 20px;
   padding: 20px;
