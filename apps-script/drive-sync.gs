@@ -5,6 +5,10 @@
  * CSV sueltos) y devuelve sus filas en JSON. El dashboard reconoce el tipo de
  * informe por la fila de encabezados.
  *
+ * De la carpeta de reglas ("08 Reglas y Optimización", la hoja del ciclo mensual)
+ * solo salen cinco columnas: ver COLUMNAS_POR_CARPETA. La instruccion estrategica
+ * de esa hoja no sale de LR Suite, y este Web App no pide clave.
+ *
  * Barrido: un disparador lo corre todos los dias a las 10:00 (Lima) y guarda el
  * resultado en un JSON en Drive. El tablero lee ese ultimo barrido al abrir; el
  * boton Sincronizar pide uno en el momento (?fresh=1).
@@ -19,12 +23,22 @@
  * Nueva version (la URL no cambia) y, si cambia el horario, installSweepTriggers().
  */
 
-// Carpetas de "Google Ads TF" en Drive. El tablero reconoce cada informe por su
-// cabecera, asi que la carpeta solo sirve para ordenar.
+// Carpetas de "Google Ads TF" en Drive, mas la de reglas. El tablero reconoce cada
+// informe por su cabecera, asi que la carpeta solo sirve para ordenar.
 const FOLDERS = {
   campanas: '1Zz5WjNFy0H37n0trSjhVx90NgPmqkyrO',     // Google Ads TF Campañas
   segmentacion: '1Ehko4amk1IjGW6H-HB4WtkF98aaNeB7U', // Google Ads TF Segmentacion
-  keywords: '1WSk4gc4UNeprLTWFzLtTUaSqOSWZ25yL'      // Google Ads TF Keywords
+  keywords: '1WSk4gc4UNeprLTWFzLtTUaSqOSWZ25yL',     // Google Ads TF Keywords
+  reglas: '1QBpVlptEoR8F-667W9FCmL4ZsD0WHvY9'        // 08 Reglas y Optimización
+};
+
+// La hoja Reglas_Nexus_Tierra Films trae una columna, "Instruccion Estrategica para la IA", que es
+// el metodo de trabajo de la agencia: habla del cliente en tercera persona y se queda en LR Suite.
+// Este Web App responde a cualquiera que tenga la URL (doGet no pide clave), asi que el recorte se
+// hace aca, al armar la respuesta, y no mas abajo en el tablero: de esa carpeta solo salen estas
+// columnas. El resto de las carpetas sale entera, como siempre.
+const COLUMNAS_POR_CARPETA = {
+  reglas: ['ID Regla', 'Métrica (Trigger)', 'Operador', 'Valor', 'Acción Automática']
 };
 const TIMEZONE = 'America/Lima';
 const SWEEP_HOUR = 10;
@@ -82,6 +96,7 @@ function sweep_(origin) {
     Object.keys(FOLDERS).forEach(key => {
       const folder = DriveApp.getFolderById(FOLDERS[key]);
       folders[key] = folder.getName();
+      const columnas = COLUMNAS_POR_CARPETA[key];
       const files = folder.getFiles();
       while (files.hasNext()) {
         const file = files.next();
@@ -93,9 +108,13 @@ function sweep_(origin) {
           const zone = book.getSpreadsheetTimeZone();
           book.getSheets().forEach(sheet => {
             const range = sheet.getDataRange();
-            sheets.push({ folder: key, file: name, sheet: sheet.getName(), modified, rows: cleanRows(range.getValues(), range.getDisplayValues(), zone) });
+            const rows = cleanRows(range.getValues(), range.getDisplayValues(), zone);
+            sheets.push({ folder: key, file: name, sheet: sheet.getName(), modified, rows: soloColumnas(rows, columnas) });
           });
         } else if (/\.csv$/i.test(name) || file.getMimeType() === MimeType.CSV) {
+          // En una carpeta con columnas permitidas, un CSV suelto no se publica: no se puede
+          // recortar por nombre de columna con la misma garantia y ahi no tiene nada que hacer.
+          if (columnas) continue;
           sheets.push({ folder: key, file: name, sheet: name, modified, rows: readCsv(file.getBlob()) });
         }
       }
@@ -148,6 +167,31 @@ function cleanRows(rows, display, zone) {
     if (typeof cell === 'number') return shown;
     return cell;
   }));
+}
+
+// Deja de cada fila solo las columnas pedidas, en el orden en que se piden. Sin columnas pedidas,
+// la hoja sale entera.
+function soloColumnas(filas, columnas) {
+  if (!columnas || !filas.length) return columnas ? [] : filas;
+  const encabezado = filas[0].map(normalizarEncabezado);
+  const indices = columnas
+    .map(nombre => encabezado.indexOf(normalizarEncabezado(nombre)))
+    .filter(indice => indice >= 0);
+  // Si la hoja no trae ninguna de las columnas esperadas no se devuelve nada, en lugar de
+  // devolverla entera: un encabezado cambiado no puede destapar la instruccion estrategica.
+  if (!indices.length) return [];
+  return filas.map(fila => indices.map(indice => fila[indice] === undefined ? '' : fila[indice]));
+}
+
+// Los encabezados se comparan sin tildes ni mayusculas: "Métrica (Trigger)" y "metrica (trigger)"
+// son la misma columna.
+function normalizarEncabezado(valor) {
+  const tildes = { 'á': 'a', 'é': 'e', 'í': 'i', 'ó': 'o', 'ú': 'u', 'ü': 'u', 'ñ': 'n' };
+  return String(valor === null || valor === undefined ? '' : valor)
+    .trim()
+    .toLowerCase()
+    .replace(/[áéíóúüñ]/g, letra => tildes[letra])
+    .replace(/\s+/g, ' ');
 }
 
 // Google Ads exporta CSV (UTF-8, comas) o "CSV para Excel" (UTF-16, tabulaciones).

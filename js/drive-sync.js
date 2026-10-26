@@ -412,6 +412,41 @@
     return report.modified > current.modified;
   }
 
+  // La hoja Reglas_Nexus_<Marca> de "08 Reglas y Optimización": una regla por fila, con los cinco
+  // campos que evalua el tablero. La "Instrucción Estratégica para la IA" de esa hoja no llega
+  // hasta aca (la recorta el Apps Script, COLUMNAS_POR_CARPETA) y tampoco se leeria.
+  function parseReglas(sheet) {
+    const rows = (sheet.rows || []).map(row => row.map(cell => (typeof cell === 'number' ? cell : clean(cell))));
+    const texto = cell => String(cell === null || cell === undefined ? '' : cell).trim();
+    const header = rows.findIndex(row => row.some(cell => /^id\s*regla$/i.test(texto(cell))));
+    if (header < 0) return [];
+    const columna = etiqueta => rows[header].findIndex(cell => etiqueta.test(texto(cell)));
+    const cols = {
+      id: columna(/^id\s*regla$/i),
+      metrica: columna(/^m[eé]trica/i),
+      operador: columna(/^operador$/i),
+      valor: columna(/^valor$/i),
+      accion: columna(/^acci[oó]n autom[aá]tica$/i)
+    };
+    if (cols.id < 0 || cols.metrica < 0) return [];
+    const campo = (row, indice) => (indice >= 0 ? texto(row[indice]) : '');
+    return rows.slice(header + 1)
+      .map(row => {
+        // Un corte vacio o con texto queda en null: el tablero salta esa regla en lugar de aplicar
+        // un corte inventado.
+        const valor = Number(campo(row, cols.valor).replace(',', '.'));
+        return {
+          id: campo(row, cols.id),
+          metrica: campo(row, cols.metrica),
+          operador: campo(row, cols.operador),
+          valor: campo(row, cols.valor) && Number.isFinite(valor) ? valor : null,
+          accion: campo(row, cols.accion)
+        };
+      })
+      // Una fila sin ID o sin metrica es una nota al pie de la hoja, no una regla.
+      .filter(regla => regla.id && regla.metrica);
+  }
+
   // Por cada mes manda el informe que llegue mas lejos (y, si empatan, el editado al ultimo).
   const newer = (a, b) => !b || a.end > b.end || (a.end === b.end && a.modified > b.modified);
 
@@ -419,7 +454,15 @@
     const data = JSON.parse(JSON.stringify(base));
     const notes = [];
     const reports = [];
+    const reglas = [];
     (payload.sheets || []).forEach(sheet => {
+      // La carpeta de reglas no trae informes de Google Ads, sino los hitos del ciclo mensual, que
+      // se leen por su propia cabecera. Sin este desvio, cada barrido dejaria un aviso de "no
+      // parece un informe de campaña" en el panel de sincronizacion del tablero.
+      if (sheet.folder === 'reglas') {
+        reglas.push(...parseReglas(sheet));
+        return;
+      }
       const result = parseSheet(sheet);
       if (result.skipped) notes.push(result.skipped);
       else reports.push(result.report);
@@ -651,7 +694,10 @@
       origin: payload.origin || (payload.snapshot ? 'copia' : ''),
       schedule: payload.schedule || null,
       applied,
-      notes
+      notes,
+      // Los hitos del ciclo mensual como vinieron del barrido, en la misma forma que data/reglas.json.
+      // Si el barrido no los trajo, manda el archivo del repositorio y los avisos salen como siempre.
+      reglas: reglas.length ? reglas : null
     };
     return data;
   }

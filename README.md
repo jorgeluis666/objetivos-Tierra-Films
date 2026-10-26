@@ -303,6 +303,12 @@ Tambien sincroniza solo al abrir el tablero; cada visita lee las carpetas en viv
 | Google Ads TF Campañas | `1Zz5WjNFy0H37n0trSjhVx90NgPmqkyrO` | Gasto Publicitario y Proyecciones |
 | Google Ads TF Segmentacion | `1Ehko4amk1IjGW6H-HB4WtkF98aaNeB7U` | Segmentacion |
 | Google Ads TF Keywords | `1WSk4gc4UNeprLTWFzLtTUaSqOSWZ25yL` | Palabras Clave (seccion `Desde Google Drive`) |
+| 08 Reglas y Optimización | `1QBpVlptEoR8F-667W9FCmL4ZsD0WHvY9` | Notificaciones (el orden de los avisos) |
+
+De la carpeta de reglas el Apps Script devuelve **solo cinco columnas** de la hoja
+`Reglas_Nexus_Tierra Films` (`COLUMNAS_POR_CARPETA`): la «Instrucción Estratégica para la IA» esta
+escrita para la agencia y no sale de LR Suite. El recorte se hace en el Apps Script, no en el
+tablero, porque su Web App responde a cualquiera que tenga la URL.
 
 El tablero reconoce cada informe por su fila de encabezados, no por la carpeta
 ni por el nombre del archivo (una pestaña o CSV por informe, con el rango de
@@ -383,7 +389,7 @@ verde (leido), `No se pudo sincronizar` en rojo con el boton en `Reintentar`
 
 ### Barrido automatico a las 10:00
 
-El Apps Script tiene un disparador que lee las tres carpetas **todos los dias a
+El Apps Script tiene un disparador que lee las cuatro carpetas **todos los dias a
 las 10:00 (hora de Lima)** y guarda el resultado en un archivo de Drive
 (`Tierra Films - barrido del tablero.json`, en el Drive de quien instala el
 script). Al abrir, el tablero trae ese ultimo barrido, asi carga rapido; el
@@ -430,7 +436,8 @@ anterior y crea el nuevo). `probarBarrido` hace un barrido de prueba sin tocar
 el disparador.
 
 Para sumar otra carpeta, agregala en `FOLDERS` (Apps Script) y en
-`FOLDER_URLS` (`js/drive-sync.js`) y publica una nueva version del script.
+`FOLDER_URLS` (`js/drive-sync.js`) y publica una nueva version del script. Si de esa carpeta no
+debe salir todo, nombra sus columnas en `COLUMNAS_POR_CARPETA` (Apps Script), como la de reglas.
 
 Ojo: cualquiera con esa URL puede leer los informes de las carpetas. En el sitio
 publicado queda dentro del HTML cifrado, pero como el repo es publico sigue
@@ -507,13 +514,14 @@ primero el aviso que toca mirar esa semana:
 | 3 | `alerta_overlap` | la campaña que concentra el resultado |
 | 4 | `escalar_presupuesto` | el presupuesto que va a quedar sin usar |
 
-Ningun aviso se esconde: el que no toca esa semana baja de puesto, nada mas. La hoja `Reglas_Nexus_<Marca>` de la carpeta
-«08 Reglas y Optimizacion» del Drive de la marca es la raiz editable de estas reglas, pero todavia
-no hay barrido que la traiga hasta aca: por ahora manda lo que esta en el repositorio y el puente
-esta pendiente. Esa carpeta tiene los permisos restringidos al equipo, asi que el barrido tendra
-que leerla por el Web App del Apps Script, no por la vista publica de Drive. La **instruccion estrategica**
-de esa hoja no viaja aqui: esta escrita para la agencia y se queda en LR Suite. Sin
-`data/reglas.json` los avisos salen como siempre, sin ordenar y sin la linea de contexto.
+Ningun aviso se esconde: el que no toca esa semana baja de puesto, nada mas. La hoja
+`Reglas_Nexus_Tierra Films` de la carpeta «08 Reglas y Optimizacion» del Drive de la marca es la
+raiz editable de estas reglas, y el **barrido de las 10:00** la trae junto con las otras carpetas:
+lo que el equipo cambie ahi se ve en el tablero sin pasar por el repositorio. Si Drive no responde
+—o el tablero abrio sin conexion— manda `data/reglas.json`, que es tambien lo que lee el correo
+semanal; sin ninguna de las dos, los avisos salen como siempre, sin ordenar y sin la linea de
+contexto. La **instruccion estrategica** de esa hoja no llega hasta aqui: la recorta el Apps Script
+antes de responder y se queda en LR Suite.
 
 La ruedita del panel abre la lista de **correos de la alerta** (nombre opcional y correo, hasta 25).
 La lista vive en el Web App de `apps-script/alertas-destinatarios.gs` (propiedades del script, no en
