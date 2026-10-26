@@ -116,10 +116,20 @@
       <p class="notif-foot">Quien entra al tablero puede cambiar esta lista.${a.actualizado ? ` Último cambio: ${esc(fechaCambio(a.actualizado))}` : ''}</p>`;
   }
 
+  // Las reglas que trae el barrido de Drive mandan sobre las del repositorio: son la hoja tal como
+  // esta hoy. Si el barrido no las trajo (Drive no respondio, o el tablero abrio sin conexion),
+  // sigue mandando data/reglas.json, y sin ninguna de las dos los avisos salen sin ordenar.
+  function reglasVigentes() {
+    const barrido = (window.TIERRA_FILMS_RETAIL_DATA || {}).drive || {};
+    return Array.isArray(barrido.reglas) && barrido.reglas.length
+      ? barrido.reglas
+      : window.TIERRA_FILMS_REGLAS;
+  }
+
   function render() {
     const zone = document.getElementById('notif-zone');
     if (!zone || !Core()) return;
-    const e = Core().estado(window.TIERRA_FILMS_RETAIL_DATA, window.TIERRA_FILMS_REGLAS);
+    const e = Core().estado(window.TIERRA_FILMS_RETAIL_DATA, reglasVigentes());
     if (!e) { zone.hidden = true; return; }
     const items = Core().avisos(e);
     const open = state.open;

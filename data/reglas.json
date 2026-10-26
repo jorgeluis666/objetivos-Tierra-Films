@@ -1,5 +1,5 @@
 {
-  "_comentario": "Ciclo Mensual de Analisis y Optimizacion. Dice en que parte del mes vamos y, con eso, en que orden se leen los avisos del tablero. La raiz editable de estas reglas es la hoja Reglas_Nexus_Tierra Films de la carpeta 08 Reglas y Optimizacion (permisos restringidos al equipo); todavia no hay barrido que la traiga hasta aqui, asi que por ahora manda este archivo. La instruccion estrategica de la hoja NO viaja a este archivo: esta escrita para la agencia y se queda en LR Suite.",
+  "_comentario": "Ciclo Mensual de Analisis y Optimizacion. Dice en que parte del mes vamos y, con eso, en que orden se leen los avisos del tablero. La raiz editable es la hoja Reglas_Nexus_Tierra Films de la carpeta 08 Reglas y Optimizacion del Drive de la marca (permisos restringidos al equipo), y el barrido de Drive de las 10:00 la trae en vivo: el tablero prefiere esas reglas y usa este archivo cuando el barrido no responde. Este archivo es tambien el que lee el correo semanal, asi que si se mueve un corte en la hoja conviene reflejarlo aqui a mano. La instruccion estrategica de la hoja no llega hasta aqui: la recorta el Apps Script antes de responder y se queda en LR Suite.",
   "fuente": "Reglas_Nexus_Tierra Films",
   "lastSync": null,
   "reglas": [
