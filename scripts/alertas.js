@@ -94,6 +94,14 @@ function datosDelTablero() {
 // ── Cargar archivos ──────────────────────────────────────────
 const { data, fuente } = datosDelTablero();
 const config = readJson('data/alertas-config.json');
+// Las reglas del Ciclo Mensual ordenan los avisos igual que en el tablero: el correo y el panel
+// dicen lo mismo y en el mismo orden. Si el archivo no esta, los avisos salen sin ordenar por hito.
+let reglas = null;
+try {
+  reglas = readJson('data/reglas.json');
+} catch (error) {
+  console.warn(`  Reglas     : sin data/reglas.json (${error.code || error.message})`);
+}
 // URL del tablero: la variable DASHBOARD_URL del repo, si existe, manda sobre el JSON.
 if (process.env.DASHBOARD_URL) config.url_dashboard = process.env.DASHBOARD_URL;
 const enviosPath = path.join(ROOT, 'data/alertas-envios.json');
@@ -105,7 +113,7 @@ const fechaLabel = lima.toLocaleDateString('es-PE', {
   weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC',
 });
 
-const e = Core.estado(data);
+const e = Core.estado(data, reglas);
 console.log(`\n▶ Alerta de Google Ads ${weekKey}${DRY_RUN ? ' [DRY-RUN]' : ''}`);
 console.log(`  Fecha Lima : ${fechaLabel}`);
 console.log(`  Datos      : ${fuente}`);
