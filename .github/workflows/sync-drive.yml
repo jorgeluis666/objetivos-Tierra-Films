@@ -1,0 +1,62 @@
+name: Sincronizar Drive
+
+# Barre las carpetas de "Google Ads TF" (campanas, segmentacion, keywords y reglas), renueva
+# data/drive-snapshot.json y vuelve a publicar el tablero si algo cambio. El barrido lo hace el
+# Web App de apps-script/drive-sync.gs, que es quien tiene permiso sobre las carpetas; aqui solo
+# se le pide uno en el momento (?fresh=1) y se guarda la respuesta.
+#
+# Corre todos los dias a las 06:30, 13:30 y 18:30 de Lima, despues de que Nexus escribe los
+# informes (06:00, 13:00 y 18:00): lo lanzan los activadores de Google Apps Script
+# (apps-script/sincronizar-tierra-films.gs) por workflow_dispatch, que arranca al momento. No hay
+# cron de GitHub: atrasa varias horas los workflows programados. Tambien a mano desde
+# Actions > Sincronizar Drive > Run workflow.
+#
+# Sin esto el tablero dependia de que el navegador del cliente leyera Drive al abrir: la copia del
+# repo -que es la que viaja dentro del HTML cifrado- se renovaba a mano.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: sync-drive
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      # El script usa solo la biblioteca estandar: el Python del runner alcanza. La URL del Web App
+      # es la misma que el tablero publica en js/drive-sync.js; el secret TF_SYNC_URL solo sirve
+      # para apuntar a otra sin tocar el repositorio.
+      - name: Barrer las carpetas de Drive
+        id: sync
+        env:
+          TF_DRIVE_SCRIPT_URL: ${{ secrets.TF_SYNC_URL }}
+        run: python3 scripts/sync-drive.py
+
+      - name: Guardar la copia nueva
+        if: ${{ steps.sync.outputs.changed == 'true' }}
+        run: |
+          git config user.name "tierra-films-sync[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/drive-snapshot.json
+          git commit -m "Renueva la copia de las carpetas de Drive"
+          git pull --rebase --autostash origin main
+          git push origin HEAD:main
+
+      # Un push hecho con GITHUB_TOKEN no dispara otros workflows, asi que la publicacion se pide
+      # a mano. La alerta semanal no se dispara desde aqui: sigue saliendo los lunes a las 6:00 p. m.
+      - name: Publicar el tablero
+        if: ${{ steps.sync.outputs.changed == 'true' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run deploy-pages.yml --ref main
+
+      - name: Sin novedades
+        if: ${{ steps.sync.outputs.changed != 'true' }}
+        run: echo "Las carpetas de Drive no trajeron datos nuevos; el tablero sigue igual."
