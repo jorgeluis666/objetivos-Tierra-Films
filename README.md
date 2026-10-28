@@ -367,11 +367,15 @@ Segmentacion (tambien el informe mas reciente de cada tipo):
 
 ### Copia local
 
-`data/drive-snapshot.json` guarda una copia de lo que devolvieron las carpetas
-(se arma con `scripts/drive-snapshot.py`). El tablero la usa al abrir y la
-reemplaza en cuanto Drive responde; si Drive falla o todavia no esta conectado,
-se queda con la copia y la píldora dice `Copia guardada · hace N d`. Para renovarla con CSV
-descargados de las carpetas:
+`data/drive-snapshot.json` guarda una copia de lo que devolvieron las carpetas.
+El tablero la usa al abrir y la reemplaza en cuanto Drive responde; si Drive
+falla o todavia no esta conectado, se queda con la copia y la píldora dice
+`Copia guardada · hace N d`. La copia viaja dentro del HTML cifrado
+(`scripts/build.js`), asi que es lo que ve el cliente mientras Drive no contesta.
+
+La renueva sola el barrido programado de abajo, tres veces al dia. Tambien se
+puede armar a mano con `scripts/drive-snapshot.py` y CSV descargados de las
+carpetas:
 
 ```bash
 python scripts/drive-snapshot.py campanas="Accion de conversion setiembre 2026.csv" segmentacion="Terminos de busqueda 22-28 set 2026.csv" segmentacion="Ubicaciones setiembre 2026.csv" keywords="Palabras clave conversiones setiembre 2026.csv"
@@ -409,6 +413,34 @@ data (la píldora dice el estado y el tiempo relativo del barrido):
 Al abrir la píldora sale el detalle: hora exacta del último barrido, el próximo
 (10:00 de Lima), las carpetas y lo que falta subir. Si el último barrido tiene
 más de 30 horas, la píldora se pone ámbar; si la lectura falló, roja.
+
+### Barrido programado y publicacion (06:30, 13:30 y 18:30)
+
+Nexus escribe los informes de Google Ads en las carpetas a las **06:00, 13:00 y
+18:00 de Lima**. Media hora despues, `.github/workflows/sync-drive.yml` pide un
+barrido en el momento (`?fresh=1`), guarda la respuesta en
+`data/drive-snapshot.json` con `scripts/sync-drive.py` y, si cambio algo, vuelve
+a publicar el tablero. Sin esto la copia del repo se renovaba a mano y el cliente
+veia el mes anterior cada vez que Drive no contestaba.
+
+La hora la pone Google Apps Script, no un cron de GitHub (que atrasa varias
+horas): `apps-script/sincronizar-tierra-films.gs` lanza el workflow por la API de
+GitHub. Va en un **proyecto aparte** del de `drive-sync.gs`, con una sola
+propiedad del script (`GITHUB_TOKEN`, token de grano fino con Actions: lectura y
+escritura solo para este repositorio); los pasos estan en la cabecera del
+archivo. Sin ese proyecto el workflow sigue andando a mano, desde
+`Actions > Sincronizar Drive > Run workflow`.
+
+El barrido del workflow tambien renueva el archivo de Drive que guarda el Web
+App, asi que el disparador propio de `drive-sync.gs` (10:00) solo queda como
+respaldo para quien abra el tablero sin que haya corrido ninguno. La píldora
+sigue anunciando esas 10:00 como proximo barrido.
+
+El script no escribe si las hojas no cambiaron, para no dejar un commit igual al
+anterior en cada corrida. El commit lo hace `tierra-films-sync[bot]` con el
+`GITHUB_TOKEN` de Actions, y esos push **no disparan otros workflows**: la
+publicacion se pide a mano en el mismo workflow y la alerta semanal no sale por
+datos nuevos, solo en su horario de los lunes o a pedido.
 
 ### Conectar la carpeta (una sola vez)
 
