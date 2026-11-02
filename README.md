@@ -151,53 +151,87 @@ los meses y queda de solo lectura.
 
 ## Generacion de Reporte
 
-Pestana que arma el "Reporte de Publicidad" de una semana de lunes a domingo con
-el diseño del modelo de Tierra Films (`Modelo Reporte Tierra Films`): laminas
-16:9 con fondo claro, tarjetas blancas de borde fino y acentos en azul.
+Pestana que arma el "Reporte de Publicidad" con el diseño del modelo de Tierra
+Films (`Modelo Reporte Tierra Films`, version de noviembre 2026): siete laminas
+16:9 con fondo claro, tarjetas blancas de borde fino y acentos en azul, en el
+lenguaje de leads (leads = conversiones de Google Ads, CPL = costo por lead).
+Tiene dos tipos de reporte, los dos cortados por mes, y se elige con los botones
+de la barra:
 
-El selector lista las semanas con datos, de la mas reciente a la mas antigua
-("Semana 12 – 18 oct 2026"), y abre en la ultima semana cerrada. Si la serie por
-dia llega a mitad de semana, esa semana aparece "(en curso)" y se compara con
-los mismos dias de la semana anterior.
+- **Semanal:** las semanas del mes. La primera va del 1 al primer domingo, las
+  siguientes de lunes a domingo y la ultima termina el ultimo dia del mes (octubre
+  2026: 1-4, 5-11, 12-18, 19-25 y 26-31; noviembre empieza con la semana del
+  domingo 1). Asi las semanas suman el mes y no se pisan con las del siguiente.
+  Abre en la ultima semana cerrada; la que esta en curso aparece "(en curso)".
+  Se compara con los mismos dias de la semana anterior ("vs sem. ant." si son
+  los siete dias, "vs mismos días" si la semana es mas corta).
+- **Avance del mes:** el acumulado del 1 al cierre de cada semana (1-4, 1-11,
+  1-18, 1-25) y el mes completo (1-31). Solo cortes cerrados. Se compara con el
+  mismo tramo del mes anterior ("vs mes previo"); el mes completo, con todo el
+  mes anterior.
+
+El selector agrupa los periodos por mes, del mas reciente al mas antiguo
+("Semana 3 · 12 – 18 oct", "Al cierre de la semana 3 · 1 – 18 oct", "Mes
+completo · 1 – 31 oct"), y recuerda el elegido en cada tipo.
 
 | Pagina | Contenido |
 | --- | --- |
-| Portada | Logo de Lima Retail, "Reporte de Publicidad", cliente, periodo ("Semana 12 – 18 de octubre 2026 \| Google Ads · Search"), una linea de la semana y fecha de emision. |
-| Contenido | Resumen de la semana, Palabras clave y Conclusiones, con su numero de pagina. |
-| Resumen de la semana | Inversion, conversiones, costo por conversion, clics, impresiones, CPC medio y CTR, con su variacion contra la semana anterior; clics y conversiones de lunes a domingo. |
-| Palabras clave que convierten | Hasta 6 terminos ordenados por conversiones (coste, clics, conv., costo/conv. y CTR, o tasa de conversion si la semana no tiene impresiones), recuadro "Clave" y tarjeta "Analisis". |
-| Conclusiones del periodo | Tres tarjetas (el termino estrella, el costo por conversion y los terminos a depurar) y, en una semana en curso, la nota de que las metricas se consolidan al cierre. |
+| Portada | Logo de Lima Retail, icono de Google Ads, "Reporte de Publicidad", cliente, periodo ("Octubre 2026 · Periodo 1 – 25 oct", "Octubre 2026 · Semana 3 · 12 – 18 oct" u "Octubre 2026 · Mes completo" \| Google Ads) y fecha de emision. |
+| Contenido | Cuatro tarjetas: Resumen de leads, Palabras clave, Anuncio y calidad y Conclusiones, con su numero de pagina. |
+| Resumen de leads | Seis KPIs (inversion, clics con CPC, leads, costo por lead, CTR con su variacion contra el periodo de comparacion e impresiones); "Evolucion de clics y leads" por dia (hasta 10 dias) o por bloque de 5 dias, con el tramo de mas clics resaltado; "Acciones de conversion" (formularios y WhatsApp), "Destacado" y "Analisis". |
+| Palabras clave | Termino lider (sus leads, su CPL contra el promedio, su % de clics y su CTR), barras de leads por palabra clave, "Destacado", tabla (clics, leads, CPL, CTR y nivel de calidad) con el total de la campaña y "Analisis". |
+| Anuncio y calidad | Vista previa del anuncio responsivo, su eficacia, "Destacado", barras del nivel de calidad por termino y "Analisis". |
+| Conclusiones y proximos pasos | Tres tarjetas (el termino motor, la calidad de los anuncios y la calificacion de los contactos), dos proximos pasos y la nota del periodo (con el aviso de CRM y, en una semana en curso, que las metricas se consolidan al cierre). |
 | Cierre | Logo y firma de Lima Retail. |
 
 - **De donde salen los numeros:** de la serie por dia de Gasto Publicitario
   (`window.TierraFilmsDays`, real donde el informe por dia de Drive la trae).
-  Si en esa semana los clics, las conversiones o las impresiones no vienen por
-  dia, se toma el total de la misma semana del informe semanal de campana o del
-  de palabras clave, solo si su costo cuadra con el costo diario (hay semanas que
-  esos informes traen incompletas). Si no hay de donde, el dato no se muestra: el
-  informe por dia de Drive no trae impresiones, asi que esas semanas van sin
-  Impresiones ni CTR y el grafico lo aclara. Las conversiones por accion
-  (WhatsApp y formularios) vienen por mes, asi que el reporte semanal no las
-  separa. No hay una fuente nueva: cada sincronizacion con Drive lo actualiza
-  solo.
+  Si en ese tramo los clics, las conversiones o las impresiones no vienen por
+  dia, se toma el total del informe mensual (en el mes completo) o el de la misma
+  semana del informe semanal de campana o del de palabras clave, solo si su costo
+  cuadra con el costo diario (hay semanas que esos informes traen incompletas).
+  Si no hay de donde, el dato no se muestra. No hay una fuente nueva: cada
+  sincronizacion con Drive lo actualiza solo.
 - **Palabras clave:** del informe por dia de la carpeta Campanas
   (`data.keywordDays`: costo, clics y conversiones por termino y dia) cuando
-  cubre los siete dias; si no, del informe semanal de palabras clave de esa
-  semana. El pie de la tabla dice cual. La misma palabra con dos concordancias
-  va en una sola fila.
-- **Grafico por dia:** clics y conversiones de lunes a domingo, de la serie
-  diaria del modulo Gasto Publicitario. Donde Google Ads los entrega por semana,
-  por dia se reparten con el coste de cada dia como peso, y el grafico lo aclara.
-  Si la semana no tiene clics por dia (junio solo trae el costo diario), el
-  grafico avisa que falta el informe de campana por dia.
-- **Textos:** la linea del grafico, el recuadro "Clave", el analisis y las
-  conclusiones vienen propuestos con lo que dicen los numeros. Se editan con un
-  clic sobre la lamina (`**texto**` va en negrita) y quedan guardados por semana
-  en el navegador (`tierra_films_report_notes_v2`); no se publican con el tablero.
-  "Restablecer textos" vuelve a los propuestos, sin dialogo de confirmacion.
+  cubre todos los dias del periodo; si no, del informe semanal de palabras clave
+  de esa semana o del informe mensual de palabras clave ("Tierra Films KW
+  octubre - 2026") si su rango es justo el periodo (el mes completo). Si nada
+  cubre el periodo, va el informe mensual del mes con su propio rango: el chip
+  de la lamina y la nota de la tabla lo dicen ("Palabras clave del 1 – 31 oct
+  2026"). La misma palabra con dos concordancias va en una sola fila. Desde
+  octubre el informe mensual de campana de Drive ("Tierra Films - Octubre 2026")
+  viene sin la columna "Palabra clave de la búsqueda", asi que las semanas y los
+  avances del mes usan el informe del mes: pasan a tener las suyas solas cuando
+  ese informe la vuelva a traer.
+- **Nivel de calidad:** columna `Nivel de calidad` del informe de palabras clave
+  (`drive-sync.js` la guarda como `quality`), del mes del reporte o del informe
+  mas reciente que la traiga. Con dos concordancias manda la de mas impresiones.
+- **Acciones de conversion:** solo si un informe por accion de conversion cubre
+  justo el periodo. Si no (como en octubre), los dos numeros salen con "—" y
+  borde punteado en pantalla: se completan con un clic y el analisis y las
+  conclusiones propuestos los usan.
+- **Anuncio:** Google Ads no lo manda al tablero. La vista previa (URL, titulo,
+  descripcion, cuatro extensiones) y la eficacia vienen con el anuncio del
+  modelo de octubre 2026; se corrigen sobre la lamina y quedan para todos los
+  periodos.
+- **Grafico:** clics y leads de cada dia del periodo (o por bloque de 5 dias; un
+  resto de 1 o 2 dias va con el bloque anterior), de la serie diaria del modulo
+  Gasto Publicitario. Si el periodo no tiene clics por dia (junio solo trae el
+  costo diario), el grafico avisa que falta el informe de campana por dia.
+- **Textos:** subtitulos, destacados, analisis, conclusiones, proximos pasos y
+  la nota del periodo vienen propuestos con lo que dicen los numeros. Se editan
+  con un clic sobre la lamina (`**texto**` va en negrita) y quedan guardados en
+  el navegador (`tierra_films_report_notes_v3`): los del periodo bajo el primer
+  dia de la semana o `avance:` y el dia del corte, y los del anuncio (`ad:`) en
+  `_global`, para todos los periodos. No se publican con el tablero.
+  "Restablecer textos" vuelve a los propuestos del periodo, sin dialogo de
+  confirmacion; el anuncio queda.
 - **Descargar PDF** abre el dialogo de impresion con las laminas solas, una por
   hoja de 13.33 x 7.5 in (el tamaño del modelo), y el nombre del archivo ya
-  armado. Activar "Graficos de fondo" si el navegador no lo hace solo.
+  armado (`Reporte_Tierra-Films_Semana_2026-10-12_al_2026-10-18`,
+  `..._Avance_2026-10-01_al_2026-10-18` o `..._Mes_2026-10`). Activar "Graficos
+  de fondo" si el navegador no lo hace solo.
 
 El modulo es `js/report-week.js` y su template es propio de Tierra Films: cada
 tablero de marca tiene el suyo, adaptado por la marca. Sus estilos y los de
