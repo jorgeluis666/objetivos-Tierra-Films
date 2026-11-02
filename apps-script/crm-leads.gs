@@ -18,10 +18,13 @@
  *   { token, action: 'save', row: {...} }   -> { ok, row }   (una fila por mes y campana; vacia = se borra)
  *   { token, action: 'acciones-list' }      -> { ok, rows: [{mes, accion, hecha, actualizado}], updatedAt }
  *   { token, action: 'acciones-save', row } -> { ok, row }   (row: {mes, accion, hecha}; false = se borra)
+ *   { token, action: 'notas-list' }         -> { ok, rows: [{periodo, clave, texto, actualizado}], updatedAt }
+ *   { token, action: 'notas-save', row }    -> { ok, row }   (row: {periodo, clave, texto})
+ *   { token, action: 'notas-reset', periodo } -> { ok, borradas }  (los textos de un periodo; el anuncio queda)
  * Un error responde { ok: false, error }.
  *
- * Las dos ultimas son las acciones sugeridas del modulo Proyecciones: viven en su propia pestana de
- * la misma hoja, asi que no hace falta otro Web App ni otro secreto.
+ * Las acciones sugeridas (modulo Proyecciones) y los textos editados del reporte (Generacion de Reporte)
+ * viven cada uno en su propia pestana de la misma hoja, asi que no hace falta otro Web App ni otro secreto.
  */
 
 const SHEET_NAME = 'Leads por campana';
@@ -38,6 +41,10 @@ function doPost(e) {
     // Acciones sugeridas del modulo Proyecciones: que se marco como hecho este mes.
     if (body.action === 'acciones-list') return { rows: readAcciones(), updatedAt: new Date().toISOString() };
     if (body.action === 'acciones-save') return { row: withLock(() => saveAccion(body.row || {})) };
+    // Textos editados de Generacion de Reporte: lo que escribe una persona lo ve el resto del equipo.
+    if (body.action === 'notas-list') return { rows: readNotas(), updatedAt: new Date().toISOString() };
+    if (body.action === 'notas-save') return { row: withLock(() => saveNota(body.row || {})) };
+    if (body.action === 'notas-reset') return { borradas: withLock(() => resetNotas(body.periodo)) };
     throw new Error('Accion no valida');
   });
 }
@@ -143,6 +150,91 @@ function saveAccion(row) {
   if (fila) tab.getRange(fila, 1, 1, ACCIONES_COLUMNS.length).setValues([datos]);
   else tab.appendRow(datos);
   return { mes, accion, hecha: true };
+}
+
+// ── Textos del reporte ──────────────────────────────────────────────────────
+// Pestana aparte: una fila por periodo y clave. El periodo es el primer dia de la semana (2026-10-12), el
+// corte del avance del mes (avance:2026-10-25) o _global para el anuncio, que vale para todos los periodos.
+// Un texto vacio tambien se guarda: es que alguien borro ese texto a proposito.
+const NOTAS_SHEET = 'Textos del reporte';
+const NOTAS_COLUMNS = ['periodo', 'clave', 'texto', 'actualizado'];
+const NOTA_MAX = 2000;
+
+function notasSheet() {
+  const book = SpreadsheetApp.getActiveSpreadsheet();
+  let tab = book.getSheetByName(NOTAS_SHEET);
+  if (!tab) {
+    tab = book.insertSheet(NOTAS_SHEET);
+    tab.appendRow(NOTAS_COLUMNS);
+    tab.setFrozenRows(1);
+    // Todo como texto: si no, la hoja convierte "2026-10-12" en fecha y "15" en numero.
+    tab.getRange('A:C').setNumberFormat('@');
+  }
+  return tab;
+}
+
+// El periodo de una celda, o '' si no es uno valido (una fila escrita a mano no tumba la lectura).
+function periodoDe(value) {
+  const periodo = value instanceof Date ? Utilities.formatDate(value, 'America/Lima', 'yyyy-MM-dd') : String(value || '').trim();
+  return /^(\d{4}-\d{2}-\d{2}|avance:\d{4}-\d{2}-\d{2}|_global)$/.test(periodo) ? periodo : '';
+}
+
+function notaPeriodo(value) {
+  const periodo = periodoDe(value);
+  if (!periodo) throw new Error('Periodo no valido');
+  return periodo;
+}
+
+function readNotas() {
+  return notasSheet().getDataRange().getValues().slice(1)
+    .filter(values => periodoDe(values[0]) && values[1])
+    .map(values => ({
+      periodo: periodoDe(values[0]),
+      clave: String(values[1]),
+      texto: String(values[2] == null ? '' : values[2]),
+      actualizado: values[3] instanceof Date ? values[3].toISOString() : String(values[3] || ''),
+    }));
+}
+
+// Busca la fila del periodo y la clave (1 = encabezado; 0 = no esta).
+function notaFila(values, periodo, clave) {
+  for (let i = 1; i < values.length; i += 1) {
+    if (periodoDe(values[i][0]) === periodo && String(values[i][1]) === clave) return i + 1;
+  }
+  return 0;
+}
+
+function saveNota(row) {
+  const periodo = notaPeriodo(row.periodo);
+  const clave = String(row.clave || '').trim();
+  if (!/^[a-z][\w:-]{0,59}$/i.test(clave)) throw new Error('Clave no valida');
+  const texto = row.texto == null ? '' : String(row.texto);
+  if (texto.length > NOTA_MAX) throw new Error(`El texto pasa de ${NOTA_MAX} caracteres`);
+
+  const tab = notasSheet();
+  const fila = notaFila(tab.getDataRange().getValues(), periodo, clave);
+  // Un texto que empieza con =, +, - o @ se guardaria como formula: va con un apostrofo delante.
+  const datos = [periodo, clave, /^[=+\-@]/.test(texto) ? `'${texto}` : texto, new Date()];
+  if (fila) tab.getRange(fila, 1, 1, NOTAS_COLUMNS.length).setValues([datos]);
+  else tab.appendRow(datos);
+  return { periodo, clave, texto };
+}
+
+// "Restablecer textos" de un periodo: borra sus filas. El anuncio (_global) no se restablece asi.
+function resetNotas(value) {
+  const periodo = notaPeriodo(value);
+  if (periodo === '_global') throw new Error('El anuncio no se restablece');
+  const tab = notasSheet();
+  const values = tab.getDataRange().getValues();
+  let borradas = 0;
+  // De abajo hacia arriba: borrar una fila corre las de abajo.
+  for (let i = values.length - 1; i >= 1; i -= 1) {
+    if (periodoDe(values[i][0]) === periodo) {
+      tab.deleteRow(i + 1);
+      borradas += 1;
+    }
+  }
+  return borradas;
 }
 
 const keyOf = row => `${row.mes}|${normalize(row.campana)}`;

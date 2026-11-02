@@ -21,7 +21,7 @@
   // vez para todos los periodos) y, si no hay informe por accion de conversion del periodo, cuantos leads
   // llegaron por formulario y por WhatsApp. Subtitulos, destacados, analisis, conclusiones y proximos pasos
   // vienen propuestos con lo que dicen los numeros; el equipo los reescribe sobre la lamina y quedan guardados
-  // por periodo en este navegador.
+  // por periodo en la hoja privada del CRM, asi todo el equipo ve lo mismo (ver "Textos guardados").
   //
   // El template es propio de Tierra Films: cada tablero de marca tiene el suyo, adaptado por la marca.
   const BRAND = 'Tierra Films';
@@ -671,7 +671,140 @@
 
   // ── Textos guardados por periodo (la clave es el id: el primer dia de la semana o "avance:" y el corte); los
   // del anuncio ("ad:"), una sola vez para todos los periodos ──────────────
+  // Se comparten con el equipo por la hoja privada del CRM, el mismo Web App que usan Leads y las acciones
+  // sugeridas (apps-script/crm-leads.gs; URL y token en window.TIERRA_FILMS_CRM, que el build incrusta desde
+  // los secrets TF_CRM_URL y TF_CRM_TOKEN). Este navegador guarda una copia: es lo que se pinta mientras llega
+  // la hoja y lo que queda si la hoja no responde. Sin esos secrets los textos viven solo en el navegador.
   const isGlobal = key => key.startsWith('ad:');
+  const CRM_TIMEOUT = 20000;
+  // Un texto se sube un rato despues de la ultima tecla (o al salir de el), no en cada letra.
+  const SAVE_DELAY = 900;
+  const crmConfig = () => window.TIERRA_FILMS_CRM || {};
+  const isRemote = () => Boolean(crmConfig().url && crmConfig().token);
+  // status: local | cargando | guardando | listo | error. pending: textos escritos que la hoja todavia no tiene.
+  const shared = { status: 'local', detail: '', pending: new Map(), loading: null };
+
+  async function callCrm(action, extra) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), CRM_TIMEOUT);
+    try {
+      const response = await fetch(crmConfig().url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify(Object.assign({ token: crmConfig().token, action }, extra)),
+        signal: controller.signal,
+      });
+      const body = await response.json();
+      if (!body || body.ok === false) throw new Error((body && body.error) || `HTTP ${response.status}`);
+      return body;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  function crmProblem(error) {
+    if (error.name === 'AbortError') return 'la hoja no respondió a tiempo';
+    // El Web App publicado es anterior a los textos del reporte: falta su version nueva (README › Leads).
+    if (/accion no valida/i.test(error.message)) return 'falta publicar la versión nueva de apps-script/crm-leads.gs';
+    return error.message;
+  }
+
+  function showSharedStatus() {
+    const box = document.getElementById('week-notes');
+    if (!box) return;
+    const text = {
+      local: ['Textos solo en este navegador', 'Para que el equipo vea los mismos textos hay que conectar la hoja privada del CRM (README › Leads).'],
+      cargando: ['Leyendo los textos del equipo…', ''],
+      guardando: ['Guardando en la hoja…', ''],
+      listo: ['Textos compartidos con el equipo', 'Lo que se escribe sobre las láminas se guarda en la hoja privada del CRM.'],
+      error: ['Textos solo en este navegador', `No se pudo usar la hoja del CRM: ${shared.detail}. Lo escrito queda en este navegador hasta que vuelva.`],
+    }[shared.status];
+    box.className = `week-notes ${shared.status}`;
+    box.textContent = text[0];
+    box.title = text[1];
+  }
+
+  // Trae los textos de la hoja y reemplaza la copia del navegador. Devuelve true si cambio algo.
+  function loadShared() {
+    if (!isRemote()) {
+      shared.status = 'local';
+      showSharedStatus();
+      return Promise.resolve(false);
+    }
+    if (shared.loading) return shared.loading;
+    shared.status = 'cargando';
+    showSharedStatus();
+    shared.loading = callCrm('notas-list', {}).then(body => {
+      const notes = {};
+      const put = (periodo, clave, texto) => { notes[periodo] = Object.assign(notes[periodo] || {}, { [clave]: texto }); };
+      (body.rows || []).forEach(row => { if (row && row.periodo && row.clave) put(row.periodo, row.clave, String(row.texto ?? '')); });
+      // Lo escrito que todavia no llego a la hoja no se pisa: se vuelve a subir.
+      shared.pending.forEach(entry => put(entry.periodo, entry.clave, entry.texto));
+      const changed = JSON.stringify(notes) !== JSON.stringify(readNotes());
+      writeNotes(notes);
+      shared.status = shared.pending.size ? 'guardando' : 'listo';
+      shared.detail = '';
+      shared.pending.forEach((entry, id) => { if (!entry.timer) flushShared(id); });
+      return changed;
+    }).catch(error => {
+      shared.status = 'error';
+      shared.detail = crmProblem(error);
+      return false;
+    }).finally(() => {
+      shared.loading = null;
+      showSharedStatus();
+    });
+    return shared.loading;
+  }
+
+  function queueShared(periodo, clave, texto) {
+    const id = `${periodo}|${clave}`;
+    const entry = shared.pending.get(id) || { periodo, clave, sending: Promise.resolve() };
+    clearTimeout(entry.timer);
+    entry.texto = texto;
+    entry.timer = setTimeout(() => flushShared(id), SAVE_DELAY);
+    shared.pending.set(id, entry);
+    if (shared.status !== 'error') {
+      shared.status = 'guardando';
+      showSharedStatus();
+    }
+  }
+
+  // Sube un texto pendiente. Los envios de una misma clave van en fila, asi el ultimo escrito es el que queda.
+  function flushShared(id) {
+    const entry = shared.pending.get(id);
+    if (!entry) return Promise.resolve();
+    clearTimeout(entry.timer);
+    entry.timer = null;
+    const texto = entry.texto;
+    entry.sending = entry.sending.then(() => callCrm('notas-save', { row: { periodo: entry.periodo, clave: entry.clave, texto } })).then(() => {
+      // Si mientras subia se siguio escribiendo, queda pendiente el texto nuevo.
+      if (shared.pending.get(id) === entry && entry.texto === texto && !entry.timer) shared.pending.delete(id);
+      if (!shared.pending.size) {
+        shared.status = 'listo';
+        shared.detail = '';
+      }
+    }).catch(error => {
+      // El texto queda en este navegador y pendiente: se reintenta con la proxima edicion o al volver a leer la hoja.
+      shared.status = 'error';
+      shared.detail = crmProblem(error);
+    }).finally(showSharedStatus);
+    return entry.sending;
+  }
+
+  // Al cerrar o cambiar de pestaña con algo a medio subir, se manda igual (sin esperar respuesta).
+  function beaconPending() {
+    if (!isRemote() || !shared.pending.size || typeof navigator.sendBeacon !== 'function') return;
+    shared.pending.forEach((entry, id) => {
+      if (!entry.timer) return;
+      clearTimeout(entry.timer);
+      entry.timer = null;
+      const body = JSON.stringify({ token: crmConfig().token, action: 'notas-save', row: { periodo: entry.periodo, clave: entry.clave, texto: entry.texto } });
+      if (navigator.sendBeacon(crmConfig().url, new Blob([body], { type: 'text/plain;charset=utf-8' }))) shared.pending.delete(id);
+    });
+    if (!shared.pending.size && shared.status === 'guardando') shared.status = 'listo';
+    showSharedStatus();
+  }
 
   function readNotes() {
     try {
@@ -695,17 +828,38 @@
     return Object.assign({}, notes[GLOBAL_NOTES] || {}, notes[periodId] || {});
   }
 
+  const bucketOf = (periodId, key) => (isGlobal(key) ? GLOBAL_NOTES : periodId);
+
   function saveNote(periodId, key, value) {
     const notes = readNotes();
-    const bucket = isGlobal(key) ? GLOBAL_NOTES : periodId;
+    const bucket = bucketOf(periodId, key);
     notes[bucket] = Object.assign({}, notes[bucket] || {}, { [key]: value });
     writeNotes(notes);
+    if (isRemote()) queueShared(bucket, key, value);
   }
 
-  function resetNotes(periodId) {
+  async function resetNotes(periodId) {
     const notes = readNotes();
     delete notes[periodId];
     writeNotes(notes);
+    if (!isRemote()) return;
+    // Lo pendiente de ese periodo ya no se sube; lo que estaba en camino se espera para que no reviva despues.
+    const sending = [];
+    shared.pending.forEach((entry, id) => {
+      if (entry.periodo !== periodId) return;
+      clearTimeout(entry.timer);
+      sending.push(entry.sending);
+      shared.pending.delete(id);
+    });
+    await Promise.all(sending);
+    try {
+      await callCrm('notas-reset', { periodo: periodId });
+      if (!shared.pending.size) shared.status = 'listo';
+    } catch (error) {
+      shared.status = 'error';
+      shared.detail = crmProblem(error);
+    }
+    showSharedStatus();
   }
 
   // **texto** va en negrita, como "Qué pasó:" en el modelo.
@@ -1115,7 +1269,12 @@
         saveNote(periodId, node.dataset.note, node.dataset.raw);
         node.closest('.rp-missing')?.classList.remove('rp-missing');
       });
-      node.addEventListener('blur', () => { node.innerHTML = rich(node.dataset.raw); });
+      node.addEventListener('blur', () => {
+        node.innerHTML = rich(node.dataset.raw);
+        // Al salir del texto se sube sin esperar la pausa.
+        const id = `${bucketOf(periodId, node.dataset.note)}|${node.dataset.note}`;
+        if (shared.pending.get(id)?.timer) flushShared(id);
+      });
     });
   }
 
@@ -1187,11 +1346,22 @@
     window.setTimeout(restore, 2000);
   }
 
+  // Cada vez que se abre la pestana se leen los textos del equipo; si cambiaron, se repinta (salvo que alguien
+  // este escribiendo sobre la lamina: lo nuevo aparece en el proximo pintado).
+  function refreshShared() {
+    loadShared().then(changed => {
+      if (changed && !document.activeElement?.closest?.('[data-note]')) render();
+    });
+  }
+
   window.TierraFilmsWeekReport = {
     init() {
       render();
+      refreshShared();
       if (state.wired) return;
       state.wired = true;
+      window.addEventListener('pagehide', beaconPending);
+      document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') beaconPending(); });
       document.querySelectorAll('[data-week-type]').forEach(button => {
         button.addEventListener('click', () => {
           if (state.type === button.dataset.weekType) return;
@@ -1215,6 +1385,7 @@
           const { item } = selectedItem();
           if (!item) return;
           resetNotes(item.id);
+          // La copia del navegador ya quedo sin los textos: se repinta sin esperar a la hoja.
           render();
         });
       }

@@ -148,6 +148,12 @@ los meses y queda de solo lectura.
   variables > Actions, crear `TF_CRM_URL` (la URL `/exec`) y `TF_CRM_TOKEN` (el token de `crearToken`). El
   siguiente deploy los incrusta como `window.TIERRA_FILMS_CRM` dentro del HTML cifrado con `TF_PAGE_PASSWORD`;
   nunca quedan en el repo. Lo que completa el cliente tampoco va al repo.
+- **El mismo Web App guarda tres cosas**, cada una en su pestaña de la hoja: `Leads por campana`, `Acciones del
+  mes` (las acciones sugeridas de Proyecciones) y `Textos del reporte` (lo editado en Generacion de Reporte). Las
+  pestañas se crean solas la primera vez. Si se cambia `crm-leads.gs`, hay que pegar el archivo nuevo en el Apps
+  Script de la hoja y publicar una version nueva (Implementar > Gestionar implementaciones > editar > Version:
+  Nueva version); la URL y el token no cambian. Mientras el Web App publicado sea el anterior, el reporte avisa
+  "Textos solo en este navegador" y guarda en el navegador.
 
 ## Generacion de Reporte
 
@@ -221,12 +227,19 @@ completo · 1 – 31 oct"), y recuerda el elegido en cada tipo.
   costo diario), el grafico avisa que falta el informe de campana por dia.
 - **Textos:** subtitulos, destacados, analisis, conclusiones, proximos pasos y
   la nota del periodo vienen propuestos con lo que dicen los numeros. Se editan
-  con un clic sobre la lamina (`**texto**` va en negrita) y quedan guardados en
-  el navegador (`tierra_films_report_notes_v3`): los del periodo bajo el primer
-  dia de la semana o `avance:` y el dia del corte, y los del anuncio (`ad:`) en
-  `_global`, para todos los periodos. No se publican con el tablero.
-  "Restablecer textos" vuelve a los propuestos del periodo, sin dialogo de
-  confirmacion; el anuncio queda.
+  con un clic sobre la lamina (`**texto**` va en negrita) y se comparten con el
+  equipo por la hoja privada del CRM (pestaña `Textos del reporte`, una fila por
+  periodo y clave): los del periodo bajo el primer dia de la semana o `avance:`
+  y el dia del corte, y los del anuncio (`ad:`) en `_global`, para todos los
+  periodos. Cada texto se sube un momento despues de la ultima tecla o al salir
+  de el, y la pestaña se vuelve a leer cada vez que se abre Generacion de
+  Reporte. El navegador guarda una copia (`tierra_films_report_notes_v3`): se
+  pinta mientras llega la hoja y queda si la hoja no responde; lo escrito sin
+  hoja se sube solo cuando vuelve. La barra dice donde quedan: "Textos
+  compartidos con el equipo" (punto verde) o "Textos solo en este navegador"
+  (ambar, con el motivo al pasar el mouse). Si dos personas editan el mismo
+  texto, queda el ultimo. "Restablecer textos" borra los del periodo (en la
+  hoja tambien), sin dialogo de confirmacion; el anuncio queda.
 - **Descargar PDF** abre el dialogo de impresion con las laminas solas, una por
   hoja de 13.33 x 7.5 in (el tamaño del modelo), y el nombre del archivo ya
   armado (`Reporte_Tierra-Films_Semana_2026-10-12_al_2026-10-18`,
