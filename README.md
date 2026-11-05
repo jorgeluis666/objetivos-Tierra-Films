@@ -161,24 +161,26 @@ Pestana que arma el "Reporte de Publicidad" con el diseño del modelo de Tierra
 Films (`Modelo Reporte Tierra Films`, version de noviembre 2026): siete laminas
 16:9 con fondo claro, tarjetas blancas de borde fino y acentos en azul, en el
 lenguaje de leads (leads = conversiones de Google Ads, CPL = costo por lead).
-Tiene dos tipos de reporte, los dos cortados por mes, y se elige con los botones
-de la barra:
+Tiene tres tipos de reporte y se elige con los botones de la barra:
 
-- **Semanal:** las semanas del mes. La primera va del 1 al primer domingo, las
-  siguientes de lunes a domingo y la ultima termina el ultimo dia del mes (octubre
-  2026: 1-4, 5-11, 12-18, 19-25 y 26-31; noviembre empieza con la semana del
-  domingo 1). Asi las semanas suman el mes y no se pisan con las del siguiente.
-  Abre en la ultima semana cerrada; la que esta en curso aparece "(en curso)".
-  Se compara con los mismos dias de la semana anterior ("vs sem. ant." si son
-  los siete dias, "vs mismos días" si la semana es mas corta).
-- **Avance del mes:** el acumulado del 1 al cierre de cada semana (1-4, 1-11,
-  1-18, 1-25) y el mes completo (1-31). Solo cortes cerrados. Se compara con el
-  mismo tramo del mes anterior ("vs mes previo"); el mes completo, con todo el
-  mes anterior.
+- **Semanal:** de lunes a domingo, siempre siete dias, numeradas Semana 1,
+  Semana 2... en cada mes. La semana que cruza de mes cuenta para el mes donde
+  cae la mayoria de sus dias, el de su jueves (octubre 2026: 28 set-4 oct, 5-11,
+  12-18, 19-25 y 26 oct-1 nov; noviembre empieza el lunes 2). Abre en la ultima
+  semana cerrada; la que esta en curso aparece "(en curso)". Se compara con los
+  mismos dias de la semana anterior ("vs sem. ant." con los siete dias, "vs
+  mismos días" en la semana en curso).
+- **Acumulado del mes:** del 1 a cada domingo del mes (1-4, 1-11, 1-18, 1-25).
+  Solo cortes cerrados. Se compara con el mismo tramo del mes anterior ("vs mes
+  previo").
+- **Mensual:** el mes completo (1-31), solo meses cerrados, contra todo el mes
+  anterior. Sus textos se guardan con la misma clave que tenia el "Mes completo"
+  cuando era el ultimo corte del avance (`avance:2026-10-31`), asi que no se
+  pierden.
 
 El selector agrupa los periodos por mes, del mas reciente al mas antiguo
-("Semana 3 · 12 – 18 oct", "Al cierre de la semana 3 · 1 – 18 oct", "Mes
-completo · 1 – 31 oct"), y recuerda el elegido en cada tipo.
+("Semana 3 · 12 – 18 oct", "Al domingo 18 · 1 – 18 oct", "Mes completo · 1 – 31
+oct"), y recuerda el elegido en cada tipo.
 
 | Pagina | Contenido |
 | --- | --- |
@@ -208,8 +210,9 @@ completo · 1 – 31 oct"), y recuerda el elegido en cada tipo.
   2026"). La misma palabra con dos concordancias va en una sola fila. Desde
   octubre el informe mensual de campana de Drive ("Tierra Films - Octubre 2026")
   viene sin la columna "Palabra clave de la búsqueda", asi que las semanas y los
-  avances del mes usan el informe del mes: pasan a tener las suyas solas cuando
-  ese informe la vuelva a traer.
+  acumulados del mes usan el informe del mes (la semana que cruza de mes, el del
+  mes al que cuenta): pasan a tener las suyas solas cuando ese informe la vuelva
+  a traer.
 - **Nivel de calidad:** columna `Nivel de calidad` del informe de palabras clave
   (`drive-sync.js` la guarda como `quality`), del mes del reporte o del informe
   mas reciente que la traiga. Con dos concordancias manda la de mas impresiones.
@@ -229,8 +232,8 @@ completo · 1 – 31 oct"), y recuerda el elegido en cada tipo.
   la nota del periodo vienen propuestos con lo que dicen los numeros. Se editan
   con un clic sobre la lamina (`**texto**` va en negrita) y se comparten con el
   equipo por la hoja privada del CRM (pestaña `Textos del reporte`, una fila por
-  periodo y clave): los del periodo bajo el primer dia de la semana o `avance:`
-  y el dia del corte, y los del anuncio (`ad:`) en `_global`, para todos los
+  periodo y clave): los del periodo bajo el lunes de la semana o `avance:` y el
+  dia del corte (el mensual, su ultimo dia), y los del anuncio (`ad:`) en `_global`, para todos los
   periodos. Cada texto se sube un momento despues de la ultima tecla o al salir
   de el, y la pestaña se vuelve a leer cada vez que se abre Generacion de
   Reporte. El navegador guarda una copia (`tierra_films_report_notes_v3`): se

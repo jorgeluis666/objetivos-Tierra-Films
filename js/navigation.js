@@ -32,7 +32,7 @@
     'view-week': {
       title: 'Generación de Reporte',
       caption: 'Reporte de Publicidad en PDF',
-      status: 'Semana o avance del mes de los informes de Google Ads',
+      status: 'Semana, acumulado o mes de los informes de Google Ads',
       source: 'Fuente: informes de Google Ads',
       footer: 'El período elegido, listo para descargar en PDF',
     },

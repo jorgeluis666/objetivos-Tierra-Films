@@ -4,12 +4,13 @@
   // bloque de 5 dias y acciones de conversion), palabras clave (termino lider, leads por palabra y tabla con el
   // nivel de calidad), anuncio y calidad, conclusiones con proximos pasos y cierre.
   //
-  // Hay dos tipos de reporte, los dos cortados por mes:
-  // - Semanal: las semanas del mes. La primera va del 1 al primer domingo, las siguientes de lunes a domingo y
-  //   la ultima termina el ultimo dia del mes (la ultima cerrada por defecto; la que esta en curso se compara
-  //   con los mismos dias de la anterior).
-  // - Avance del mes: del 1 al cierre de cada semana del mes (1-4, 1-11, 1-18... y el mes completo), solo
-  //   cortes cerrados. Se compara con el mismo tramo del mes anterior.
+  // Hay tres tipos de reporte:
+  // - Semanal: de lunes a domingo, siempre siete dias, numeradas Semana 1, Semana 2... en cada mes. La que
+  //   cruza de mes cuenta para el mes donde cae la mayoria de sus dias (28 set - 4 oct es la semana 1 de
+  //   octubre). La ultima cerrada por defecto; la que esta en curso se compara con los mismos dias de la anterior.
+  // - Acumulado del mes: del 1 a cada domingo del mes (1-4, 1-11, 1-18, 1-25), solo cortes cerrados. Se compara
+  //   con el mismo tramo del mes anterior.
+  // - Mensual: el mes completo, solo meses cerrados, contra todo el mes anterior.
   // No trae datos nuevos: los totales salen de la serie por dia de Gasto Publicitario (window.TierraFilmsDays)
   // o, si en ese tramo la serie viene repartida, del informe mensual o de la misma semana del informe semanal
   // de campana o de palabras clave cuando su costo cuadra; las palabras clave, del informe por dia de Drive
@@ -71,8 +72,8 @@
   };
   const icon = name => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name] || ICONS.bars}</svg>`;
 
-  // El periodo elegido se recuerda por tipo: al volver de "Avance del mes" sigue la misma semana.
-  const state = { type: 'semana', selected: { semana: '', avance: '' }, wired: false };
+  // El periodo elegido se recuerda por tipo: al volver de "Acumulado del mes" sigue la misma semana.
+  const state = { type: 'semana', selected: { semana: '', avance: '', mes: '' }, wired: false };
 
   const G = () => window.TierraFilmsGasto;
   const F = () => window.TierraFilmsFormat;
@@ -95,7 +96,7 @@
   const shorten = (text, max) => (text.length > max ? `${text.slice(0, max - 1).trimEnd()}.` : text);
   const leadsWord = value => (Math.round(value) === 1 ? 'lead' : 'leads');
 
-  // ── El periodo del reporte (semana del mes o avance del mes) ───────────
+  // ── El periodo del reporte (semana, acumulado del mes o mes) ───────────
   const DAY_MS = 86400000;
   const SUMS = ['cost', 'impressions', 'clicks', 'conversions'];
   const WEEKDAYS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
@@ -129,31 +130,37 @@
   const dayName = iso => `${WEEKDAY_NAMES[weekdayOf(iso)]} ${dayOf(iso)}`;
   const monthTitle = iso => `${capitalize(monthName(iso))} ${iso.slice(0, 4)}`;
 
-  // Semanas de un mes: la primera va del 1 al primer domingo, las siguientes de lunes a domingo y la ultima
-  // termina el ultimo dia del mes. Asi las semanas suman el mes y no se pisan con las del mes siguiente.
+  // Semanas de un mes, de lunes a domingo. Cada una cuenta para el mes de su jueves, que es donde cae la
+  // mayoria de sus dias: octubre 2026 va del 28 set al 1 nov (5 semanas) y noviembre, del 2 al 29 (4).
   function monthWeeks(key) {
-    const last = monthEnd(`${key}-01`);
+    const first = `${key}-01`;
     const list = [];
-    for (let start = `${key}-01`; start <= last;) {
-      const sunday = addDays(start, 6 - weekdayOf(start));
-      const end = sunday < last ? sunday : last;
-      list.push({ number: list.length + 1, start, end });
-      start = addDays(end, 1);
+    for (let start = addDays(first, ((3 - weekdayOf(first) + 7) % 7) - 3); addDays(start, 3).slice(0, 7) === key; start = addDays(start, 7)) {
+      list.push({ number: list.length + 1, start, end: addDays(start, 6) });
     }
     return list;
   }
 
-  // Semana del mes. to es el ultimo dia con datos (en la semana en curso, antes de end).
-  function weekItem(week, from, to, closed) {
+  // Los domingos de un mes: los cortes del acumulado.
+  function monthSundays(key) {
+    const first = `${key}-01`;
+    const last = monthEnd(first);
+    const list = [];
+    for (let sunday = addDays(first, 6 - weekdayOf(first)); sunday <= last; sunday = addDays(sunday, 7)) list.push(sunday);
+    return list;
+  }
+
+  // Una semana del mes key. to es el ultimo dia con datos (en la semana en curso, antes de end).
+  function weekItem(week, key, from, to, closed) {
     const chip = rangeText(from, to, true);
     const days = spanDays(from, to);
     const name = `Semana ${week.number}`;
-    const title = monthTitle(from);
+    const title = monthTitle(`${key}-01`);
     return {
       type: 'semana',
-      // El primer dia de la semana: en las de lunes a domingo es la misma clave con la que ya se guardaban los textos.
+      // El lunes de la semana (o el primer dia con datos).
       id: from,
-      month: from.slice(0, 7),
+      month: key,
       from,
       to,
       closed,
@@ -163,7 +170,7 @@
         cover: `${title} · ${name} · ${rangeText(from, to, true, false)}${closed ? '' : ' (en curso)'}`,
         chip,
         source: `Fuente: Google Ads · ${chip}`,
-        analysisSource: `Fuente: análisis Lima Retail sobre Google Ads · ${BRAND} · ${name.toLowerCase()} de ${monthName(from)} ${from.slice(0, 4)}`,
+        analysisSource: `Fuente: análisis Lima Retail sobre Google Ads · ${BRAND} · ${name.toLowerCase()} de ${monthName(`${key}-01`)} ${key.slice(0, 4)}`,
         footer: `${BRAND} · Reporte Google Ads · ${title} · ${name}`,
         vsBadge: closed && days === 7 ? 'vs sem. ant.' : 'vs mismos días',
         closing: 'El cierre de la semana',
@@ -178,9 +185,9 @@
     };
   }
 
-  // Avance del mes: del 1 al cierre de una semana (o el mes completo). Se compara con los mismos dias del mes
-  // anterior (1-18 oct contra 1-18 set); el mes completo, con todo el mes anterior.
-  function progressItem(week, from, to) {
+  // Acumulado del mes: del 1 a un domingo (o el mes completo). Se compara con los mismos dias del mes anterior
+  // (1-18 oct contra 1-18 set); el mes completo, con todo el mes anterior.
+  function progressItem(from, to) {
     const chip = rangeText(from, to, true);
     const whole = to === monthEnd(to);
     const month = monthName(from);
@@ -197,7 +204,7 @@
       to,
       closed: true,
       previous,
-      option: whole ? `Mes completo · ${rangeText(from, to, true, false)}` : `Al cierre de la semana ${week.number} · ${rangeText(from, to, true, false)}`,
+      option: whole ? `Mes completo · ${rangeText(from, to, true, false)}` : `Al domingo ${dayOf(to)} · ${rangeText(from, to, true, false)}`,
       labels: {
         cover: `${title} · ${whole ? 'Mes completo' : `Periodo ${rangeText(from, to, true, false)}`}`,
         chip,
@@ -219,24 +226,38 @@
     };
   }
 
+  // Mensual: el mes completo. Guarda sus textos con la misma clave que el corte del acumulado al ultimo dia del
+  // mes, que es como se guardaba el "Mes completo" antes de tener tipo propio.
+  function monthItem(from, to) {
+    return Object.assign(progressItem(from, to), { type: 'mes', option: `Mes completo · ${rangeText(from, to, true, false)}` });
+  }
+
   // Los periodos con datos, del mas reciente al mas antiguo. Semanal: las semanas de cada mes (la ultima puede
-  // estar en curso). Avance del mes: un corte por semana cerrada, siempre desde el 1.
+  // estar en curso). Acumulado del mes: un corte por domingo cerrado, siempre desde el 1. Mensual: los meses cerrados.
   function periods(type) {
     const days = seriesDays();
     if (!days.length) return [];
     const first = days[0].date;
     const last = days[days.length - 1].date;
     const list = [];
+    if (type === 'semana') {
+      // Desde el mes anterior y hasta el siguiente: la semana del primer o del ultimo dato puede contar para ellos.
+      for (let key = previousMonth(first.slice(0, 7)); key <= nextMonth(last.slice(0, 7)); key = nextMonth(key)) {
+        monthWeeks(key).filter(week => week.end >= first && week.start <= last).forEach(week => {
+          const closed = week.end <= last;
+          list.push(weekItem(week, key, week.start < first ? first : week.start, closed ? week.end : last, closed));
+        });
+      }
+      return list.reverse();
+    }
     for (let key = first.slice(0, 7); key <= last.slice(0, 7); key = nextMonth(key)) {
       const start = `${key}-01` < first ? first : `${key}-01`;
-      monthWeeks(key).filter(week => week.end >= first && week.start <= last).forEach(week => {
-        const closed = week.end <= last;
-        if (type === 'avance') {
-          if (closed) list.push(progressItem(week, start, week.end));
-        } else {
-          list.push(weekItem(week, week.start < first ? first : week.start, closed ? week.end : last, closed));
-        }
-      });
+      const end = monthEnd(start);
+      if (type === 'mes') {
+        if (end <= last) list.push(monthItem(start, end));
+      } else {
+        monthSundays(key).filter(sunday => sunday >= start && sunday <= last).forEach(sunday => list.push(progressItem(start, sunday)));
+      }
     }
     return list.reverse();
   }
@@ -428,7 +449,7 @@
 
   function buildReport(item) {
     const current = rangeTotals(item.from, item.to);
-    // Contra los mismos dias de la semana anterior o, en el avance del mes, el mismo tramo del mes anterior.
+    // Contra los mismos dias de la semana anterior o, en el acumulado y el mes, el mismo tramo del mes anterior.
     const previousTotals = item.previous.from >= (seriesDays()[0] || {}).date ? rangeTotals(item.previous.from, item.previous.to) : null;
     // Sin costo de esos dias (la semana en curso contra un tramo de la anterior, sin serie por dia real) no hay comparacion.
     const previous = previousTotals && isNum(previousTotals.cost) ? previousTotals : null;
@@ -1294,10 +1315,13 @@
     const { available, item } = selectedItem();
     const select = document.getElementById('week-select');
     if (!item) {
-      const progress = state.type === 'avance' && seriesDays().length;
-      if (select) select.innerHTML = `<option value="">${progress ? 'Sin cortes cerrados' : 'Sin semanas con datos'}</option>`;
-      host.innerHTML = progress
-        ? '<div class="panel"><div class="empty-state"><strong>Todavía no cierra ninguna semana</strong><span>El avance del mes va del 1 al cierre de cada semana: aparece aquí cuando termine la primera.</span></div></div>'
+      const waiting = state.type !== 'semana' && seriesDays().length;
+      const empty = state.type === 'mes'
+        ? { option: 'Sin meses cerrados', title: 'Todavía no cierra ningún mes', text: 'El reporte mensual va del 1 al último día del mes: aparece aquí cuando termine el primero.' }
+        : { option: 'Sin cortes cerrados', title: 'Todavía no cierra ninguna semana', text: 'El acumulado del mes va del 1 a cada domingo: aparece aquí cuando termine la primera semana.' };
+      if (select) select.innerHTML = `<option value="">${waiting ? empty.option : 'Sin semanas con datos'}</option>`;
+      host.innerHTML = waiting
+        ? `<div class="panel"><div class="empty-state"><strong>${empty.title}</strong><span>${empty.text}</span></div></div>`
         : '<div class="panel"><div class="empty-state"><strong>Todavía no hay datos para el reporte</strong><span>El reporte se arma con los informes de Google Ads. En cuanto haya una semana con inversión, aparece aquí.</span></div></div>';
       return;
     }
