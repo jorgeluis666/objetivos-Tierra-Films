@@ -19,9 +19,9 @@
   // sincronizacion con Drive lo actualiza solo.
   //
   // Lo que Google Ads no manda al tablero se completa sobre la lamina: el anuncio y su eficacia (se guardan una
-  // vez para todos los periodos) y, si no hay informe por accion de conversion del periodo, cuantos leads
-  // llegaron por formulario y por WhatsApp. Subtitulos, destacados, analisis, conclusiones y proximos pasos
-  // vienen propuestos con lo que dicen los numeros; el equipo los reescribe sobre la lamina y quedan guardados
+  // vez para todos los periodos). Formularios y WhatsApp no se escriben a mano: salen del informe por accion de
+  // conversion o, sin el, la lamina muestra las conversiones del periodo. Subtitulos, destacados, analisis,
+  // conclusiones y proximos pasos vienen propuestos con lo que dicen los numeros; el equipo los reescribe sobre la lamina y quedan guardados
   // por periodo en la hoja privada del CRM, asi todo el equipo ve lo mismo (ver "Textos guardados").
   //
   // El template es propio de Tierra Films: cada tablero de marca tiene el suyo, adaptado por la marca.
@@ -234,7 +234,20 @@
 
   // Los periodos con datos, del mas reciente al mas antiguo. Semanal: las semanas de cada mes (la ultima puede
   // estar en curso). Acumulado del mes: un corte por domingo cerrado, siempre desde el 1. Mensual: los meses cerrados.
+  // Solo los que la plataforma llena completos (ver complete).
   function periods(type) {
+    return allPeriods(type).filter(complete);
+  }
+
+  // Un periodo entra si Google Ads da en la plataforma su inversion, clics, leads e impresiones y su serie de
+  // clics y leads por dia: asi la lamina de resumen no queda con datos ni recuadros vacios. Quedan fuera, por
+  // ejemplo, las semanas de junio (solo traen el costo diario) y los cortes de junio y julio sin clics por dia.
+  function complete(item) {
+    const totals = rangeTotals(item.from, item.to);
+    return Boolean(totals) && SUMS.every(field => isNum(totals[field])) && dailySeries(item).length > 0;
+  }
+
+  function allPeriods(type) {
     const days = seriesDays();
     if (!days.length) return [];
     const first = days[0].date;
@@ -412,22 +425,37 @@
     return map;
   }
 
-  // Leads por accion de conversion (formulario y WhatsApp): solo si un informe por accion cubre justo el periodo.
+  // Leads por accion de conversion (formulario y WhatsApp), de los informes de Google Ads separados por accion
+  // (el de campana o el de palabras clave). Manda el que cubre justo el periodo (exact); si no lo hay, uno que
+  // comparta al menos el 90% de los dias con el periodo (1-27 set con el informe del 1-28 set), con su propio
+  // rango en la lamina. El de un mes no se muestra en una semana. Sin ninguno, null: la lamina muestra las
+  // conversiones del periodo.
   function leadActions(item) {
     const source = data();
-    const exact = block => block && block.start === item.from && block.end === item.to;
-    let actions = null;
-    const block = (source.conversionActions || []).find(exact);
-    if (block) actions = block.actions || [];
-    const byKeyword = (source.keywordConversionsByMonth || []).find(entry => exact(entry) && entry.byAction);
-    if (!actions && byKeyword) {
+    const blocks = (source.conversionActions || []).map(block => ({ start: block.start, end: block.end, actions: block.actions || [] }));
+    (source.keywordConversionsByMonth || []).filter(block => block.byAction).forEach(block => {
       const totals = {};
-      byKeyword.keywords.forEach(row => Object.entries(row.actions || {}).forEach(([name, value]) => { totals[name] = (totals[name] || 0) + Number(value); }));
-      actions = Object.entries(totals).map(([name, conversions]) => ({ name, conversions }));
-    }
-    if (!actions || !actions.length) return null;
-    const sum = pattern => actions.filter(action => pattern.test(action.name)).reduce((acc, action) => acc + (Number(action.conversions) || 0), 0);
-    return { forms: sum(/formulario/i), whatsapp: sum(/whatsapp/i) };
+      (block.keywords || []).forEach(row => Object.entries(row.actions || {}).forEach(([name, value]) => { totals[name] = (totals[name] || 0) + Number(value); }));
+      blocks.push({ start: block.start, end: block.end, actions: Object.entries(totals).map(([name, conversions]) => ({ name, conversions })) });
+    });
+    const sum = (actions, pattern) => actions.filter(action => pattern.test(action.name)).reduce((acc, action) => acc + (Number(action.conversions) || 0), 0);
+    const splits = blocks
+      .filter(block => block.start && block.end)
+      .map(block => ({ from: block.start, to: block.end, forms: sum(block.actions, /formulario/i), whatsapp: sum(block.actions, /whatsapp/i) }))
+      .filter(split => split.forms + split.whatsapp > 0);
+    const exact = splits.find(split => split.from === item.from && split.to === item.to);
+    if (exact) return Object.assign(exact, { exact: true });
+    const overlap = split => {
+      const from = split.from > item.from ? split.from : item.from;
+      const to = split.to < item.to ? split.to : item.to;
+      if (from > to) return 0;
+      const shared = spanDays(from, to);
+      return Math.min(shared / spanDays(split.from, split.to), shared / spanDays(item.from, item.to));
+    };
+    const near = splits
+      .filter(split => overlap(split) >= 0.9)
+      .sort((a, b) => overlap(b) - overlap(a) || b.to.localeCompare(a.to))[0];
+    return near ? Object.assign(near, { exact: false }) : null;
   }
 
   // Campanas con actividad en el periodo: las del informe por dia de cada campana o, en los dias que no cubre,
@@ -470,18 +498,9 @@
   // ── Lo que se calcula para los textos ───────────────────────────────────
   const qualityOf = (report, keyword) => (report.quality.get(String(keyword || '').toLowerCase()) || {}).quality || null;
 
-  // Leads por formulario y por WhatsApp: del informe por accion del periodo o lo que el equipo anoto en la lamina.
-  function leadSplit(report, notes) {
-    if (report.actions) return report.actions;
-    const read = key => {
-      const raw = String(notes[key] ?? '').trim();
-      const value = Number(raw.replace(/[^\d.,]/g, '').replace(',', '.'));
-      return raw && /\d/.test(raw) && Number.isFinite(value) ? value : null;
-    };
-    const forms = read('acc:form');
-    const whatsapp = read('acc:wa');
-    return forms === null || whatsapp === null ? null : { forms, whatsapp };
-  }
+  // Leads por formulario y por WhatsApp para los textos: solo si el informe por accion cubre justo el periodo (el
+  // del mes con otro rango no se reparte en la semana).
+  const leadSplit = report => (report.actions && report.actions.exact ? report.actions : null);
 
   function keywordFacts(report) {
     const { rows, total, totals } = report.keywords;
@@ -546,6 +565,23 @@
       return `${move} (${count(before.clicks)} → ${count(last.clicks)})${ctr}${relevance}`;
     }
     return `${count(current.clicks)} clics en el período${ctr}${relevance}`;
+  }
+
+  // Sin desglose por accion en el mes: lo que Google Ads si registra del periodo. Las conversiones (formulario +
+  // WhatsApp) y la tasa de conversion; sin clics, el costo por conversion o, sin leads, la inversion.
+  function conversionTiles(current) {
+    const leads = Number(current.conversions) || 0;
+    const clicks = Number(current.clicks) || 0;
+    const first = { icon: 'flag', value: count(leads), text: `${Math.round(leads) === 1 ? 'Conversión' : 'Conversiones'} · formulario + WhatsApp` };
+    if (clicks > 0) {
+      return [first, {
+        icon: 'trend',
+        value: percent1(leads / clicks),
+        text: leads > 0 ? `Tasa de conversión · 1 lead cada ${count(clicks / leads)} clics` : `Tasa de conversión · ${count(clicks)} clics sin leads`,
+      }];
+    }
+    if (isNum(current.costPerConversion)) return [first, { icon: 'trend', value: money(current.costPerConversion), text: 'Costo por conversión · inversión ÷ leads' }];
+    return [first, { icon: 'trend', value: money(current.cost), text: 'Inversión del período' }];
   }
 
   function splitText(split) {
@@ -1065,19 +1101,30 @@
       stat('Inversión', money(current.cost), campaignsCount > 1 ? `${campaignsCount} campañas Search` : 'Campaña Search'),
       stat('Clics', count(current.clicks), `CPC ${money2(current.cpc)}`),
       stat('Leads', count(leads), 'Form. + WhatsApp', leads > 0 ? 'Captación activa' : ''),
-      stat('Costo por lead', money(current.costPerConversion), 'Inversión ÷ leads'),
+      // Sin leads no hay costo por lead: va dicho, con la inversion del periodo, en vez de un guion.
+      leads > 0 ? stat('Costo por lead', money(current.costPerConversion), 'Inversión ÷ leads') : stat('Costo por lead', 'Sin leads', `${money(current.cost)} invertidos`),
       stat('CTR', percent(current.ctr), relevanceLabel(current.ctr), ctrChange === null ? '' : `${pct0(ctrChange)} ${labels.vsBadge}`),
       stat('Impresiones', count(current.impressions), 'Búsquedas activas'),
     ];
-    // Formulario y WhatsApp: del informe por accion del periodo; si no llega, el equipo los completa sobre la lamina.
+    // Formulario y WhatsApp: del informe por accion de Google Ads del periodo o del mismo mes (con su rango). Sin
+    // desglose en el mes, las conversiones y la tasa de conversion del periodo. Todo sale de la plataforma: los
+    // recuadros no se editan a mano y nunca quedan vacios.
     const split = report.actions;
-    const missing = !split;
-    const tile = (iconName, key, value, text, on) => `
-      <div class="rp-tile${on ? ' on' : ''}${missing && notes[key] == null ? ' rp-missing' : ''}">
+    const tile = (iconName, value, text, on) => `
+      <div class="rp-tile${on ? ' on' : ''}">
         <span class="rp-tile-icon">${icon(iconName)}</span>
-        <div>${editable(key, String(noteOr(notes, key, value)), 'strong')}<small>${esc(text)}</small></div>
+        <div><strong>${esc(value)}</strong><small>${esc(text)}</small></div>
       </div>`;
-    const resolved = leadSplit(report, notes);
+    const tiles = split
+      ? [
+        tile('form', count(split.forms), 'Formularios enviados · el lead más calificado', true),
+        tile('chat', count(split.whatsapp), 'Clics a WhatsApp · intención de contacto', false),
+      ]
+      : conversionTiles(current).map((item, index) => tile(item.icon, item.value, item.text, index === 0));
+    const actionsSub = !split ? 'Leads de formulario y WhatsApp que registró Google Ads'
+      : split.exact ? 'Cómo contactan los leads generados'
+        : `Desglose de Google Ads del ${rangeText(split.from, split.to, true, false)}`;
+    const resolved = leadSplit(report);
     return `
       <section class="rp-page">
         ${head('Resumen de leads', suggestSummarySub(report), labels.chip, notes, 'resumen:sub')}
@@ -1089,12 +1136,9 @@
               ${trendChart(report)}
             </div>
             <div class="rp-stack">
-              <div class="rp-card rp-actions" title="${missing ? 'Google Ads no entregó el desglose por acción de este periodo: completa formularios y WhatsApp con un clic sobre cada número.' : ''}">
-                ${cardHead('chat', 'Acciones de conversión', 'Cómo contactan los leads generados')}
-                <div class="rp-tiles">
-                  ${tile('form', 'acc:form', split ? count(split.forms) : '—', 'Formularios enviados · el lead más calificado', true)}
-                  ${tile('chat', 'acc:wa', split ? count(split.whatsapp) : '—', 'Clics a WhatsApp · intención de contacto', false)}
-                </div>
+              <div class="rp-card rp-actions">
+                ${cardHead('chat', 'Acciones de conversión', actionsSub)}
+                <div class="rp-tiles">${tiles.join('')}</div>
               </div>
               ${highlight('resumen:destacado', noteOr(notes, 'resumen:destacado', suggestSummaryHighlight(report)))}
               ${analysis('resumen:analisis', noteOr(notes, 'resumen:analisis', suggestSummaryAnalysis(report, resolved)))}
@@ -1228,7 +1272,7 @@
 
   function conclusionsPage(report, notes) {
     const { labels } = report;
-    const split = leadSplit(report, notes);
+    const split = leadSplit(report);
     const cards = suggestConclusions(report, notes, split).map((card, index) => `
       <div class="rp-card rp-conclusion">
         <div class="rp-toc-top"><span class="rp-icon framed">${icon(card.icon)}</span><span class="rp-concl-num">${pageNumber(index + 1)}</span></div>
@@ -1288,7 +1332,6 @@
       node.addEventListener('input', () => {
         node.dataset.raw = node.innerText.replace(/\n+$/, '');
         saveNote(periodId, node.dataset.note, node.dataset.raw);
-        node.closest('.rp-missing')?.classList.remove('rp-missing');
       });
       node.addEventListener('blur', () => {
         node.innerHTML = rich(node.dataset.raw);

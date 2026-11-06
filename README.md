@@ -180,7 +180,11 @@ Tiene tres tipos de reporte y se elige con los botones de la barra:
 
 El selector agrupa los periodos por mes, del mas reciente al mas antiguo
 ("Semana 3 · 12 – 18 oct", "Al domingo 18 · 1 – 18 oct", "Mes completo · 1 – 31
-oct"), y recuerda el elegido en cada tipo.
+oct"), y recuerda el elegido en cada tipo. Solo ofrece los periodos que la
+plataforma llena completos: con inversion, clics, leads e impresiones del tramo y
+con clics y leads por dia para el grafico. Quedan fuera, por ejemplo, las semanas
+de junio (solo traen el costo diario) y los acumulados de junio y julio sin clics
+por dia.
 
 | Pagina | Contenido |
 | --- | --- |
@@ -216,18 +220,31 @@ oct"), y recuerda el elegido en cada tipo.
 - **Nivel de calidad:** columna `Nivel de calidad` del informe de palabras clave
   (`drive-sync.js` la guarda como `quality`), del mes del reporte o del informe
   mas reciente que la traiga. Con dos concordancias manda la de mas impresiones.
-- **Acciones de conversion:** solo si un informe por accion de conversion cubre
-  justo el periodo. Si no (como en octubre), los dos numeros salen con "—" y
-  borde punteado en pantalla: se completan con un clic y el analisis y las
-  conclusiones propuestos los usan.
+- **Acciones de conversion:** todo sale de la plataforma, nada se escribe a mano
+  y ningun recuadro queda con "—".
+  - Formularios y clics a WhatsApp: del informe de Google Ads separado por
+    "Acción de conversión" (el de campana o el de palabras clave) que cubre justo
+    el periodo. Si no lo hay, de uno que comparta al menos el 90% de los dias con
+    el periodo (el acumulado 1-27 set usa el informe del 1-28 set), con su rango
+    en la tarjeta ("Desglose de Google Ads del 1 – 28 sep"). El de un mes no se
+    muestra en una semana. El analisis y las conclusiones citan el desglose solo
+    cuando cubre justo el periodo.
+  - Sin ese informe (octubre y noviembre 2026), la tarjeta muestra lo que Google
+    Ads si registra del periodo: las conversiones (formulario + WhatsApp) y la
+    tasa de conversion ("7.4% · 1 lead cada 14 clics"; sin clics, el costo por
+    conversion).
+  - Para ver formularios y WhatsApp de un mes, sube a la carpeta Campañas el
+    informe de campaña del mes con Segmento > Conversiones > **Acción de
+    conversión**.
+  - Sin leads, la tarjeta "Costo por lead" dice "Sin leads" con la inversion.
 - **Anuncio:** Google Ads no lo manda al tablero. La vista previa (URL, titulo,
   descripcion, cuatro extensiones) y la eficacia vienen con el anuncio del
   modelo de octubre 2026; se corrigen sobre la lamina y quedan para todos los
   periodos.
 - **Grafico:** clics y leads de cada dia del periodo (o por bloque de 5 dias; un
   resto de 1 o 2 dias va con el bloque anterior), de la serie diaria del modulo
-  Gasto Publicitario. Si el periodo no tiene clics por dia (junio solo trae el
-  costo diario), el grafico avisa que falta el informe de campana por dia.
+  Gasto Publicitario. Un periodo sin clics por dia (junio solo trae el costo
+  diario) no aparece en el selector.
 - **Textos:** subtitulos, destacados, analisis, conclusiones, proximos pasos y
   la nota del periodo vienen propuestos con lo que dicen los numeros. Se editan
   con un clic sobre la lamina (`**texto**` va en negrita) y se comparten con el

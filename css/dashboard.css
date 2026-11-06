@@ -4088,12 +4088,6 @@ button.topbar-pill[aria-expanded="true"] .status-chevron {
   line-height: 1.35;
 }
 
-/* Sin informe por accion: en pantalla se marca el recuadro a completar; en el PDF no se nota. */
-.rp-tile.rp-missing {
-  outline: 2px dashed #93c5fd;
-  outline-offset: 2px;
-}
-
 .rp-insight {
   padding: 12px 14px;
 }
@@ -4434,10 +4428,6 @@ button.topbar-pill[aria-expanded="true"] .status-chevron {
   .rp-edit:hover,
   .rp-edit:focus {
     box-shadow: none;
-  }
-
-  .rp-tile.rp-missing {
-    outline: 0;
   }
 }
 
