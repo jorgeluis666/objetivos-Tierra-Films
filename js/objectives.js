@@ -22,7 +22,11 @@
   const GRID_COLOR = 'rgba(15,23,42,.06)';
   const PREVIOUS_COLOR = '#94a3b8';
   const EST_DASH = [6, 5];
-  const CHEVRON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 15 6-6 6 6"/></svg>';
+  // Top de palabras clave del conjunto (pie) y su escala de azules, de la lider a la ultima.
+  const TOP_KEYWORDS = 5;
+  const PIE_COLORS = ['#2563eb', '#60a5fa', '#1e40af', '#93c5fd', '#3b82f6'];
+  const REST_COLOR = '#cbd5e1';
+  const CHEVRON ='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 15 6-6 6 6"/></svg>';
   // Vistas del grafico de cada campana. Las diarias salen de la serie por dia (window.TierraFilmsDays):
   // con una sola campana, la cuenta y la campana son lo mismo.
   const MODES = [
@@ -701,40 +705,6 @@
     return period.months.map(month => blocks.find(block => block.month === month.key)).filter(Boolean);
   }
 
-  function actionsHtml(period) {
-    const head = '<div class="gasto-kw-block-head"><div class="panel-title">Conversiones por acción</div>';
-    const blocks = actionBlocks(period);
-    if (!blocks.length) {
-      const what = period.annual ? 'Ningún mes del periodo tiene' : `${escapeHtml(period.month.label)} no tiene`;
-      return `${head}<div class="panel-sub">${what} informe de conversiones por acción. Sube a la carpeta Google Ads TF Campañas el informe de campaña con Segmento > Conversiones > Acción de conversión.</div></div>`;
-    }
-    const byName = new Map();
-    blocks.forEach(block => block.actions.forEach(action => byName.set(action.name, (byName.get(action.name) || 0) + (Number(action.conversions) || 0))));
-    const total = blocks.reduce((sum, block) => sum + (Number(block.total) || 0), 0);
-    const rows = [...byName.entries()].sort((a, b) => b[1] - a[1]);
-    const range = blocks.length === 1
-      ? (() => {
-        const block = blocks[0];
-        const start = parseDate(block.start);
-        const end = parseDate(block.end);
-        return `${start.d}-${end.d} ${MONTH_NAMES[end.m - 1]} ${end.y}`;
-      })()
-      : blocks.map(block => SHORT_NAMES[parseDate(block.start).m - 1]).join(', ');
-    const missing = period.months.length - blocks.length;
-    return `${head}<div class="panel-sub">Del informe por acción de conversión, ${escapeHtml(range)}: ${fmtConv(total)} conversiones.${missing ? ` ${missing} ${missing === 1 ? 'mes del periodo no tiene' : 'meses del periodo no tienen'} este informe.` : ''}</div></div>
-      <div class="table-scroll">
-        <table class="data-table gasto-kw-table gasto-actions-table">
-          <thead><tr><th>Acción de conversión</th><th class="num">Conversiones</th><th>% del total</th></tr></thead>
-          <tbody>${rows.map(([name, conversions]) => `<tr class="${conversions > 0 ? '' : 'is-muted'}">
-            <td class="gasto-kw-name"><span>${escapeHtml(name)}</span></td>
-            <td class="num gasto-strong">${fmtConv(conversions)}</td>
-            ${shareCell(total > 0 ? conversions / total : null)}
-          </tr>`).join('')}
-          <tr class="gasto-total-row"><td>Total</td><td class="num">${fmtConv(total)}</td><td></td></tr></tbody>
-        </table>
-      </div>`;
-  }
-
   function campaignHtml(period, campaign, before) {
     const key = escapeHtml(campaign.key);
     const id = slug(campaign.key);
@@ -774,7 +744,6 @@
           <div class="chart-wrap h-300"><canvas id="chart-gasto-${id}" role="img" aria-label="Gráfico de la campaña ${escapeHtml(campaign.label)}"></canvas></div>
           <div class="gasto-legend" data-camp-legend></div>
           <div class="panel-note gasto-chart-note" data-camp-note hidden></div>
-          ${actionsHtml(period)}
         </div>
       </section>`;
   }
@@ -1194,8 +1163,10 @@
       // informes con la columna y otros sin ella y la misma palabra quedaria duplicada en el Anual.
       const base = kwKey(item.keyword, item.match);
       const key = `${base}|${normalizeText(item.group)}`;
-      if (!rows.has(key)) rows.set(key, { key, base, keyword: plainKeyword(item.keyword), match: plainMatch(item.match), group: item.group || '', paused: Boolean(item.paused), conversions: 0, cost: null, impressions: null, clicks: null, actions: {} });
+      if (!rows.has(key)) rows.set(key, { key, base, keyword: plainKeyword(item.keyword), match: plainMatch(item.match), group: item.group || '', quality: null, paused: Boolean(item.paused), conversions: 0, cost: null, impressions: null, clicks: null, actions: {} });
       const row = rows.get(key);
+      // Nivel de calidad de Google (0-10): es del momento, no del periodo; manda el primero que lo traiga.
+      if (row.quality === null && Number(item.quality) > 0) row.quality = Number(item.quality);
       row.conversions += Number(item.conversions) || 0;
       Object.entries(item.actions || {}).forEach(([name, value]) => { row.actions[name] = (row.actions[name] || 0) + (Number(value) || 0); });
       // Sin el segmento por accion el informe trae metricas reales por palabra: se usan.
@@ -1349,6 +1320,8 @@
       if (!bucket.has(id)) bucket.set(id, Object.assign({}, row, { key: id, conversions: 0, cost: null, impressions: null, clicks: null, actions: {} }));
       const entry = bucket.get(id);
       entry.conversions += Number(row.conversions) || 0;
+      if (!entry.quality && Number(row.quality) > 0) entry.quality = Number(row.quality);
+      Object.entries(row.actions || {}).forEach(([name, value]) => { entry.actions[name] = (entry.actions[name] || 0) + (Number(value) || 0); });
       KW_METRICS.forEach(field => { if (isNum(row[field])) entry[field] = (entry[field] || 0) + Number(row[field]); });
     }));
     // En el Anual se mezclan informes: una palabra del mes que trae el conjunto puede venir solo con
@@ -1358,10 +1331,17 @@
       group.rows = [...group.byKey.values()].map(derive).filter(shown);
       delete group.byKey;
       const sums = { conversions: 0, cost: null, impressions: null, clicks: null };
+      // Conversiones por accion del conjunto: las de sus palabras, cuando el informe las separa.
+      group.actions = {};
+      // Calidad del conjunto: promedio de las palabras que traen nivel de calidad.
+      const quality = [];
       group.rows.forEach(row => {
         sums.conversions += Number(row.conversions) || 0;
         KW_METRICS.forEach(field => { if (isNum(row[field])) sums[field] = (sums[field] || 0) + Number(row[field]); });
+        Object.entries(row.actions || {}).forEach(([name, value]) => { group.actions[name] = (group.actions[name] || 0) + (Number(value) || 0); });
+        if (Number(row.quality) > 0) quality.push(Number(row.quality));
       });
+      group.quality = quality.length ? quality.reduce((sum, value) => sum + value, 0) / quality.length : null;
       group.rows.sort((a, b) => b.conversions - a.conversions || (b.cost || 0) - (a.cost || 0) || (b.clicks || 0) - (a.clicks || 0));
       return Object.assign(group, derive(sums));
     }).filter(group => group.rows.length).sort((a, b) => (b.cost || 0) - (a.cost || 0) || b.conversions - a.conversions);
@@ -1374,36 +1354,73 @@
     };
   }
 
-  function adGroupBlockHtml(group, scope, totals, campaignLabel) {
+  // Conversiones por accion del conjunto. Si sus palabras no traen el desglose (el informe no viene separado
+  // por accion) y el periodo tiene un solo conjunto, se usa el del periodo, que es el mismo.
+  function groupActions(group, period, onlyGroup) {
+    const own = Object.entries(group.actions || {}).filter(([, value]) => Number(value) > 0);
+    if (own.length) {
+      const total = own.reduce((sum, [, value]) => sum + value, 0);
+      return { rows: own.sort((a, b) => b[1] - a[1]), total, source: 'conjunto' };
+    }
+    if (!onlyGroup) return null;
+    const blocks = actionBlocks(period);
+    if (!blocks.length) return null;
+    const byName = new Map();
+    blocks.forEach(block => block.actions.forEach(action => byName.set(action.name, (byName.get(action.name) || 0) + (Number(action.conversions) || 0))));
+    const total = blocks.reduce((sum, block) => sum + (Number(block.total) || 0), 0);
+    return { rows: [...byName.entries()].sort((a, b) => b[1] - a[1]), total, source: 'periodo' };
+  }
+
+  function actionsTableHtml(actions) {
+    return `
+      <div class="table-scroll">
+        <table class="data-table gasto-kw-table gasto-actions-table">
+          <thead><tr><th>Acción de conversión</th><th class="num">Conversiones</th><th>% del total</th></tr></thead>
+          <tbody>${actions.rows.map(([name, conversions]) => `<tr class="${conversions > 0 ? '' : 'is-muted'}">
+            <td class="gasto-kw-name"><span>${escapeHtml(name)}</span></td>
+            <td class="num gasto-strong">${fmtConv(conversions)}</td>
+            ${shareCell(actions.total > 0 ? conversions / actions.total : null)}
+          </tr>`).join('')}
+          <tr class="gasto-total-row"><td>Total</td><td class="num">${fmtConv(actions.total)}</td><td></td></tr></tbody>
+        </table>
+      </div>`;
+  }
+
+  function adGroupBlockHtml(group, scope, totals, campaignLabel, period, onlyGroup) {
     const est = estTag(totals.estimated);
-    // Las columnas salen de lo que el conjunto trae de verdad: el informe por accion solo da conversiones.
+    // Los indicadores y las columnas salen de lo que el conjunto trae: el informe por accion de conversion
+    // solo da conversiones, y entonces impresiones, clics y CTR quedan en blanco (va dicho en la nota).
     const has = field => group.rows.some(row => Number(row[field]) > 0);
     const cost = has('cost');
     const impressions = has('impressions');
     const clicks = has('clicks');
+    const quality = group.rows.some(row => Number(row.quality) > 0);
     const byCost = totals.totalCost > 0 && isNum(group.cost);
     const share = byCost ? (Number(group.cost) || 0) / totals.totalCost : totals.totalConv > 0 ? group.conversions / totals.totalConv : null;
-    const kpis = [[cost, 'Inversión', fmtMoney(group.cost)], [true, 'Conversiones', fmtConv(group.conversions)], [cost, 'Costo por conversión', fmtMoney(group.costPerConversion)],
-      [impressions, 'Impresiones', fmtCount(group.impressions)], [clicks, 'Clics', fmtCount(group.clicks)], [impressions && clicks, 'CTR', fmtPercent(group.ctr)], [cost && clicks, 'CPC', fmtMoney(group.cpc)]]
+    const kpis = [[cost, 'Inversión', fmtMoney(group.cost)], [impressions, 'Impresiones', fmtCount(group.impressions)],
+      [clicks, 'Clics', fmtCount(group.clicks)], [impressions && clicks, 'CTR', fmtPercent(group.ctr)],
+      [cost && clicks, 'CPC', fmtMoney(group.cpc)], [true, 'Conversiones', fmtConv(group.conversions)],
+      [cost, 'Costo por conversión', fmtMoney(group.costPerConversion)], [clicks, 'Tasa de conversión', fmtPercent(group.conversionRate)],
+      [true, 'Palabras clave', fmtCount(group.rows.length)], [quality, 'Calidad promedio', isNum(group.quality) ? `${group.quality.toFixed(1)}/10` : '—']]
       .filter(([on, , value]) => on && value !== '—')
       .map(([, label, value]) => `<div><dt>${escapeHtml(label)}</dt><dd>${value}${est}</dd></div>`).join('');
-    const cols = [[true, 'Palabra clave'], [true, 'Conversiones', true], [cost, 'Costo por conversión', true], [cost, 'Inversión', true],
-      [true, cost ? '% del conjunto' : '% de las conversiones'], [impressions, 'Impresiones', true], [clicks, 'Clics', true],
-      [impressions && clicks, 'CTR', true], [cost && clicks, 'CPC', true]].filter(([on]) => on);
     const groupCost = group.rows.reduce((total, row) => total + (Number(row.cost) || 0), 0);
     const body = group.rows.map(row => `
         <tr>
           ${keywordCell(Object.assign({}, row, { group: '' }), 'gasto-kw-name')}
+          <td class="num">${fmtCount(row.impressions)}${impressions ? est : ''}</td>
+          <td class="num">${fmtCount(row.clicks)}${clicks ? est : ''}</td>
+          <td class="num">${fmtPercent(row.ctr)}</td>
           <td class="num gasto-strong">${fmtConv(row.conversions)}</td>
-          ${cost ? `<td class="num">${fmtMoney(row.costPerConversion)}</td><td class="num">${fmtMoney(row.cost)}${est}</td>` : ''}
           ${shareCell(cost && groupCost > 0 ? (Number(row.cost) || 0) / groupCost : group.conversions > 0 ? row.conversions / group.conversions : null)}
-          ${impressions ? `<td class="num">${fmtCount(row.impressions)}${est}</td>` : ''}
-          ${clicks ? `<td class="num">${fmtCount(row.clicks)}${est}</td>` : ''}
-          ${impressions && clicks ? `<td class="num">${fmtPercent(row.ctr)}</td>` : ''}
-          ${cost && clicks ? `<td class="num">${fmtMoney(row.cpc)}</td>` : ''}
+          ${cost ? `<td class="num">${fmtMoney(row.cost)}${est}</td><td class="num">${fmtMoney(row.costPerConversion)}</td>` : ''}
+          <td class="num">${Number(row.quality) > 0 ? `${Number(row.quality).toFixed(0)}/10` : '<span class="no-data">—</span>'}</td>
         </tr>`).join('');
     const campaigns = [...new Set(group.rows.map(row => row.campaign).filter(Boolean))];
     const owner = campaigns.length ? campaigns.join(', ') : campaignLabel;
+    const actions = groupActions(group, period, onlyGroup);
+    const top = group.rows.filter(row => Number(row.conversions) > 0).slice(0, TOP_KEYWORDS);
+    const id = slug(group.key) || 'conjunto';
     return `
       <section class="gasto-camp-block gasto-group-block" data-group="${escapeHtml(group.key)}">
         <div class="gasto-camp-head">
@@ -1413,11 +1430,34 @@
           </div>
         </div>
         <dl class="gasto-camp-kpis">${kpis}</dl>
-        <div class="table-scroll">
-          <table class="data-table gasto-kw-table">
-            <thead><tr>${cols.map(([, label, numeric]) => `<th${numeric ? ' class="num"' : ''}>${escapeHtml(label)}</th>`).join('')}</tr></thead>
-            <tbody>${body}</tbody>
-          </table>
+        <div class="gasto-group-cols">
+          <div class="gasto-group-main">
+            <div class="gasto-kw-block-head"><div class="panel-title">Palabras clave del conjunto</div>
+              <div class="panel-sub">${cost ? 'Ordenadas por conversiones, con su peso dentro del conjunto.' : 'Ordenadas por conversiones. El informe viene separado por acción de conversión: Google Ads no reparte impresiones, clics ni costo por palabra.'}</div></div>
+            <div class="table-scroll">
+              <table class="data-table gasto-kw-table">
+                <thead><tr><th>Palabra clave</th><th class="num">Impresiones</th><th class="num">Clics</th><th class="num">CTR</th><th class="num">Conversiones</th><th>% del conjunto</th>${cost ? '<th class="num">Inversión</th><th class="num">Costo por conv.</th>' : ''}<th class="num">Calidad</th></tr></thead>
+                <tbody>${body}</tbody>
+              </table>
+            </div>
+          </div>
+          <div class="gasto-group-side">
+            <div class="gasto-group-card">
+              <div class="gasto-kw-block-head"><div class="panel-title">Top ${top.length || TOP_KEYWORDS} palabras clave</div>
+                <div class="panel-sub">Reparto de las conversiones del conjunto.</div></div>
+              ${top.length
+    ? `<div class="chart-wrap h-240"><canvas id="chart-kwpie-${id}" role="img" aria-label="Top de palabras clave del conjunto ${escapeHtml(group.name)}"></canvas></div>
+                 <div class="gasto-pie-legend" data-pie-legend="${escapeHtml(group.key)}"></div>`
+    : '<div class="panel-sub gasto-group-empty">Ninguna palabra clave del conjunto registró conversiones en el periodo.</div>'}
+            </div>
+            <div class="gasto-group-card">
+              <div class="gasto-kw-block-head"><div class="panel-title">Conversiones por acción</div>
+                <div class="panel-sub">${actions
+    ? actions.source === 'conjunto' ? 'Del informe por acción de conversión, con las palabras clave de este conjunto.' : 'Del informe por acción de conversión del periodo; el conjunto es el único con actividad.'
+    : 'El informe del periodo no separa las conversiones por acción. Sube a la carpeta Google Ads TF Campañas el informe con Segmento &gt; Conversiones &gt; Acción de conversión.'}</div></div>
+              ${actions ? actionsTableHtml(actions) : ''}
+            </div>
+          </div>
         </div>
       </section>`;
   }
@@ -1434,8 +1474,16 @@
       return;
     }
     if (!groups.length) {
-      host.innerHTML = '';
       sub.textContent = `El informe de ${scope.label} no trae la columna «Grupo de anuncios», así que no se puede repartir el gasto por conjunto. Expórtalo desde Google Ads con la columna Grupo de anuncios (como el de setiembre) y vuelve a sincronizar.`;
+      // Sin conjuntos, las conversiones por acción del periodo se muestran igual: son del único cuadro que queda.
+      const actions = groupActions({ actions: {} }, period, true);
+      host.innerHTML = actions
+        ? `<div class="gasto-group-card gasto-group-loose">
+            <div class="gasto-kw-block-head"><div class="panel-title">Conversiones por acción</div>
+              <div class="panel-sub">Del informe por acción de conversión del periodo. Cuando el informe traiga el conjunto, este cuadro va dentro de cada uno.</div></div>
+            ${actionsTableHtml(actions)}
+          </div>`
+        : '';
       return;
     }
     const label = totals.groupMonths.length && totals.groupMonths.length < scope.months.length
@@ -1447,7 +1495,56 @@
     if (totals.estimated) notes.push('Las semanas que cruzan de mes se reparten por días (est.).');
     sub.textContent = notes.join(' ');
     const campaignLabel = (campaigns[0] || {}).label || '';
-    host.innerHTML = groups.map(group => adGroupBlockHtml(group, scope, totals, campaignLabel)).join('');
+    host.innerHTML = groups.map(group => adGroupBlockHtml(group, scope, totals, campaignLabel, period, groups.length === 1)).join('');
+    groups.forEach(group => drawGroupPie(group));
+  }
+
+  // Pie del top de palabras clave del conjunto: reparto de sus conversiones, con su leyenda al lado.
+  function drawGroupPie(group) {
+    const id = `chart-kwpie-${slug(group.key) || 'conjunto'}`;
+    const canvas = document.getElementById(id);
+    if (!canvas) return;
+    const converting = group.rows.filter(row => Number(row.conversions) > 0);
+    if (!converting.length) return;
+    const top = converting.slice(0, TOP_KEYWORDS);
+    const total = converting.reduce((sum, row) => sum + Number(row.conversions), 0);
+    // El resto entra como una porcion gris para que el pie sea el conjunto completo y los % cuadren con la tabla.
+    const rest = converting.slice(TOP_KEYWORDS);
+    const restSum = rest.reduce((sum, row) => sum + Number(row.conversions), 0);
+    const slices = top.map((row, index) => ({ label: row.keyword, value: Number(row.conversions), color: PIE_COLORS[index % PIE_COLORS.length] }))
+      .concat(rest.length ? [{ label: `Otras ${rest.length} ${rest.length === 1 ? 'palabra' : 'palabras'}`, value: restSum, color: REST_COLOR }] : []);
+    const legend = document.querySelector(`[data-pie-legend="${CSS.escape(group.key)}"]`);
+    if (legend) {
+      legend.innerHTML = slices.map(slice => `
+        <div class="gasto-pie-item">
+          <i style="background:${slice.color}"></i>
+          <span title="${escapeHtml(slice.label)}">${escapeHtml(slice.label)}</span>
+          <b>${fmtConv(slice.value)}</b>
+          <em>${total > 0 ? fmtPercent(slice.value / total) : '—'}</em>
+        </div>`).join('');
+    }
+    if (typeof Chart === 'undefined') {
+      canvas.parentElement.innerHTML = '<div class="panel-sub gasto-group-empty">Gráfico no disponible sin conexión; el reparto va en la lista.</div>';
+      return;
+    }
+    destroyCampaignChart(id);
+    gasto.charts.set(id, new Chart(canvas, {
+      type: 'doughnut',
+      data: {
+        labels: slices.map(slice => slice.label),
+        datasets: [{ data: slices.map(slice => slice.value), backgroundColor: slices.map(slice => slice.color), borderColor: '#fff', borderWidth: 2 }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        cutout: '58%',
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: context => ` ${context.label}: ${fmtConv(context.raw)} (${total > 0 ? fmtPercent(context.raw / total) : '—'})` } }
+        }
+      }
+    }));
   }
 
   // ── Ranking de palabras clave del periodo ──

@@ -52,12 +52,11 @@ paneles de Amador y Aquarius.
      solo en vista diaria va contra el mes anterior en el mismo día. Lo repartido desde
      semanas va punteado con `(est.)`. Las vistas diarias necesitan la serie por
      día del mes (hoy: costo real del 1-jun al 20-set y el resto repartido de las
-     semanas; octubre solo tiene Por mes). Dentro del cuadro, `Conversiones por
-     acción` (WhatsApp Plugin, Formulario, WhatsApp Clic) del informe por acción
-     de conversión. El detalle semanal ya lo da el gráfico con `Por semana`, y las
-     palabras clave van en el panel de conjuntos de anuncios y en el ranking, así
-     que el cuadro de campaña no los repite. Minimizar, indicadores y vista se
-     recuerdan en `tierra_films_gasto_campaign_charts`.
+     semanas; octubre solo tiene Por mes). El cuadro de campaña es solo KPIs y
+     gráfico: el detalle semanal ya lo da `Por semana`, y las palabras clave y las
+     conversiones por acción viven en el panel de conjuntos de anuncios y en el
+     ranking. Minimizar, indicadores y vista se recuerdan en
+     `tierra_films_gasto_campaign_charts`.
    - **Palabras clave**: cada mes usa un solo informe. Si la carpeta Keywords tiene
      el del mes (por acción de conversión), solo conversiones: Google deja
      impresiones, clics y costo en 0 y esas columnas no se muestran. Si no, el
@@ -67,14 +66,21 @@ paneles de Amador y Aquarius.
      trae y antes dejaba el mes sin ninguna (setiembre 2026). Se compara con el mes anterior solo si los
      dos usan el mismo informe y cubren el mes completo o los mismos días. En
      Anual, con meses de los dos informes, no se calcula el costo por conversión.
-   - **Conjuntos de anuncios**: un bloque por grupo de anuncios con sus KPIs y las
-     palabras clave que corrieron en él. Solo sale si el informe del mes trae la
+   - **Conjuntos de anuncios**: un bloque por grupo de anuncios con su barra de
+     KPIs (los que el informe da, más palabras clave y calidad promedio) y, debajo,
+     dos columnas: a la izquierda las palabras clave del conjunto (impresiones,
+     clics, CTR, conversiones, % del conjunto y nivel de calidad; con inversión y
+     costo por conversión cuando el informe los trae) y a la derecha el pie del
+     `Top 5 palabras clave` —el resto entra como `Otras N palabras` para que el
+     reparto cuadre con la tabla— y `Conversiones por acción` del conjunto, de las
+     acciones de sus palabras clave. Solo sale si el informe del mes trae la
      columna `Grupo de anuncios`: la traen el informe por día de la carpeta
      Campañas (cuando lo exportan por palabra clave) y el de la carpeta Keywords
      exportado por acción de conversión con campaña y grupo. Si el informe no la
-     trae, el panel dice qué falta exportar; en Anual solo reparte los meses que
-     sí la traen. Las columnas del bloque salen de lo que el informe da: el de
-     acción de conversión solo trae conversiones.
+     trae, el panel dice qué falta exportar y deja las conversiones por acción del
+     periodo; en Anual solo reparte los meses que sí la traen. Las columnas que el
+     informe no alimenta quedan en guion: el de acción de conversión solo trae
+     conversiones.
    - **Ranking de palabras clave del periodo**: cabecera fija, Campaña y Palabra
      clave ancladas (bajo la campaña va el conjunto de anuncios, si el informe lo
      trae), estrella en la líder, filtro por campaña y por conjunto, `Compacto`
