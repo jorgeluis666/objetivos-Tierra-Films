@@ -141,14 +141,6 @@
     return current / previous - 1;
   }
 
-  function deltaCell(value, inverse = false) {
-    if (value === null) return '<td class="num delta-cell">—</td>';
-    const good = inverse ? value < 0 : value > 0;
-    const cls = Math.abs(value) < 0.005 ? '' : (good ? 'up' : 'down');
-    const sign = value > 0 ? '+' : '';
-    return `<td class="num delta-cell ${cls}">${sign}${(value * 100).toLocaleString('es-PE', { maximumFractionDigits: 1 })}%</td>`;
-  }
-
   function readSetting(key) {
     try { return window.localStorage.getItem(key); } catch (error) { return null; }
   }
@@ -743,68 +735,6 @@
       </div>`;
   }
 
-  // Semanas del periodo (las que tienen al menos un dia dentro); el total del mes prorratea las que cruzan.
-  function periodWeeks(period) {
-    const keys = period.months.map(month => month.key);
-    return state.weeks
-      .filter(week => week.daysByMonth && keys.some(key => week.daysByMonth[key]))
-      .map(week => ({ week, inside: keys.reduce((sum, key) => sum + (week.daysByMonth[key] || 0), 0) }));
-  }
-
-  function weeksHtml(period) {
-    const head = '<div class="gasto-kw-block-head"><div class="panel-title">Resultados semanales</div>';
-    const items = periodWeeks(period);
-    if (!items.length) {
-      const what = period.annual ? 'el periodo' : escapeHtml(period.month.label);
-      return `${head}<div class="panel-sub">Sin detalle semanal para ${what}: el total sale del informe del mes. Sube el informe de campaña por Día o por Semana para verlo.</div></div>`;
-    }
-    const byStart = new Map(state.weeks.map((week, index) => [week.start, index]));
-    const monthName = period.annual ? '' : period.month.name.toLowerCase();
-    const rows = items.map(({ week, inside }) => {
-      const prev = state.weeks[byStart.get(week.start) - 1];
-      const tag = !period.annual && inside < week.days
-        ? `<small>${inside} de ${week.days} días en ${monthName}</small>`
-        : (week.days < 7 ? `<small>${week.days} días con datos</small>` : '');
-      return `
-      <tr>
-        <td class="campaign-name"><span>${escapeHtml(weekLabel(week))}</span>${tag}</td>
-        <td class="num">${fmtMoney(week.cost)}</td>${deltaCell(prev ? delta(week.cost, prev.cost) : null)}
-        <td class="num">${fmtCount(week.impressions)}</td>
-        <td class="num">${fmtPercent(week.ctr)}</td>
-        <td class="num">${fmtCount(week.clicks)}</td>${deltaCell(prev ? delta(week.clicks, prev.clicks) : null)}
-        <td class="num">${fmtMoney(week.cpc)}</td>${deltaCell(prev ? delta(week.cpc, prev.cpc) : null, true)}
-        <td class="num">${fmtConv(week.conversions)}</td>${deltaCell(prev ? delta(week.conversions, prev.conversions) : null)}
-        <td class="num">${fmtMoney(week.costPerConversion)}</td>${deltaCell(prev ? delta(week.costPerConversion, prev.costPerConversion) : null, true)}
-      </tr>`;
-    }).join('');
-    const t = periodTotals(period);
-    const coveredDays = items.reduce((sum, item) => sum + item.inside, 0);
-    const periodDays = period.months.reduce((sum, month) => sum + (month.lastDay - month.firstDay + 1), 0);
-    const crossing = !period.annual && items.some(({ week, inside }) => inside < week.days);
-    const notes = [`${items.length} ${items.length === 1 ? 'semana' : 'semanas'} de lunes a domingo. % Δ compara cada semana con la anterior; en CPC y costo por conversión, bajar es mejor.`];
-    if (crossing) notes.push(`Las semanas que cruzan de mes se muestran completas; el total de ${monthName} solo cuenta sus días dentro del mes.`);
-    if (coveredDays < periodDays) notes.push(`El detalle semanal cubre ${coveredDays} de ${periodDays} días del periodo, así que no suma exactamente el total.`);
-    const estimated = periodEstimated(period).size > 0;
-    return `${head}<div class="panel-sub">${escapeHtml(notes.join(' '))}</div></div>
-      <div class="table-scroll">
-        <table class="data-table campaigns-table gasto-weeks-table">
-          <thead><tr><th>Semana</th><th class="num">Inversión</th><th class="num">% Δ</th><th class="num">Impresiones</th><th class="num">CTR</th><th class="num">Clics</th><th class="num">% Δ</th><th class="num">CPC medio</th><th class="num">% Δ</th><th class="num">Conversiones</th><th class="num">% Δ</th><th class="num">Costo por conversión</th><th class="num">% Δ</th></tr></thead>
-          <tbody>${rows}
-            <tr class="reservations-total-row">
-              <td class="total-label">Total ${escapeHtml(period.annual ? `${period.year}` : period.month.label)}${estimated ? ' (prorrateado)' : ''}</td>
-              <td class="num">${fmtMoney(t.cost)}</td><td></td>
-              <td class="num">${fmtCount(t.impressions)}</td>
-              <td class="num">${fmtPercent(t.ctr)}</td>
-              <td class="num">${fmtCount(t.clicks)}</td><td></td>
-              <td class="num">${fmtMoney(t.cpc)}</td><td></td>
-              <td class="num">${fmtConv(t.conversions)}</td><td></td>
-              <td class="num">${fmtMoney(t.costPerConversion)}</td><td></td>
-            </tr>
-          </tbody>
-        </table>
-      </div>`;
-  }
-
   function campaignHtml(period, campaign, before) {
     const key = escapeHtml(campaign.key);
     const id = slug(campaign.key);
@@ -845,8 +775,6 @@
           <div class="gasto-legend" data-camp-legend></div>
           <div class="panel-note gasto-chart-note" data-camp-note hidden></div>
           ${actionsHtml(period)}
-          ${weeksHtml(period)}
-          ${campaignKeywordsHtml(period, campaign)}
         </div>
       </section>`;
   }
@@ -1402,63 +1330,6 @@
   // Debajo de la palabra: la concordancia y, si el informe lo trae, el conjunto de anuncios.
   const keywordDetail = row => [row.match ? matchText(row.match) : row.group ? '' : 'Sin concordancia', row.group ? `Conjunto: ${row.group}` : ''].filter(Boolean).join(' · ');
   const keywordCell = (row, cls) => `<td class="${cls}" title="${escapeHtml(`${row.keyword} (${keywordDetail(row)})`)}"><span>${row.leader ? '<b class="gasto-leader" title="Líder de la campaña">★</b> ' : ''}${escapeHtml(row.keyword)}</span><small>${escapeHtml(keywordDetail(row))}${row.paused ? ' · detenida' : ''}</small></td>`;
-
-  // Palabras clave de la campana en el periodo, con sus conversiones contra el mes anterior.
-  function campaignKeywordsHtml(period, campaign) {
-    const head = '<div class="gasto-kw-block-head"><div class="panel-title">Palabras clave del periodo</div>';
-    const scope = keywordScope(period);
-    if (!scope.months.length) {
-      const what = period.annual ? 'Ningún mes del periodo tiene' : `${escapeHtml(period.month.label)} no tiene`;
-      return `${head}<div class="panel-sub">${what} informe de palabras clave. Súbelo a la carpeta Google Ads TF Keywords de Drive.</div></div>`;
-    }
-    const primary = (periodCampaigns(period)[0] || {}).key;
-    const all = scope.rows.filter(row => (row.campaignKey ? row.campaignKey === campaign.key : campaign.key === primary));
-    const rows = all.filter(row => kwActive(row, scope.hasMetrics)).sort((a, b) => b.conversions - a.conversions || (b.cost || 0) - (a.cost || 0) || (b.clicks || 0) - (a.clicks || 0));
-    if (!rows.length) return `${head}<div class="panel-sub">El informe de palabras clave de ${escapeHtml(scope.label)} no trae actividad de esta campaña.</div></div>`;
-    const { compare, reason } = keywordCompare(period);
-    const kwCost = rows.reduce((total, row) => total + (Number(row.cost) || 0), 0);
-    // Cobertura: la inversion de la campana en los meses que tienen inversion por palabra.
-    const campaignCost = scope.mixed ? scope.metricMonths.reduce((total, month) => total + (Number(month.totals.cost) || 0), 0) : campaign.cost;
-    const kwConv = rows.reduce((total, row) => total + row.conversions, 0);
-    const byCost = scope.hasMetrics && kwCost > 0;
-    const hidden = all.length - rows.length;
-    const cols = [['Palabra clave'], ['Conversiones', true]]
-      .concat(compare ? [[`Conversiones ${compare.label}`, true], ['Variación', true]] : [])
-      .concat(scope.hasMetrics ? (scope.mixed ? [] : [['Costo por conversión', true]]).concat([['Inversión', true]]) : [])
-      .concat([[byCost ? '% de la campaña' : '% de las conversiones']])
-      .concat(scope.hasMetrics ? (scope.hasImpressions ? [['Impresiones', true]] : []).concat([['Clics', true], ['CPC', true]]) : []);
-    const est = estTag(scope.estimated);
-    const body = rows.map(row => {
-      const before = compare ? compare.rows.get(row.key) : null;
-      return `<tr>
-          ${keywordCell(row, 'gasto-kw-name')}
-          <td class="num gasto-strong">${fmtConv(row.conversions)}</td>
-          ${compare ? `<td class="num">${before ? fmtConv(before.conversions) : '<span class="no-data">—</span>'}</td><td class="num">${variationCell(row.conversions, before ? before.conversions : null)}</td>` : ''}
-          ${scope.hasMetrics ? `${scope.mixed ? '' : `<td class="num">${fmtMoney(row.costPerConversion)}</td>`}<td class="num">${fmtMoney(row.cost)}${est}</td>` : ''}
-          ${shareCell(byCost ? (Number(row.cost) || 0) / kwCost : kwConv > 0 ? row.conversions / kwConv : null)}
-          ${scope.hasMetrics ? `${scope.hasImpressions ? `<td class="num">${fmtCount(row.impressions)}${est}</td>` : ''}<td class="num">${fmtCount(row.clicks)}${est}</td><td class="num">${fmtMoney(row.cpc)}</td>` : ''}
-        </tr>`;
-    }).join('');
-    const driveFull = scope.months.some(({ kw }) => kw.source === 'drive' && kw.hasMetrics);
-    const SOURCE_TEXT = { platform: 'del informe por día de la carpeta Campañas', drive: driveFull ? 'del informe de palabras clave (carpeta Keywords)' : 'del informe por acción de conversión (carpeta Keywords)', weekly: 'del informe semanal de palabras clave' };
-    const from = scope.sources.length === 1 ? SOURCE_TEXT[scope.sources[0]] : `de varios informes (${scope.months.map(({ month, kw }) => `${month.shortName}: ${{ platform: 'por día', drive: 'por acción', weekly: 'semanal' }[kw.source]}`).join(', ')})`;
-    const notes = [`${rows.length} ${rows.length === 1 ? 'palabra clave' : 'palabras clave'} con ${scope.hasMetrics ? 'actividad' : 'conversiones'} en ${escapeHtml(scope.label)}, ${from}.`];
-    if (byCost) notes.push(`${fmtMoney(kwCost)} de ${fmtMoney(campaignCost)} de la campaña${scope.mixed ? ` en ${scope.metricMonths.map(month => month.shortName).join(', ')}` : ''}${scope.estimated ? ' (semanas repartidas por días, est.)' : ''}.`);
-    if (scope.mixed) notes.push(`Inversión, impresiones y clics por palabra solo de ${scope.metricMonths.map(month => month.shortName).join(', ')}; sin costo por conversión, porque las conversiones suman también los meses del informe por acción.`);
-    if (!scope.hasMetrics) notes.push('Ese informe viene separado por acción de conversión: Google Ads no reparte impresiones, clics ni costo por palabra, así que esas columnas no se muestran.');
-    else if (!scope.hasImpressions) notes.push('El informe por día no trae impresiones por palabra.');
-    if (compare) notes.push(`Conversiones contra ${escapeHtml(compare.label)}${compare.estimated ? ' (est.)' : ''}.`);
-    else if (reason) notes.push(escapeHtml(reason));
-    if (hidden) notes.push(`${hidden} sin ${scope.hasMetrics ? 'impresiones' : 'conversiones'} no se ${hidden === 1 ? 'muestra' : 'muestran'}.`);
-    if (period.annual && scope.months.length < period.months.length) notes.push('Solo los meses del periodo con informe de palabras clave.');
-    return `${head}<div class="panel-sub">${notes.join(' ')}</div></div>
-      <div class="table-scroll">
-        <table class="data-table gasto-kw-table">
-          <thead><tr>${cols.map(([label, numeric]) => `<th${numeric ? ' class="num"' : ''}>${escapeHtml(label)}</th>`).join('')}</tr></thead>
-          <tbody>${body}</tbody>
-        </table>
-      </div>`;
-  }
 
   // ── Conjuntos de anuncios (grupos de anuncios de Google Ads) ──
   // El conjunto de cada palabra solo llega si el informe del mes trae la columna "Grupo de anuncios":

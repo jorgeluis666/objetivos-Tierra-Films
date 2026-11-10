@@ -52,12 +52,12 @@ paneles de Amador y Aquarius.
      solo en vista diaria va contra el mes anterior en el mismo día. Lo repartido desde
      semanas va punteado con `(est.)`. Las vistas diarias necesitan la serie por
      día del mes (hoy: costo real del 1-jun al 20-set y el resto repartido de las
-     semanas; octubre solo tiene Por mes). Dentro del cuadro: `Conversiones por
+     semanas; octubre solo tiene Por mes). Dentro del cuadro, `Conversiones por
      acción` (WhatsApp Plugin, Formulario, WhatsApp Clic) del informe por acción
-     de conversión, `Resultados semanales` (% Δ contra la semana anterior; en CPC
-     y costo por conversión, bajar es mejor) y `Palabras clave del periodo`.
-     Minimizar, indicadores y vista se recuerdan en
-     `tierra_films_gasto_campaign_charts`.
+     de conversión. El detalle semanal ya lo da el gráfico con `Por semana`, y las
+     palabras clave van en el panel de conjuntos de anuncios y en el ranking, así
+     que el cuadro de campaña no los repite. Minimizar, indicadores y vista se
+     recuerdan en `tierra_films_gasto_campaign_charts`.
    - **Palabras clave**: cada mes usa un solo informe. Si la carpeta Keywords tiene
      el del mes (por acción de conversión), solo conversiones: Google deja
      impresiones, clics y costo en 0 y esas columnas no se muestran. Si no, el

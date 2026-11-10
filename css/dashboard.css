@@ -2666,10 +2666,6 @@
   max-width: 720px;
 }
 
-.gasto-weeks-table {
-  min-width: 1080px;
-}
-
 .data-table tr.is-muted td {
   color: #94a3b8;
 }
@@ -2688,8 +2684,38 @@
   }
 }
 
-/* Ocho KPIs: de a cuatro en pantallas medianas y de a dos en el celular */
-@media (max-width: 1180px) {
+/* Los ocho indicadores del periodo se leen de un vistazo, asi que van en una sola fila: ocho columnas
+   iguales, el valor escalado al ancho y en una linea, como en Proyecciones. Por debajo de 1181px
+   mandan las reglas de abajo (cuatro columnas y luego dos). */
+@media (min-width: 1320px) {
+  .kpi-strip.gasto-kpis {
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .kpi-strip.gasto-kpis .kpi-pill {
+    padding-right: 9px;
+    padding-left: 9px;
+  }
+
+  .kpi-strip.gasto-kpis .kpi-pill > span {
+    font-size: 9px;
+    letter-spacing: .02em;
+  }
+
+  .kpi-strip.gasto-kpis .kpi-pill > strong {
+    font-size: clamp(12px, .95vw, 22px);
+    white-space: nowrap;
+  }
+
+  .kpi-strip.gasto-kpis .kpi-pill small {
+    font-size: 9px;
+  }
+}
+
+/* Ocho KPIs: de a cuatro en pantallas medianas y de a dos en el celular. Por debajo de 1320px la fila
+   unica dejaria los montos ilegibles, asi que bajan a cuatro columnas. */
+@media (max-width: 1319px) {
   .kpi-strip.gasto-kpis {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
