@@ -33,7 +33,7 @@
   const MAX_BARS = 4;
   const MAX_QUALITY = 6;
   const PAGE_WIDTH = 1280;
-  const TOTAL_PAGES = 7;
+  const TOTAL_PAGES = 9;
   const LOGO = 'assets/logo-lima-retail.png';
   const AGENCY_LINE = 'Lima Retail · Data Driven Marketing · Power KPI · Digital Analytics';
   const CHANNEL = 'Google Ads';
@@ -399,7 +399,106 @@
       .sort((left, right) => Math.round(right.conversions || 0) - Math.round(left.conversions || 0) || cpl(left) - cpl(right) || (right.clicks || 0) - (left.clicks || 0));
     const sum = field => list.reduce((acc, row) => acc + (Number(row[field]) || 0), 0);
     const totals = derive({ cost: sum('cost'), clicks: sum('clicks'), conversions: sum('conversions'), impressions: hasImpressions ? sum('impressions') : null });
-    return { rows: list, total: totals.conversions, totals, hasMetrics: Boolean(kind) && hasMetrics, hasImpressions, source: kind, range, exact: kind !== 'month' };
+    // raw: las filas como llegan del informe (una por palabra y conjunto de anuncios), para la lamina de conjuntos.
+    return { rows: list, raw: rows, total: totals.conversions, totals, hasMetrics: Boolean(kind) && hasMetrics, hasImpressions, source: kind, range, exact: kind !== 'month' };
+  }
+
+  // ── Campanas y conjuntos de anuncios del periodo ───────────────────────
+  // Campanas: del informe por dia de cada campana (el que alimenta Gasto Publicitario). Si el mes no lo tiene,
+  // de la semana del informe semanal que cubre justo el periodo. Sin ninguno, solo los nombres.
+  function campaignStats(item) {
+    const source = data();
+    const days = (source.campaignDays || []).filter(row => row.date >= item.from && row.date <= item.to);
+    const week = (source.weeks || []).find(entry => (entry.dataStart || entry.start) === item.from && (entry.dataEnd || entry.end) === item.to && (entry.campaigns || []).length);
+    const rows = days.length ? days : week ? week.campaigns : [];
+    const kind = days.length ? 'daily' : week ? 'weekly' : null;
+    const hasImpressions = rows.length > 0 && rows.every(row => isNum(row.impressions));
+    const byName = new Map();
+    rows.forEach(row => {
+      const name = String(row.campaign || '').trim();
+      if (!name) return;
+      const key = name.toLowerCase();
+      if (!byName.has(key)) byName.set(key, { campaign: name, cost: 0, clicks: 0, conversions: 0, impressions: hasImpressions ? 0 : null });
+      const entry = byName.get(key);
+      ['cost', 'clicks', 'conversions', 'impressions'].forEach(field => {
+        if (isNum(row[field]) && isNum(entry[field])) entry[field] += Number(row[field]);
+      });
+    });
+    const list = [...byName.values()].map(row => derive(row))
+      .filter(row => Number(row.cost) > 0 || Number(row.clicks) > 0 || Number(row.conversions) > 0)
+      .sort((left, right) => (right.cost || 0) - (left.cost || 0) || (right.conversions || 0) - (left.conversions || 0));
+    const sum = field => list.reduce((acc, row) => acc + (Number(row[field]) || 0), 0);
+    const totals = derive({ cost: sum('cost'), clicks: sum('clicks'), conversions: sum('conversions'), impressions: hasImpressions ? sum('impressions') : null });
+    return { rows: list, totals, kind, hasImpressions };
+  }
+
+  // Tramos del periodo para la tabla de Campanas: por dia hasta 10 dias y, si no, por bloques de 5 dias
+  // (la misma regla del grafico del resumen). Cada tramo suma los dias de la campana.
+  function campaignBreakdown(item, campaign) {
+    const rows = (data().campaignDays || []).filter(row => row.date >= item.from && row.date <= item.to
+      && String(row.campaign || '').toLowerCase() === String(campaign || '').toLowerCase());
+    if (!rows.length) return [];
+    const hasImpressions = rows.every(row => isNum(row.impressions));
+    const bucket = (from, to, label) => {
+      const days = rows.filter(row => row.date >= from && row.date <= to);
+      const sum = field => days.reduce((acc, row) => acc + (Number(row[field]) || 0), 0);
+      return Object.assign(derive({ cost: sum('cost'), clicks: sum('clicks'), conversions: sum('conversions'), impressions: hasImpressions ? sum('impressions') : null }), { label, days: days.length });
+    };
+    const buckets = [];
+    if (spanDays(item.from, item.to) <= 10) {
+      for (let date = item.from; date <= item.to; date = addDays(date, 1)) buckets.push(bucket(date, date, `${WEEKDAYS[weekdayOf(date)]} ${dayOf(date)}`));
+    } else {
+      for (let start = item.from; start <= item.to;) {
+        let end = addDays(start, 4);
+        if (end >= item.to || spanDays(end, item.to) - 1 < 3) end = item.to;
+        buckets.push(bucket(start, end, `${dayOf(start)}–${dayOf(end)} ${monthName(end).slice(0, 3)}`));
+        start = addDays(end, 1);
+      }
+    }
+    return buckets.filter(row => row.days > 0);
+  }
+
+  // Conjuntos de anuncios: solo si el informe de palabras clave del periodo trae "Grupo de anuncios".
+  function adGroupStats(report) {
+    const kw = report.keywords;
+    const byGroup = new Map();
+    (kw.raw || []).forEach(row => {
+      const name = String(row.group || '').trim();
+      if (!name) return;
+      const key = name.toLowerCase();
+      if (!byGroup.has(key)) byGroup.set(key, { name, byKeyword: new Map() });
+      const group = byGroup.get(key);
+      const keyword = plainKeyword(row.keyword);
+      const id = keyword.toLowerCase();
+      // Separado por accion de conversion, Google Ads deja costo y clics en 0: quedan en null para no
+      // mostrar un CPL de S/ 0.
+      if (!group.byKeyword.has(id)) group.byKeyword.set(id, { keyword, conversions: 0, cost: kw.hasMetrics ? 0 : null, clicks: kw.hasMetrics ? 0 : null, impressions: kw.hasImpressions ? 0 : null });
+      const entry = group.byKeyword.get(id);
+      ['conversions', 'cost', 'clicks', 'impressions'].forEach(field => {
+        if (isNum(row[field]) && isNum(entry[field])) entry[field] += Number(row[field]);
+      });
+    });
+    const groups = [...byGroup.values()].map(group => {
+      const rows = [...group.byKeyword.values()].map(derive)
+        .sort((left, right) => (right.conversions || 0) - (left.conversions || 0) || (right.clicks || 0) - (left.clicks || 0));
+      const sum = field => rows.reduce((acc, row) => acc + (Number(row[field]) || 0), 0);
+      const totals = derive({ cost: kw.hasMetrics ? sum('cost') : null, clicks: kw.hasMetrics ? sum('clicks') : null, conversions: sum('conversions'), impressions: kw.hasImpressions ? sum('impressions') : null });
+      return Object.assign({ name: group.name, rows }, totals);
+    }).sort((left, right) => (right.conversions || 0) - (left.conversions || 0) || (right.cost || 0) - (left.cost || 0));
+    return { groups, hasMetrics: kw.hasMetrics, hasImpressions: kw.hasImpressions, range: kw.range };
+  }
+
+  // Terminos de busqueda: el informe de categorias de intencion. Si el que hay no cubre el periodo, se usa
+  // igual pero diciendo de que dias es (como el desglose por accion de conversion).
+  function searchTerms(item) {
+    const terms = data().searchTerms;
+    if (!terms || !(terms.categories || []).length) return null;
+    const overlaps = terms.start <= item.to && terms.end >= item.from;
+    const rows = terms.categories.filter(row => !row.unclassified && (Number(row.impressions) > 0 || Number(row.clicks) > 0))
+      .sort((left, right) => (right.clicks || 0) - (left.clicks || 0) || (right.impressions || 0) - (left.impressions || 0));
+    if (!rows.length) return null;
+    const totals = rows.reduce((acc, row) => ({ impressions: acc.impressions + (Number(row.impressions) || 0), clicks: acc.clicks + (Number(row.clicks) || 0), conversions: acc.conversions + (Number(row.conversions) || 0) }), { impressions: 0, clicks: 0, conversions: 0 });
+    return { rows, totals, from: terms.start, to: terms.end, exact: overlaps, count: terms.categories.length };
   }
 
   // Nivel de calidad por palabra clave (0-10): es un dato del momento, no del periodo. Sale del informe de
@@ -482,7 +581,7 @@
     // Sin costo de esos dias (la semana en curso contra un tramo de la anterior, sin serie por dia real) no hay comparacion.
     const previous = previousTotals && isNum(previousTotals.cost) ? previousTotals : null;
     const days = dailySeries(item);
-    return {
+    const report = {
       item,
       labels: item.labels,
       current,
@@ -492,7 +591,11 @@
       quality: qualityMap(item),
       actions: leadActions(item),
       campaigns: campaigns(item),
+      campaignRows: campaignStats(item),
+      terms: searchTerms(item),
     };
+    report.groups = adGroupStats(report);
+    return report;
   }
 
   // ── Lo que se calcula para los textos ───────────────────────────────────
@@ -597,6 +700,90 @@
     }
     const detail = split ? ` (${splitText(split)})` : '';
     return `**Qué pasó:** ${count(leads)} ${leadsWord(leads)}${detail} a un CPL de ${money(current.costPerConversion)}${split ? '; el formulario es el contacto más calificado' : ''}. **Acción:** sostener la inversión en los términos que ya convierten y reforzar el seguimiento de los contactos${split ? ' de WhatsApp' : ''}.`;
+  }
+
+  // ── Textos de Campanas y Conjuntos de anuncios ─────────────────────────
+  function suggestCampaignsSub(report) {
+    const rows = report.campaignRows.rows;
+    const base = 'Dónde se invirtió y qué devolvió cada campaña del periodo.';
+    if (!rows.length) return base;
+    if (rows.length === 1) return `${base} Toda la inversión corrió en ${campaignTitle(rows[0].campaign)}.`;
+    const share = Math.round((rows[0].cost / report.campaignRows.totals.cost) * 100);
+    return `${base} ${campaignTitle(rows[0].campaign)} se llevó el ${share}% del presupuesto.`;
+  }
+
+  function suggestCampaignsNote(report) {
+    const stats = report.campaignRows;
+    const origin = stats.kind === 'daily' ? '**Datos por día de Google Ads.**' : stats.kind === 'weekly' ? '**Datos de la semana del informe de campañas.**' : '';
+    const detail = stats.hasImpressions ? ' CTR = clics ÷ impresiones; CPL = inversión ÷ leads.' : ' El informe no trae impresiones por campaña, así que el CTR no se calcula.';
+    return `${origin}${detail}`.trim();
+  }
+
+  function suggestCampaignsHighlight(report) {
+    const { rows, totals } = report.campaignRows;
+    const leader = rows[0];
+    if (!leader) return `No hay informe por campaña que cubra ${report.labels.period}: la inversión del periodo aparece en el resumen de leads.`;
+    if (rows.length === 1) {
+      const cpl = isNum(leader.costPerConversion) ? ` a ${money(leader.costPerConversion)} por lead` : '';
+      return `${campaignTitle(leader.campaign)} concentra toda la inversión del periodo: ${money(leader.cost)}, ${count(leader.clicks)} clics y ${count(leader.conversions)} leads${cpl}.`;
+    }
+    const share = Math.round((leader.cost / totals.cost) * 100);
+    const best = rows.filter(row => isNum(row.costPerConversion)).sort((a, b) => a.costPerConversion - b.costPerConversion)[0];
+    const cheap = best && best !== leader ? ` ${campaignTitle(best.campaign)} consigue el lead más barato (${money(best.costPerConversion)}).` : '';
+    return `${campaignTitle(leader.campaign)} se lleva el ${share}% de la inversión y ${count(leader.conversions)} de los ${count(totals.conversions)} leads.${cheap}`;
+  }
+
+  function suggestCampaignsAnalysis(report) {
+    const { rows, totals } = report.campaignRows;
+    const leader = rows[0];
+    if (!leader) return '**Qué pasó:** el periodo no tiene informe por campaña. **Acción:** subir a Drive el informe de campañas por día para repartir inversión y leads entre campañas.';
+    if (rows.length === 1) {
+      return `**Qué pasó:** una sola campaña Search sostiene la captación, con ${count(leader.clicks)} clics y ${count(leader.conversions)} leads. **Acción:** mantener el presupuesto en la campaña y abrir conjuntos nuevos solo cuando la demanda actual quede cubierta.`;
+    }
+    const weak = rows.filter(row => Number(row.cost) > 0 && !(Number(row.conversions) > 0))[0];
+    const action = weak
+      ? `**Acción:** recortar o pausar ${campaignTitle(weak.campaign)}, que gastó ${money(weak.cost)} sin leads, y mover ese presupuesto a ${campaignTitle(leader.campaign)}.`
+      : `**Acción:** sostener ${campaignTitle(leader.campaign)} y vigilar el costo por lead de las demás.`;
+    return `**Qué pasó:** ${rows.length} campañas con inversión; ${campaignTitle(leader.campaign)} aporta ${count(leader.conversions)} de los ${count(totals.conversions)} leads. ${action}`;
+  }
+
+  function suggestGroupsSub(report) {
+    const groups = report.groups.groups;
+    const base = 'Cómo se reparten las palabras clave dentro de cada conjunto de anuncios y qué buscan quienes ven los anuncios.';
+    if (!groups.length) return base;
+    if (groups.length === 1) return `${base} Todo corre en el conjunto ${groups[0].name}.`;
+    return `${base} ${groups.length} conjuntos con actividad en el periodo.`;
+  }
+
+  function suggestGroupsHighlight(report) {
+    const groups = report.groups.groups;
+    const leader = groups[0];
+    const terms = report.terms;
+    if (!leader) {
+      const kw = report.keywords;
+      return `El informe de palabras clave de ${rangeText(kw.range.from, kw.range.to, true)} no separa por conjunto de anuncios: al exportarlo con la columna "Grupo de anuncios" cada palabra queda bajo su conjunto.`;
+    }
+    const top = leader.rows[0];
+    const part = top ? ` "${top.keyword}" es la que más aporta, con ${count(top.conversions)} ${Math.round(top.conversions) === 1 ? 'lead' : 'leads'}.` : '';
+    const intent = terms && terms.rows[0] ? ` La intención con más clics es "${capitalize(terms.rows[0].name)}".` : '';
+    return `El conjunto ${leader.name} reúne ${count(leader.rows.length)} palabras clave y ${count(leader.conversions)} leads.${part}${intent}`;
+  }
+
+  function suggestGroupsAnalysis(report) {
+    const groups = report.groups.groups;
+    const terms = report.terms;
+    const leader = groups[0];
+    const intent = terms && terms.rows.length
+      ? ` **Búsquedas:** la demanda se concentra en ${quoted(terms.rows.slice(0, 2).map(row => capitalize(row.name)))}.`
+      : '';
+    if (!leader) {
+      return `**Qué pasó:** el informe del periodo trae las palabras clave sin su conjunto de anuncios, así que no se puede medir cada grupo por separado.${intent} **Acción:** exportar el informe de palabras clave con la columna "Grupo de anuncios" y subirlo a la carpeta Keywords.`;
+    }
+    const dead = leader.rows.filter(row => !(Number(row.conversions) > 0) && Number(row.cost) > 0).length;
+    const action = dead
+      ? `**Acción:** depurar el conjunto ${leader.name}: ${dead} ${dead === 1 ? 'palabra clave gasta' : 'palabras clave gastan'} sin cerrar leads.`
+      : `**Acción:** sostener el conjunto ${leader.name} y abrir uno nuevo solo para las búsquedas que hoy no tienen anuncio propio.`;
+    return `**Qué pasó:** ${groups.length === 1 ? `un solo conjunto (${leader.name}) concentra la actividad` : `${groups.length} conjuntos con actividad; ${leader.name} lidera`}, con ${count(leader.conversions)} leads.${intent} ${action}`;
   }
 
   function suggestKeywordSub(report) {
@@ -1072,9 +1259,11 @@
   function contentsPage(report) {
     const items = [
       { title: 'Resumen de leads', desc: 'Inversión, clics, leads y costo por lead del periodo.', icon: 'chat', page: 3 },
-      { title: 'Palabras clave', desc: 'Qué términos traen los leads y a qué costo.', icon: 'search', page: 4 },
-      { title: 'Anuncio y calidad', desc: 'El anuncio activo y su nivel de calidad en Google.', icon: 'star', page: 5 },
-      { title: 'Conclusiones', desc: 'Qué funciona y próximos pasos.', icon: 'flag', page: 6 },
+      { title: 'Campañas', desc: 'Qué devolvió cada campaña y cómo se repartió la inversión.', icon: 'bars', page: 4 },
+      { title: 'Conjuntos de anuncios', desc: 'Las palabras clave de cada conjunto y qué buscan los usuarios.', icon: 'search', page: 5 },
+      { title: 'Palabras clave', desc: 'Qué términos traen los leads y a qué costo.', icon: 'search', page: 6 },
+      { title: 'Anuncio y calidad', desc: 'El anuncio activo y su nivel de calidad en Google.', icon: 'star', page: 7 },
+      { title: 'Conclusiones', desc: 'Qué funciona y próximos pasos.', icon: 'flag', page: 8 },
     ];
     return `
       <section class="rp-page">
@@ -1149,6 +1338,188 @@
       </section>`;
   }
 
+  // Barras de reparto (inversion por campana, leads por conjunto): etiqueta, barra y valor.
+  const shareBars = items => (items.length
+    ? `<div class="rp-quality rp-shares">${items.map(([label, share, value]) => `
+        <div class="rp-quality-row">
+          <span title="${esc(label)}">${esc(shorten(label, 26))}</span>
+          <i><b style="width:${Math.max(2, Math.min(100, (Number(share) || 0) * 100)).toFixed(1)}%"></b></i>
+          <em>${esc(value)}</em>
+        </div>`).join('')}</div>`
+    : '');
+
+  const campaignTitle = name => capitalize(String(name || '').toLowerCase());
+
+  function campaignsPage(report, notes) {
+    const { labels } = report;
+    const stats = report.campaignRows;
+    const rows = stats.rows;
+    const totals = stats.totals;
+    const leader = rows[0] || null;
+    const share = leader && Number(totals.cost) > 0 ? leader.cost / totals.cost : null;
+    const metric = value => (stats.hasImpressions ? value : '—');
+    const cards = leader ? [
+      stat('Campañas activas', count(rows.length), rows.length === 1 ? 'Campaña Search con inversión' : 'Campañas Search con inversión'),
+      stat('Campaña líder', `<span class="rp-stat-term">${esc(campaignTitle(leader.campaign))}</span>`, isNum(share) ? `${Math.round(share * 100)}% de la inversión` : 'La de mayor inversión'),
+      stat('Inversión del periodo', money(totals.cost), `CPC ${money2(totals.cpc)}`),
+      stat('Leads', count(totals.conversions), isNum(totals.costPerConversion) ? `CPL ${money(totals.costPerConversion)}` : 'Form. + WhatsApp'),
+    ] : [
+      stat('Campañas activas', '—', 'Sin informe por campaña'),
+      stat('Campaña líder', '—', 'La de mayor inversión'),
+      stat('Inversión del periodo', money(report.current.cost), 'Total de la cuenta'),
+      stat('Leads', count(report.current.conversions), 'Form. + WhatsApp'),
+    ];
+    // Con una sola campana, la tabla la abre por tramos del periodo; con varias, una fila por campana.
+    const single = rows.length === 1 ? campaignBreakdown(report.item, rows[0].campaign) : [];
+    const cell = (name, row, isTotal) => `
+          <td class="${isTotal ? '' : 'rp-name'}" title="${esc(name)}">${esc(name)}</td>
+          <td class="num">${money(row.cost)}</td>
+          <td class="num">${Number(totals.cost) > 0 ? `${Math.round((row.cost / totals.cost) * 100)}%` : '—'}</td>
+          <td class="num">${count(row.clicks)}</td>
+          <td class="num">${metric(percent1(row.ctr))}</td>
+          <td class="num">${money2(row.cpc)}</td>
+          <td class="num">${count(row.conversions)}</td>
+          <td class="num">${isNum(row.costPerConversion) ? money(row.costPerConversion) : '—'}</td>`;
+    const body = single.length > 1
+      ? single.map(row => `<tr>${cell(row.label, row, false)}</tr>`).join('')
+        + `<tr class="rp-total">${cell(`Total · ${campaignTitle(rows[0].campaign)}`, totals, true)}</tr>`
+      : rows.length ? rows.map(row => `<tr${row === leader ? ' class="rp-top"' : ''}>${cell(campaignTitle(row.campaign), row, false)}</tr>`).join('')
+      : `<tr><td colspan="8" class="rp-empty">Sin informe por campaña que cubra ${esc(labels.period)}: ${esc(report.campaigns.length ? `corrió ${report.campaigns.map(campaignTitle).join(', ')}` : 'no hay campañas con actividad')}.</td></tr>`;
+    const totalRow = rows.length > 1 ? `
+        <tr class="rp-total">
+          <td>Total · ${rows.length} campañas</td>
+          <td class="num">${money(totals.cost)}</td>
+          <td class="num">100%</td>
+          <td class="num">${count(totals.clicks)}</td>
+          <td class="num">${metric(percent1(totals.ctr))}</td>
+          <td class="num">${money2(totals.cpc)}</td>
+          <td class="num">${count(totals.conversions)}</td>
+          <td class="num">${isNum(totals.costPerConversion) ? money(totals.costPerConversion) : '—'}</td>
+        </tr>` : '';
+    const bars = shareBars(rows.map(row => [campaignTitle(row.campaign), Number(totals.cost) > 0 ? row.cost / totals.cost : 0, money(row.cost)]));
+    return `
+      <section class="rp-page rp-page-tables">
+        ${head('Campañas', suggestCampaignsSub(report), labels.chip, notes, 'campanas:sub')}
+        <div class="rp-body">
+          <div class="rp-grid-4">${cards.join('')}</div>
+          <div class="rp-cols">
+            <div class="rp-stack">
+              <div class="rp-card rp-table-card">
+                <table class="rp-table rp-campaigns">
+                  <colgroup><col><col style="width:12%"><col style="width:9%"><col style="width:9%"><col style="width:9%"><col style="width:11%"><col style="width:9%"><col style="width:11%"></colgroup>
+                  <thead><tr><th>${single.length > 1 ? 'Tramo del periodo' : 'Campaña'}</th><th class="num">Inversión</th><th class="num">% inv.</th><th class="num">Clics</th><th class="num">CTR</th><th class="num">CPC</th><th class="num">Leads</th><th class="num">CPL</th></tr></thead>
+                  <tbody>${body}${totalRow}</tbody>
+                </table>
+                ${editable('campanas:nota', noteOr(notes, 'campanas:nota', suggestCampaignsNote(report)), 'p', 'rp-table-foot')}
+              </div>
+              ${highlight('campanas:destacado', noteOr(notes, 'campanas:destacado', suggestCampaignsHighlight(report)))}
+            </div>
+            <div class="rp-stack">
+              <div class="rp-card">
+                ${cardHead('bars', 'Reparto de la inversión', 'Cuánto se llevó cada campaña')}
+                ${bars || '<p class="rp-empty">Sin inversión por campaña en el periodo.</p>'}
+              </div>
+              ${analysis('campanas:analisis', noteOr(notes, 'campanas:analisis', suggestCampaignsAnalysis(report)))}
+            </div>
+          </div>
+        </div>
+        ${footer(labels.source, report, 4)}
+      </section>`;
+  }
+
+  function adGroupsPage(report, notes) {
+    const { labels } = report;
+    const kw = report.keywords;
+    const groups = report.groups.groups;
+    const leader = groups[0] || null;
+    const terms = report.terms;
+    const totalKeywords = groups.reduce((acc, group) => acc + group.rows.length, 0);
+    const cards = leader ? [
+      stat('Conjuntos activos', count(groups.length), groups.length === 1 ? 'Un conjunto con actividad' : 'Conjuntos con actividad'),
+      stat('Conjunto líder', `<span class="rp-stat-term">${esc(leader.name)}</span>`, `${count(leader.rows.length)} palabras clave`),
+      stat('Leads del líder', count(leader.conversions), isNum(leader.costPerConversion) ? `CPL ${money(leader.costPerConversion)}` : 'Form. + WhatsApp'),
+      stat('Palabras clave', count(totalKeywords), 'Con actividad en el periodo'),
+    ] : [
+      stat('Conjuntos activos', '—', 'El informe no trae el conjunto'),
+      stat('Conjunto líder', '—', 'Grupo de anuncios de Google Ads'),
+      stat('Leads del periodo', count(kw.totals.conversions), 'Por palabra clave'),
+      stat('Palabras clave', count(kw.rows.length), 'Con actividad en el periodo'),
+    ];
+    // El informe por accion de conversion solo trae leads: en ese caso, en vez de clics, CPL e inversion
+    // vacios, la tabla muestra el peso de cada palabra dentro de su conjunto.
+    const full = report.groups.hasMetrics;
+    const cols = full
+      ? [['Conjunto · palabra clave'], ['Clics', true], ['Leads', true], ['CPL', true], ['Inversión', true]]
+      : [['Conjunto · palabra clave'], ['Leads', true], ['% del conjunto', true]];
+    const widths = full ? ['', '12%', '12%', '15%', '15%'] : ['', '18%', '22%'];
+    const cells = (name, row, share, isGroup) => (full
+      ? `<td class="${isGroup ? '' : 'rp-name'}" title="${esc(name)}">${esc(name)}</td>
+          <td class="num">${count(row.clicks)}</td>
+          <td class="num">${count(row.conversions)}</td>
+          <td class="num">${isNum(row.costPerConversion) ? money(row.costPerConversion) : '—'}</td>
+          <td class="num">${money(row.cost)}</td>`
+      : `<td class="${isGroup ? '' : 'rp-name'}" title="${esc(name)}">${esc(name)}</td>
+          <td class="num">${count(row.conversions)}</td>
+          <td class="num">${isNum(share) ? `${Math.round(share * 100)}%` : '—'}</td>`);
+    // Lo que entra en la lamina: con un solo conjunto, sus primeras palabras; con varios, menos de cada uno.
+    const limit = groups.length <= 1 ? 5 : Math.max(2, Math.floor(MAX_KEYWORDS / groups.length));
+    const groupRows = groups.map(group => {
+      const total = groups.reduce((acc, item) => acc + (Number(item.conversions) || 0), 0);
+      const groupHead = `<tr class="rp-group">${cells(group.name, group, total > 0 ? group.conversions / total : null, true)}</tr>`;
+      const rows = group.rows.slice(0, limit)
+        .map(row => `<tr>${cells(row.keyword, row, Number(group.conversions) > 0 ? row.conversions / group.conversions : null, false)}</tr>`).join('');
+      const rest = group.rows.length - Math.min(group.rows.length, limit);
+      const more = rest > 0 ? `<tr><td colspan="${cols.length}" class="rp-table-more">y ${rest} ${rest === 1 ? 'palabra clave más' : 'palabras clave más'} del conjunto</td></tr>` : '';
+      return groupHead + rows + more;
+    }).join('');
+    const empty = `<tr><td colspan="${cols.length}" class="rp-empty">El informe de palabras clave de ${esc(rangeText(kw.range.from, kw.range.to, true))} no trae la columna «Grupo de anuncios»: expórtalo desde Google Ads con el grupo de anuncios para repartir las palabras por conjunto.</td></tr>`;
+    const termRows = terms ? terms.rows.slice(0, 4).map(row => `
+        <tr>
+          <td class="rp-name" title="${esc(row.name)}">${esc(capitalize(row.name))}</td>
+          <td class="num">${count(row.impressions)}</td>
+          <td class="num">${count(row.clicks)}</td>
+          <td class="num">${percent1(row.ctr)}</td>
+        </tr>`).join('') : '';
+    const termsCard = terms
+      ? `<table class="rp-table rp-terms">
+          <colgroup><col><col style="width:18%"><col style="width:15%"><col style="width:15%"></colgroup>
+          <thead><tr><th>Categoría de búsqueda</th><th class="num">Impr.</th><th class="num">Clics</th><th class="num">CTR</th></tr></thead>
+          <tbody>${termRows}</tbody>
+        </table>`
+      : '<p class="rp-empty">Sin informe de términos de búsqueda en Drive: súbelo a la carpeta Segmentación para ver qué buscan los que ven los anuncios.</p>';
+    const termsSub = terms
+      ? `${terms.count} categorías de intención · ${terms.exact ? 'del periodo' : rangeText(terms.from, terms.to, true, false)}`
+      : 'Qué buscan quienes ven los anuncios';
+    return `
+      <section class="rp-page rp-page-tables">
+        ${head('Conjuntos de anuncios', suggestGroupsSub(report), labels.chip, notes, 'conjuntos:sub')}
+        <div class="rp-body">
+          <div class="rp-grid-4">${cards.join('')}</div>
+          <div class="rp-cols">
+            <div class="rp-stack">
+              <div class="rp-card rp-table-card">
+                ${cardHead('search', 'Palabras clave por conjunto', groups.length ? 'Cada conjunto con los términos que corrieron en él' : 'El informe del periodo no reparte por conjunto')}
+                <table class="rp-table rp-groups">
+                  <colgroup>${widths.map(width => `<col${width ? ` style="width:${width}"` : ''}>`).join('')}</colgroup>
+                  <thead><tr>${cols.map(([label, numeric]) => `<th${numeric ? ' class="num"' : ''}>${esc(label)}</th>`).join('')}</tr></thead>
+                  <tbody>${groupRows || empty}</tbody>
+                </table>
+              </div>
+              ${highlight('conjuntos:destacado', noteOr(notes, 'conjuntos:destacado', suggestGroupsHighlight(report)))}
+            </div>
+            <div class="rp-stack">
+              <div class="rp-card rp-table-card">
+                ${cardHead('bars', 'Términos de búsqueda', termsSub)}
+                ${termsCard}
+              </div>
+              ${analysis('conjuntos:analisis', noteOr(notes, 'conjuntos:analisis', suggestGroupsAnalysis(report)))}
+            </div>
+          </div>
+        </div>
+        ${footer(labels.source, report, 5)}
+      </section>`;
+  }
+
   function keywordsPage(report, notes) {
     const { labels } = report;
     const kw = report.keywords;
@@ -1216,7 +1587,7 @@
             </div>
           </div>
         </div>
-        ${footer(`Fuente: Google Ads · ${kwChip}`, report, 4)}
+        ${footer(`Fuente: Google Ads · ${kwChip}`, report, 6)}
       </section>`;
   }
 
@@ -1266,7 +1637,7 @@
             </div>
           </div>
         </div>
-        ${footer(`${labels.source} · calidad de anuncios de Google Ads`, report, 5)}
+        ${footer(`${labels.source} · calidad de anuncios de Google Ads`, report, 7)}
       </section>`;
   }
 
@@ -1299,7 +1670,7 @@
           </div>
           ${editable('periodo:nota', noteOr(notes, 'periodo:nota', periodNote), 'div', 'rp-note')}
         </div>
-        ${footer(labels.analysisSource, report, 6)}
+        ${footer(labels.analysisSource, report, 8)}
       </section>`;
   }
 
@@ -1388,6 +1759,8 @@
         ${coverPage(report)}
         ${contentsPage(report)}
         ${summaryPage(report, notes)}
+        ${campaignsPage(report, notes)}
+        ${adGroupsPage(report, notes)}
         ${keywordsPage(report, notes)}
         ${adPage(report, notes)}
         ${conclusionsPage(report, notes)}

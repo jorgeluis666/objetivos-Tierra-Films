@@ -4179,11 +4179,49 @@ button.topbar-pill[aria-expanded="true"] .status-chevron {
   font-weight: 600;
 }
 
-.rp-keywords tr.rp-total td {
+.rp-keywords tr.rp-total td,
+.rp-campaigns tr.rp-total td {
   border-bottom: 0;
   background: var(--rp-ink);
   color: #fff;
   font-weight: 600;
+}
+
+/* Laminas Campanas y Conjuntos de anuncios: la tabla toma el alto que queda y el destacado cierra abajo */
+.rp-page-tables .rp-stack > .rp-card:first-child {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.rp-shares .rp-quality-row {
+  grid-template-columns: 150px 1fr 76px;
+}
+
+.rp-groups td,
+.rp-groups th,
+.rp-terms td,
+.rp-terms th,
+.rp-campaigns td,
+.rp-campaigns th {
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+
+.rp-groups tr.rp-group td {
+  background: var(--rp-blue-soft);
+  font-weight: 600;
+}
+
+.rp-groups td.rp-name {
+  padding-left: 30px;
+  font-weight: 400;
+}
+
+.rp-groups .rp-table-more {
+  padding: 6px 16px 7px 30px;
+  color: var(--rp-muted);
+  font-size: 11.5px;
 }
 
 .rp-table-card .rp-table-foot {
