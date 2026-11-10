@@ -386,7 +386,8 @@
       // Una misma palabra puede correr en varios grupos: cada par palabra-grupo es una fila propia.
       const key = `${raw}|${match}|${group}`;
       // Frase y exacta llegan como "palabra" y [palabra]; el tipo ya va en su columna.
-      const item = keywords.get(key) || { keyword: raw.replace(/^["[]+|["\]]+$/g, ''), match, group, paused: /detenid|pausad/i.test(status), impressions: 0, clicks: 0, cost: 0, conversions: 0, quality: null, actions: {} };
+      const campaign = cols.campaign >= 0 && clean(row[cols.campaign]) !== '--' ? clean(row[cols.campaign]) : '';
+      const item = keywords.get(key) || { keyword: raw.replace(/^["[]+|["\]]+$/g, ''), match, group, campaign, paused: /detenid|pausad/i.test(status), impressions: 0, clicks: 0, cost: 0, conversions: 0, quality: null, actions: {} };
       const values = metrics(row);
       ['impressions', 'clicks', 'cost', 'conversions'].forEach(metric => { item[metric] += values[metric]; });
       // Nivel de calidad (1-10; "--" si Google no lo calcula): lo usa la lamina "Anuncio y calidad" del reporte.

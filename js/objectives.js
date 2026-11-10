@@ -1163,7 +1163,7 @@
       // informes con la columna y otros sin ella y la misma palabra quedaria duplicada en el Anual.
       const base = kwKey(item.keyword, item.match);
       const key = `${base}|${normalizeText(item.group)}`;
-      if (!rows.has(key)) rows.set(key, { key, base, keyword: plainKeyword(item.keyword), match: plainMatch(item.match), group: item.group || '', quality: null, paused: Boolean(item.paused), conversions: 0, cost: null, impressions: null, clicks: null, actions: {} });
+      if (!rows.has(key)) rows.set(key, { key, base, keyword: plainKeyword(item.keyword), match: plainMatch(item.match), group: item.group || '', campaign: item.campaign || '', quality: null, paused: Boolean(item.paused), conversions: 0, cost: null, impressions: null, clicks: null, actions: {} });
       const row = rows.get(key);
       // Nivel de calidad de Google (0-10): es del momento, no del periodo; manda el primero que lo traiga.
       if (row.quality === null && Number(item.quality) > 0) row.quality = Number(item.quality);
