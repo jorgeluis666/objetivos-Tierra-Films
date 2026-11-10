@@ -62,11 +62,22 @@ paneles de Amador y Aquarius.
      el del mes (por acción de conversión), solo conversiones: Google deja
      impresiones, clics y costo en 0 y esas columnas no se muestran. Si no, el
      informe semanal del repo, con todas las métricas; las semanas que cruzan de
-     mes se reparten por días `(est.)`. Se compara con el mes anterior solo si los
+     mes se reparten por días `(est.)`. El informe por día de la carpeta Campañas
+     solo entra si trae palabras clave: el de `Rendimiento de la campaña` no las
+     trae y antes dejaba el mes sin ninguna (setiembre 2026). Se compara con el mes anterior solo si los
      dos usan el mismo informe y cubren el mes completo o los mismos días. En
      Anual, con meses de los dos informes, no se calcula el costo por conversión.
+   - **Conjuntos de anuncios**: un bloque por grupo de anuncios con sus KPIs y las
+     palabras clave que corrieron en él. Solo sale si el informe del mes trae la
+     columna `Grupo de anuncios`: la traen el informe por día de la carpeta
+     Campañas (cuando lo exportan por palabra clave) y el de la carpeta Keywords
+     exportado por acción de conversión con campaña y grupo. Si el informe no la
+     trae, el panel dice qué falta exportar; en Anual solo reparte los meses que
+     sí la traen. Las columnas del bloque salen de lo que el informe da: el de
+     acción de conversión solo trae conversiones.
    - **Ranking de palabras clave del periodo**: cabecera fija, Campaña y Palabra
-     clave ancladas, estrella en la líder, filtro por campaña, `Compacto`
+     clave ancladas (bajo la campaña va el conjunto de anuncios, si el informe lo
+     trae), estrella en la líder, filtro por campaña y por conjunto, `Compacto`
      (`tierra_films_gasto_kw_compact`) y `Pantalla completa` (las pestañas de mes
      entran al panel; `Esc` sale). `Ver análisis completo` abre Palabras Clave.
    - Campañas, palabras y semanas sin inversión, impresiones ni clics no aparecen.

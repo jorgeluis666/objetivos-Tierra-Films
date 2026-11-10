@@ -2361,6 +2361,34 @@
   border-top: 1px solid var(--border);
 }
 
+/* Conjuntos de anuncios: mismos bloques, pero el primero abre el panel sin linea arriba */
+.gasto-group-blocks .gasto-camp-block:first-child {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+}
+
+.gasto-group-block .gasto-camp-title {
+  font-size: 16px;
+}
+
+/* El filtro por conjunto solo esta cuando el informe del mes trae "Grupo de anuncios" */
+.gasto-kw-panel.no-groups .gasto-tool-group {
+  display: none;
+}
+
+/* Segunda linea de la columna Campana del ranking: el conjunto de la palabra */
+.gasto-rank-campaign small {
+  display: block;
+  overflow: hidden;
+  margin-top: 3px;
+  color: #7890b5;
+  font-size: 9px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .gasto-camp-head {
   display: flex;
   align-items: flex-start;

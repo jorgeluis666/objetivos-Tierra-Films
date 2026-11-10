@@ -77,6 +77,7 @@
     // Palabras clave por mes, armadas una vez por version de la data.
     kwCache: new Map(),
     kwFilter: 'all',
+    kwGroupFilter: 'all',
     compact: readSetting(KW_COMPACT_KEY) === 'true',
     fullscreen: false,
     tabsHome: null
@@ -1231,14 +1232,18 @@
   // Informe por dia de Drive: costo, clics y conversiones reales por palabra y campana (sin concordancia).
   function platformKeywordMonth(month) {
     const block = ((state.data && state.data.keywordStatsByMonth) || []).find(item => item.month === month.key);
-    if (!block) return null;
+    // El informe por dia solo sirve aqui si trae palabras clave: el de "Rendimiento de la campana" no las trae
+    // y, sin esta salida, ganaba al informe de la carpeta Keywords y dejaba el mes sin palabras clave.
+    if (!block || !(block.keywords || []).length) return null;
     const startDay = Number(block.start.slice(8, 10));
     const endDay = Number(block.end.slice(8, 10));
     const rows = new Map();
     block.keywords.forEach(item => {
       const cKey = campaignKey(item.campaign);
-      const key = `${cKey}|${kwKey(item.keyword, '')}`;
-      if (!rows.has(key)) rows.set(key, { key, keyword: plainKeyword(item.keyword), match: '', group: item.group || '', campaign: item.campaign, campaignKey: cKey, paused: false, conversions: 0, cost: 0, impressions: block.exactImpressions ? 0 : null, clicks: 0, actions: {} });
+      // base: identidad de la palabra entre meses. key: la fila del mes, partida por conjunto de anuncios.
+      const base = `${cKey}|${kwKey(item.keyword, '')}`;
+      const key = `${base}|${normalizeText(item.group)}`;
+      if (!rows.has(key)) rows.set(key, { key, base, keyword: plainKeyword(item.keyword), match: '', group: item.group || '', campaign: item.campaign, campaignKey: cKey, paused: false, conversions: 0, cost: 0, impressions: block.exactImpressions ? 0 : null, clicks: 0, actions: {} });
       const row = rows.get(key);
       ['cost', 'clicks', 'conversions'].forEach(field => { row[field] += Number(item[field]) || 0; });
       if (block.exactImpressions) row.impressions += Number(item.impressions) || 0;
@@ -1257,8 +1262,11 @@
     const endDay = Number(block.end.slice(8, 10));
     const rows = new Map();
     block.keywords.forEach(item => {
-      const key = kwKey(item.keyword, item.match);
-      if (!rows.has(key)) rows.set(key, { key, keyword: plainKeyword(item.keyword), match: plainMatch(item.match), paused: Boolean(item.paused), conversions: 0, cost: null, impressions: null, clicks: null, actions: {} });
+      // El conjunto parte la fila dentro del mes; la identidad entre meses (base) no lo lleva, porque hay
+      // informes con la columna y otros sin ella y la misma palabra quedaria duplicada en el Anual.
+      const base = kwKey(item.keyword, item.match);
+      const key = `${base}|${normalizeText(item.group)}`;
+      if (!rows.has(key)) rows.set(key, { key, base, keyword: plainKeyword(item.keyword), match: plainMatch(item.match), group: item.group || '', paused: Boolean(item.paused), conversions: 0, cost: null, impressions: null, clicks: null, actions: {} });
       const row = rows.get(key);
       row.conversions += Number(item.conversions) || 0;
       Object.entries(item.actions || {}).forEach(([name, value]) => { row.actions[name] = (row.actions[name] || 0) + (Number(value) || 0); });
@@ -1299,7 +1307,7 @@
       if (share < 1) estimated = true;
       (week.rows || []).forEach(item => {
         const key = kwKey(item.keyword, item.matchType);
-        if (!rows.has(key)) rows.set(key, { key, keyword: plainKeyword(item.keyword), match: plainMatch(item.matchType), paused: /pausa|detenid/i.test(item.status || ''), conversions: 0, cost: 0, impressions: 0, clicks: 0, actions: {} });
+        if (!rows.has(key)) rows.set(key, { key, base: key, keyword: plainKeyword(item.keyword), match: plainMatch(item.matchType), group: '', paused: /pausa|detenid/i.test(item.status || ''), conversions: 0, cost: 0, impressions: 0, clicks: 0, actions: {} });
         const row = rows.get(key);
         SUMS.forEach(field => { row[field] += (Number(item[field]) || 0) * share; });
         row.paused = /pausa|detenid/i.test(item.status || '');
@@ -1330,8 +1338,11 @@
     const months = period.months.map(month => ({ month, kw: keywordMonth(month) })).filter(item => item.kw);
     const byKey = new Map();
     months.forEach(({ kw }) => kw.rows.forEach(row => {
-      if (!byKey.has(row.key)) byKey.set(row.key, Object.assign({}, row, { campaignKey: row.campaignKey || null, conversions: 0, cost: null, impressions: null, clicks: null, actions: {} }));
-      const entry = byKey.get(row.key);
+      // Una fila por palabra en el periodo; el conjunto de anuncios viaja como dato (lo reparte adGroupScope).
+      const key = row.base || row.key;
+      if (!byKey.has(key)) byKey.set(key, Object.assign({}, row, { key, campaignKey: row.campaignKey || null, conversions: 0, cost: null, impressions: null, clicks: null, actions: {} }));
+      const entry = byKey.get(key);
+      if (!entry.group && row.group) entry.group = row.group;
       entry.conversions += row.conversions;
       entry.paused = row.paused;
       KW_METRICS.forEach(field => { if (isNum(row[field])) entry[field] = (entry[field] || 0) + Number(row[field]); });
@@ -1388,8 +1399,8 @@
   }
 
   const matchText = match => MATCH_LABELS[match] || match || 'Sin concordancia';
-  // Debajo de la palabra: la concordancia o, si el informe no la trae (informe por dia), el grupo de anuncios.
-  const keywordDetail = row => (row.match ? matchText(row.match) : row.group ? `Grupo: ${row.group}` : 'Sin concordancia');
+  // Debajo de la palabra: la concordancia y, si el informe lo trae, el conjunto de anuncios.
+  const keywordDetail = row => [row.match ? matchText(row.match) : row.group ? '' : 'Sin concordancia', row.group ? `Conjunto: ${row.group}` : ''].filter(Boolean).join(' · ');
   const keywordCell = (row, cls) => `<td class="${cls}" title="${escapeHtml(`${row.keyword} (${keywordDetail(row)})`)}"><span>${row.leader ? '<b class="gasto-leader" title="Líder de la campaña">★</b> ' : ''}${escapeHtml(row.keyword)}</span><small>${escapeHtml(keywordDetail(row))}${row.paused ? ' · detenida' : ''}</small></td>`;
 
   // Palabras clave de la campana en el periodo, con sus conversiones contra el mes anterior.
@@ -1449,11 +1460,131 @@
       </div>`;
   }
 
+  // ── Conjuntos de anuncios (grupos de anuncios de Google Ads) ──
+  // El conjunto de cada palabra solo llega si el informe del mes trae la columna "Grupo de anuncios":
+  // la traen el informe por dia de la carpeta Campanas y el de palabras clave exportado con esa columna.
+  function adGroupScope(period) {
+    const scope = keywordScope(period);
+    const rows = scope.rows.filter(row => kwActive(row, scope.hasMetrics));
+    const byGroup = new Map();
+    // Las filas del periodo ya vienen fundidas por palabra; para repartir por conjunto se vuelve a los
+    // meses, donde cada palabra sigue separada por el conjunto en que corrio.
+    scope.months.forEach(({ kw }) => kw.rows.forEach(row => {
+      if (!row.group) return;
+      const key = normalizeText(row.group);
+      if (!byGroup.has(key)) byGroup.set(key, { key, name: row.group, byKey: new Map() });
+      const bucket = byGroup.get(key).byKey;
+      const id = row.base || row.key;
+      if (!bucket.has(id)) bucket.set(id, Object.assign({}, row, { key: id, conversions: 0, cost: null, impressions: null, clicks: null, actions: {} }));
+      const entry = bucket.get(id);
+      entry.conversions += Number(row.conversions) || 0;
+      KW_METRICS.forEach(field => { if (isNum(row[field])) entry[field] = (entry[field] || 0) + Number(row[field]); });
+    }));
+    // En el Anual se mezclan informes: una palabra del mes que trae el conjunto puede venir solo con
+    // conversiones, asi que aqui basta con que tenga actividad o conversiones.
+    const shown = row => isActive(row) || Number(row.conversions) > 0;
+    const groups = [...byGroup.values()].map(group => {
+      group.rows = [...group.byKey.values()].map(derive).filter(shown);
+      delete group.byKey;
+      const sums = { conversions: 0, cost: null, impressions: null, clicks: null };
+      group.rows.forEach(row => {
+        sums.conversions += Number(row.conversions) || 0;
+        KW_METRICS.forEach(field => { if (isNum(row[field])) sums[field] = (sums[field] || 0) + Number(row[field]); });
+      });
+      group.rows.sort((a, b) => b.conversions - a.conversions || (b.cost || 0) - (a.cost || 0) || (b.clicks || 0) - (a.clicks || 0));
+      return Object.assign(group, derive(sums));
+    }).filter(group => group.rows.length).sort((a, b) => (b.cost || 0) - (a.cost || 0) || b.conversions - a.conversions);
+    const withGroups = scope.months.filter(({ kw }) => kw.rows.some(row => row.group));
+    const groupMonths = withGroups.map(({ month }) => month);
+    return {
+      scope, groups, rows, groupMonths, estimated: withGroups.some(({ kw }) => kw.estimated), loose: rows.filter(row => !row.group).length,
+      totalCost: groups.reduce((total, group) => total + (Number(group.cost) || 0), 0),
+      totalConv: groups.reduce((total, group) => total + group.conversions, 0)
+    };
+  }
+
+  function adGroupBlockHtml(group, scope, totals, campaignLabel) {
+    const est = estTag(totals.estimated);
+    // Las columnas salen de lo que el conjunto trae de verdad: el informe por accion solo da conversiones.
+    const has = field => group.rows.some(row => Number(row[field]) > 0);
+    const cost = has('cost');
+    const impressions = has('impressions');
+    const clicks = has('clicks');
+    const byCost = totals.totalCost > 0 && isNum(group.cost);
+    const share = byCost ? (Number(group.cost) || 0) / totals.totalCost : totals.totalConv > 0 ? group.conversions / totals.totalConv : null;
+    const kpis = [[cost, 'Inversión', fmtMoney(group.cost)], [true, 'Conversiones', fmtConv(group.conversions)], [cost, 'Costo por conversión', fmtMoney(group.costPerConversion)],
+      [impressions, 'Impresiones', fmtCount(group.impressions)], [clicks, 'Clics', fmtCount(group.clicks)], [impressions && clicks, 'CTR', fmtPercent(group.ctr)], [cost && clicks, 'CPC', fmtMoney(group.cpc)]]
+      .filter(([on, , value]) => on && value !== '—')
+      .map(([, label, value]) => `<div><dt>${escapeHtml(label)}</dt><dd>${value}${est}</dd></div>`).join('');
+    const cols = [[true, 'Palabra clave'], [true, 'Conversiones', true], [cost, 'Costo por conversión', true], [cost, 'Inversión', true],
+      [true, cost ? '% del conjunto' : '% de las conversiones'], [impressions, 'Impresiones', true], [clicks, 'Clics', true],
+      [impressions && clicks, 'CTR', true], [cost && clicks, 'CPC', true]].filter(([on]) => on);
+    const groupCost = group.rows.reduce((total, row) => total + (Number(row.cost) || 0), 0);
+    const body = group.rows.map(row => `
+        <tr>
+          ${keywordCell(Object.assign({}, row, { group: '' }), 'gasto-kw-name')}
+          <td class="num gasto-strong">${fmtConv(row.conversions)}</td>
+          ${cost ? `<td class="num">${fmtMoney(row.costPerConversion)}</td><td class="num">${fmtMoney(row.cost)}${est}</td>` : ''}
+          ${shareCell(cost && groupCost > 0 ? (Number(row.cost) || 0) / groupCost : group.conversions > 0 ? row.conversions / group.conversions : null)}
+          ${impressions ? `<td class="num">${fmtCount(row.impressions)}${est}</td>` : ''}
+          ${clicks ? `<td class="num">${fmtCount(row.clicks)}${est}</td>` : ''}
+          ${impressions && clicks ? `<td class="num">${fmtPercent(row.ctr)}</td>` : ''}
+          ${cost && clicks ? `<td class="num">${fmtMoney(row.cpc)}</td>` : ''}
+        </tr>`).join('');
+    const campaigns = [...new Set(group.rows.map(row => row.campaign).filter(Boolean))];
+    const owner = campaigns.length ? campaigns.join(', ') : campaignLabel;
+    return `
+      <section class="gasto-camp-block gasto-group-block" data-group="${escapeHtml(group.key)}">
+        <div class="gasto-camp-head">
+          <div class="gasto-camp-heading">
+            <div class="gasto-camp-title">Conjunto ${escapeHtml(group.name)}${isNum(share) ? `<em>${fmtPercent(share)} ${byCost ? 'de la inversión' : 'de las conversiones'}</em>` : ''}</div>
+            <div class="panel-sub">${owner ? `Campaña ${escapeHtml(owner)} · ` : ''}${group.rows.length} ${group.rows.length === 1 ? 'palabra clave' : 'palabras clave'}</div>
+          </div>
+        </div>
+        <dl class="gasto-camp-kpis">${kpis}</dl>
+        <div class="table-scroll">
+          <table class="data-table gasto-kw-table">
+            <thead><tr>${cols.map(([, label, numeric]) => `<th${numeric ? ' class="num"' : ''}>${escapeHtml(label)}</th>`).join('')}</tr></thead>
+            <tbody>${body}</tbody>
+          </table>
+        </div>
+      </section>`;
+  }
+
+  function renderAdGroups(period, campaigns) {
+    const host = document.getElementById('gasto-groups');
+    const sub = document.getElementById('gasto-groups-sub');
+    if (!host || !sub) return;
+    const totals = adGroupScope(period);
+    const { scope, groups } = totals;
+    if (!scope.months.length) {
+      host.innerHTML = '';
+      sub.textContent = `${period.annual ? 'Ningún mes del periodo tiene' : `${period.month.label} no tiene`} informe de palabras clave. Súbelo a la carpeta Google Ads TF Keywords de Drive.`;
+      return;
+    }
+    if (!groups.length) {
+      host.innerHTML = '';
+      sub.textContent = `El informe de ${scope.label} no trae la columna «Grupo de anuncios», así que no se puede repartir el gasto por conjunto. Expórtalo desde Google Ads con la columna Grupo de anuncios (como el de setiembre) y vuelve a sincronizar.`;
+      return;
+    }
+    const label = totals.groupMonths.length && totals.groupMonths.length < scope.months.length
+      ? totals.groupMonths.map(month => month.shortName).join(', ')
+      : scope.label;
+    const notes = [`${groups.length} ${groups.length === 1 ? 'conjunto' : 'conjuntos'} con actividad en ${label}, con las palabras clave que corrieron en cada uno.`];
+    if (label !== scope.label) notes.push(`Solo ${label} trae la columna «Grupo de anuncios»; el resto del periodo no se puede repartir por conjunto.`);
+    else if (totals.loose) notes.push(`${totals.loose} ${totals.loose === 1 ? 'palabra clave no trae conjunto' : 'palabras clave no traen conjunto'} en el informe y no se reparten.`);
+    if (totals.estimated) notes.push('Las semanas que cruzan de mes se reparten por días (est.).');
+    sub.textContent = notes.join(' ');
+    const campaignLabel = (campaigns[0] || {}).label || '';
+    host.innerHTML = groups.map(group => adGroupBlockHtml(group, scope, totals, campaignLabel)).join('');
+  }
+
   // ── Ranking de palabras clave del periodo ──
   function renderRanking(period, campaigns) {
     const panel = document.getElementById('gasto-kw-panel');
     const body = document.getElementById('gasto-kw-body');
     const select = document.getElementById('gasto-kw-campaign');
+    const groupSelect = document.getElementById('gasto-kw-group');
     const sub = document.getElementById('gasto-kw-sub');
     if (!panel || !body) return;
     const scope = keywordScope(period);
@@ -1470,6 +1601,11 @@
     const present = [...new Map(scope.rows.filter(row => kwActive(row, scope.hasMetrics)).map(row => campaignOf(row)).filter(Boolean).map(item => [item.key, item])).values()];
     if (gasto.kwFilter !== 'all' && !present.some(item => item.key === gasto.kwFilter)) gasto.kwFilter = 'all';
     select.innerHTML = ['<option value="all">Todas las campañas</option>'].concat(present.map(item => `<option value="${escapeHtml(item.key)}"${gasto.kwFilter === item.key ? ' selected' : ''}>${escapeHtml(item.label)}</option>`)).join('');
+    // Conjuntos de anuncios del periodo: el filtro solo aparece si el informe trae la columna.
+    const groups = [...new Map(scope.rows.filter(row => kwActive(row, scope.hasMetrics) && row.group).map(row => [normalizeText(row.group), row.group])).entries()];
+    if (gasto.kwGroupFilter !== 'all' && !groups.some(([key]) => key === gasto.kwGroupFilter)) gasto.kwGroupFilter = 'all';
+    panel.classList.toggle('no-groups', !groups.length);
+    if (groupSelect) groupSelect.innerHTML = ['<option value="all">Todos los conjuntos</option>'].concat(groups.map(([key, label]) => `<option value="${escapeHtml(key)}"${gasto.kwGroupFilter === key ? ' selected' : ''}>${escapeHtml(label)}</option>`)).join('');
     if (!scope.months.length) {
       sub.textContent = '';
       body.innerHTML = `<tr><td class="table-empty" colspan="11">${period.annual ? 'Ningún mes del periodo tiene' : `${escapeHtml(period.month.label)} no tiene`} informe de palabras clave. Súbelo a la carpeta Google Ads TF Keywords de Drive.</td></tr>`;
@@ -1482,15 +1618,17 @@
     // Estrella: la que mas convierte en cada campana.
     const leaders = new Set();
     rows.forEach(row => { row.leader = false; const key = row.owner && row.owner.key; if (row.conversions > 0 && !leaders.has(key)) { leaders.add(key); row.leader = true; } });
-    const visible = gasto.kwFilter === 'all' ? rows : rows.filter(row => row.owner && row.owner.key === gasto.kwFilter);
+    const visible = rows
+      .filter(row => gasto.kwFilter === 'all' || (row.owner && row.owner.key === gasto.kwFilter))
+      .filter(row => gasto.kwGroupFilter === 'all' || normalizeText(row.group) === gasto.kwGroupFilter);
     const est = estTag(scope.estimated);
     sub.textContent = `${visible.length} ${visible.length === 1 ? 'palabra clave ordenada' : 'palabras clave ordenadas'} por conversiones, ${scope.label}. La estrella marca a la líder de cada campaña.${scope.hasMetrics ? (scope.hasImpressions ? '' : ' Sin impresiones: el informe por día no las trae.') : ' Solo conversiones: el informe viene separado por acción de conversión.'}${scope.mixed ? ` Inversión, impresiones y clics solo de ${scope.metricMonths.map(month => month.shortName).join(', ')}.` : ''}${compare ? '' : reason ? ` ${reason}` : ''}`;
     body.innerHTML = visible.map(row => {
       const before = compare ? compare.rows.get(row.key) : null;
       return `
         <tr>
-          <td class="gasto-rank-campaign" title="${escapeHtml(row.owner ? row.owner.name : '')}"><span>${escapeHtml(row.owner ? row.owner.label : '—')}</span></td>
-          ${keywordCell(row, 'gasto-rank-keyword')}
+          <td class="gasto-rank-campaign" title="${escapeHtml(`${row.owner ? row.owner.name : ''}${row.group ? ` · Conjunto: ${row.group}` : ''}`)}"><span>${escapeHtml(row.owner ? row.owner.label : '—')}</span>${row.group ? `<small>Conjunto: ${escapeHtml(row.group)}</small>` : ''}</td>
+          ${keywordCell(Object.assign({}, row, { group: '' }), 'gasto-rank-keyword')}
           <td class="num gasto-strong">${fmtConv(row.conversions)}</td>
           <td class="num">${before ? fmtConv(before.conversions) : '<span class="no-data">—</span>'}</td>
           <td class="num">${compare ? variationCell(row.conversions, before ? before.conversions : null) : '<span class="no-data">—</span>'}</td>
@@ -1575,6 +1713,8 @@
       document.getElementById('gasto-dist-body').innerHTML = '<tr><td class="table-empty" colspan="12">Sin resultados para mostrar.</td></tr>';
       destroyCampaignCharts();
       document.getElementById('gasto-blocks').innerHTML = '';
+      document.getElementById('gasto-groups').innerHTML = '';
+      document.getElementById('gasto-groups-sub').textContent = 'Sin resultados para mostrar.';
       document.getElementById('gasto-kw-body').innerHTML = '<tr><td class="table-empty" colspan="11">Sin resultados para mostrar.</td></tr>';
       return;
     }
@@ -1582,6 +1722,7 @@
     renderPeriod(period);
     renderDistribution(period, campaigns);
     renderCampaigns(period, campaigns);
+    renderAdGroups(period, campaigns);
     renderRanking(period, campaigns);
   }
 
@@ -1643,8 +1784,9 @@
       if (event.target.closest('#gasto-kw-more')) openKeywordsView();
     });
     view.addEventListener('change', event => {
-      if (event.target.id === 'gasto-kw-campaign') {
-        gasto.kwFilter = event.target.value;
+      if (event.target.id === 'gasto-kw-campaign' || event.target.id === 'gasto-kw-group') {
+        if (event.target.id === 'gasto-kw-group') gasto.kwGroupFilter = event.target.value;
+        else gasto.kwFilter = event.target.value;
         const period = currentPeriod();
         if (period) renderRanking(period, periodCampaigns(period));
         return;

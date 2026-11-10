@@ -361,7 +361,8 @@
     const cols = {
       action: at('Acción de conversión'), status: at('Estado de palabras clave', 'Estado de las palabras clave'), keyword: at('Palabra clave'),
       match: at('Tipo de concordancia'), impressions: at('Impr.', 'Impresiones'), clicks: at('Clics'),
-      cost: at('Costo', 'Coste'), conversions: at('Conversiones'), campaign: at('Campaña'), quality: at('Nivel de calidad')
+      cost: at('Costo', 'Coste'), conversions: at('Conversiones'), campaign: at('Campaña'),
+      group: at('Grupo de anuncios', 'Grupo de anuncios de la búsqueda'), quality: at('Nivel de calidad')
     };
     if (cols.conversions < 0) return { skipped: `${name}: falta la columna de conversiones.` };
     const num = (row, key) => (cols[key] >= 0 ? parseNumber(row[cols[key]], locale) || 0 : 0);
@@ -380,9 +381,12 @@
       }
       if (!raw || raw === '--' || (cols.campaign >= 0 && excludedCampaign(row[cols.campaign]))) return;
       const match = MATCH_TYPES[clean(row[cols.match])] || clean(row[cols.match]).replace(/^Concordancia (de )?/i, '');
-      const key = `${raw}|${match}`;
+      // Grupo de anuncios (el "conjunto"): solo lo traen los informes exportados con esa columna.
+      const group = cols.group >= 0 && clean(row[cols.group]) !== '--' ? clean(row[cols.group]) : '';
+      // Una misma palabra puede correr en varios grupos: cada par palabra-grupo es una fila propia.
+      const key = `${raw}|${match}|${group}`;
       // Frase y exacta llegan como "palabra" y [palabra]; el tipo ya va en su columna.
-      const item = keywords.get(key) || { keyword: raw.replace(/^["[]+|["\]]+$/g, ''), match, paused: /detenid|pausad/i.test(status), impressions: 0, clicks: 0, cost: 0, conversions: 0, quality: null, actions: {} };
+      const item = keywords.get(key) || { keyword: raw.replace(/^["[]+|["\]]+$/g, ''), match, group, paused: /detenid|pausad/i.test(status), impressions: 0, clicks: 0, cost: 0, conversions: 0, quality: null, actions: {} };
       const values = metrics(row);
       ['impressions', 'clicks', 'cost', 'conversions'].forEach(metric => { item[metric] += values[metric]; });
       // Nivel de calidad (1-10; "--" si Google no lo calcula): lo usa la lamina "Anuncio y calidad" del reporte.
