@@ -2361,6 +2361,22 @@
   border-top: 1px solid var(--border);
 }
 
+/* Los indicadores del conjunto van en tarjetas, las mismas del periodo, y entran de a cinco por fila
+   (son diez con palabras clave y calidad). Por debajo mandan las reglas generales de .kpi-strip. */
+.kpi-strip.gasto-group-kpis {
+  margin: 0 0 18px;
+}
+
+@media (min-width: 1101px) {
+  .kpi-strip.gasto-group-kpis {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}
+
+.gasto-group-kpis .kpi-pill .no-data {
+  font-weight: 700;
+}
+
 /* Conjuntos de anuncios: a la izquierda las palabras clave del conjunto; a la derecha el top en pie y
    las conversiones por accion. */
 .gasto-group-cols {

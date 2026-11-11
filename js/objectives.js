@@ -1405,7 +1405,7 @@
       [true, 'Costo por conversión', fmtMoney(group.costPerConversion)], [true, 'Tasa de conversión', fmtPercent(group.conversionRate)],
       [true, 'Palabras clave', fmtCount(group.rows.length)], [quality, 'Calidad promedio', isNum(group.quality) ? `${group.quality.toFixed(1)}/10` : '—']]
       .filter(([on]) => on)
-      .map(([, label, value]) => `<div><dt>${escapeHtml(label)}</dt><dd>${value === '—' ? '<span class="no-data">—</span>' : `${value}${est}`}</dd></div>`).join('');
+      .map(([, label, value]) => `<div class="kpi-pill"><span>${escapeHtml(label)}</span><strong>${value === '—' ? '<span class="no-data">—</span>' : `${value}${est}`}</strong></div>`).join('');
     const groupCost = group.rows.reduce((total, row) => total + (Number(row.cost) || 0), 0);
     const body = group.rows.map(row => `
         <tr>
@@ -1431,7 +1431,7 @@
             <div class="panel-sub">${owner ? `Campaña ${escapeHtml(owner)} · ` : ''}${group.rows.length} ${group.rows.length === 1 ? 'palabra clave' : 'palabras clave'}${cost ? '' : ' · informe por acción de conversión: solo trae conversiones por palabra, y el resto queda en guion'}</div>
           </div>
         </div>
-        <dl class="gasto-camp-kpis">${kpis}</dl>
+        <div class="kpi-strip gasto-group-kpis">${kpis}</div>
         <div class="gasto-group-cols">
           <div class="gasto-group-main">
             <div class="gasto-kw-block-head"><div class="panel-title">Palabras clave del conjunto</div>
