@@ -1397,13 +1397,15 @@
     const quality = group.rows.some(row => Number(row.quality) > 0);
     const byCost = totals.totalCost > 0 && isNum(group.cost);
     const share = byCost ? (Number(group.cost) || 0) / totals.totalCost : totals.totalConv > 0 ? group.conversions / totals.totalConv : null;
-    const kpis = [[cost, 'Inversión', fmtMoney(group.cost)], [impressions, 'Impresiones', fmtCount(group.impressions)],
-      [clicks, 'Clics', fmtCount(group.clicks)], [impressions && clicks, 'CTR', fmtPercent(group.ctr)],
-      [cost && clicks, 'CPC', fmtMoney(group.cpc)], [true, 'Conversiones', fmtConv(group.conversions)],
-      [cost, 'Costo por conversión', fmtMoney(group.costPerConversion)], [clicks, 'Tasa de conversión', fmtPercent(group.conversionRate)],
+    // Los mismos indicadores principales que el cuadro de campaña, siempre los ocho: lo que el informe
+    // del mes no alimenta queda en guion, que es la señal de que falta el dato y no de que valga cero.
+    const kpis = [[true, 'Inversión', fmtMoney(group.cost)], [true, 'Impresiones', fmtCount(group.impressions)],
+      [true, 'Clics', fmtCount(group.clicks)], [true, 'CTR', fmtPercent(group.ctr)],
+      [true, 'CPC', fmtMoney(group.cpc)], [true, 'Conversiones', fmtConv(group.conversions)],
+      [true, 'Costo por conversión', fmtMoney(group.costPerConversion)], [true, 'Tasa de conversión', fmtPercent(group.conversionRate)],
       [true, 'Palabras clave', fmtCount(group.rows.length)], [quality, 'Calidad promedio', isNum(group.quality) ? `${group.quality.toFixed(1)}/10` : '—']]
-      .filter(([on, , value]) => on && value !== '—')
-      .map(([, label, value]) => `<div><dt>${escapeHtml(label)}</dt><dd>${value}${est}</dd></div>`).join('');
+      .filter(([on]) => on)
+      .map(([, label, value]) => `<div><dt>${escapeHtml(label)}</dt><dd>${value === '—' ? '<span class="no-data">—</span>' : `${value}${est}`}</dd></div>`).join('');
     const groupCost = group.rows.reduce((total, row) => total + (Number(row.cost) || 0), 0);
     const body = group.rows.map(row => `
         <tr>
@@ -1426,7 +1428,7 @@
         <div class="gasto-camp-head">
           <div class="gasto-camp-heading">
             <div class="gasto-camp-title">Conjunto ${escapeHtml(group.name)}${isNum(share) ? `<em>${fmtPercent(share)} ${byCost ? 'de la inversión' : 'de las conversiones'}</em>` : ''}</div>
-            <div class="panel-sub">${owner ? `Campaña ${escapeHtml(owner)} · ` : ''}${group.rows.length} ${group.rows.length === 1 ? 'palabra clave' : 'palabras clave'}</div>
+            <div class="panel-sub">${owner ? `Campaña ${escapeHtml(owner)} · ` : ''}${group.rows.length} ${group.rows.length === 1 ? 'palabra clave' : 'palabras clave'}${cost ? '' : ' · informe por acción de conversión: solo trae conversiones por palabra, y el resto queda en guion'}</div>
           </div>
         </div>
         <dl class="gasto-camp-kpis">${kpis}</dl>
