@@ -24,15 +24,47 @@
   const copiaLista = lista => (lista || []).map(item => ({ nombre: item.nombre || '', email: item.email || '' }));
   const fechaCambio = iso => new Date(iso).toLocaleString('es-PE', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'America/Lima' });
 
-  // GET lee la lista; con lista, POST la guarda (texto plano: el Web App no acepta la consulta previa de CORS).
-  async function llamar(lista) {
+  async function leerDestinatarios() {
     const { url, token } = config();
-    const res = lista
-      ? await fetch(url, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ token, destinatarios: lista }) })
-      : await fetch(`${url}?token=${encodeURIComponent(token)}`);
+    const endpoint = new URL(url);
+    endpoint.searchParams.set('token', token);
+    endpoint.searchParams.set('_', `${Date.now()}-${Math.random()}`);
+    const res = await fetch(endpoint.href, { cache: 'no-store', signal: AbortSignal.timeout(15000) });
+    if (!res.ok) throw new Error(`respuesta ${res.status}`);
     const data = await res.json();
     if (!data.ok) throw new Error(data.error || `respuesta ${res.status}`);
     return data;
+  }
+
+  // ContentService redirige el POST a googleusercontent.com. Su respuesta puede
+  // ser opaca en el navegador: nunca se interpreta como confirmación de guardado.
+  // Se envía una sola vez y se confirma mediante GET, que ya usa la lectura inicial.
+  async function llamar(lista) {
+    if (lista === undefined) return leerDestinatarios();
+    const { url, token } = config();
+    const vistos = new Set();
+    const esperada = lista.map(d => ({ nombre: d.nombre.trim().slice(0, 60), email: d.email.trim().toLowerCase() }))
+      .filter(d => !vistos.has(d.email) && vistos.add(d.email));
+    try {
+      await fetch(url, {
+        method: 'POST', mode: 'no-cors', credentials: 'omit',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ token, destinatarios: esperada }),
+        signal: AbortSignal.timeout(15000),
+      });
+    } catch (_) {
+      // Incluso si se corta la respuesta, el servidor pudo aplicar el cambio.
+      // No repetir el POST: comprobar primero la lista persistida.
+    }
+    for (let intento = 0; intento < 3; intento++) {
+      if (intento) await new Promise(resolve => setTimeout(resolve, 1000 * intento));
+      try {
+        const data = await leerDestinatarios();
+        if (Array.isArray(data.destinatarios) && data.destinatarios.length === esperada.length &&
+            esperada.every((d, i) => d.email === data.destinatarios[i].email && d.nombre === data.destinatarios[i].nombre)) return data;
+      } catch (_) { /* La siguiente lectura puede recuperarse de un corte temporal. */ }
+    }
+    throw new Error('No se pudo confirmar el guardado. Conservamos tus cambios en este formulario; vuelve a intentarlo cuando haya conexión.');
   }
 
   async function abrirConfig() {
@@ -66,6 +98,11 @@
       render();
       return;
     }
+    if (lista.length > 25) {
+      Object.assign(a, { mensaje: 'Máximo 25 correos.', tono: 'red' });
+      render();
+      return;
+    }
     Object.assign(a, { estado: 'guardando', mensaje: '' });
     render();
     try {
@@ -77,7 +114,7 @@
         tono: guardada.length ? 'green' : 'amber',
       };
     } catch (error) {
-      Object.assign(a, { estado: 'listo', mensaje: `No se pudo guardar (${error.message}).`, tono: 'red' });
+      Object.assign(a, { estado: 'listo', mensaje: error.message, tono: 'red' });
     }
     if (state.open && state.config) render();
   }

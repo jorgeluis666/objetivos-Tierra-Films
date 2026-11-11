@@ -27,6 +27,9 @@ jobs:
         with:
           node-version: 20
 
+      - name: Verificar guardado de destinatarios
+        run: node --test scripts/notificaciones.test.cjs
+
       - name: Build
         env:
           TF_PAGE_PASSWORD: ${{ secrets.TF_PAGE_PASSWORD }}
