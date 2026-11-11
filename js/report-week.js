@@ -459,10 +459,14 @@
   }
 
   // Conjuntos de anuncios: solo si el informe de palabras clave del periodo trae "Grupo de anuncios".
+  // Google Ads entrega el catalogo entero del mes, con las palabras sin actividad en cero: cuentan
+  // como filas pero no como trabajo del periodo, asi que entran solo las que tuvieron algo, con la
+  // misma regla que la lista de palabras clave.
+  const keywordActive = row => Number(row.conversions) > 0 || Number(row.cost) > 0 || Number(row.clicks) > 0;
   function adGroupStats(report) {
     const kw = report.keywords;
     const byGroup = new Map();
-    (kw.raw || []).forEach(row => {
+    (kw.raw || []).filter(keywordActive).forEach(row => {
       const name = String(row.group || '').trim();
       if (!name) return;
       const key = name.toLowerCase();
@@ -484,7 +488,8 @@
       const sum = field => rows.reduce((acc, row) => acc + (Number(row[field]) || 0), 0);
       const totals = derive({ cost: kw.hasMetrics ? sum('cost') : null, clicks: kw.hasMetrics ? sum('clicks') : null, conversions: sum('conversions'), impressions: kw.hasImpressions ? sum('impressions') : null });
       return Object.assign({ name: group.name, rows }, totals);
-    }).sort((left, right) => (right.conversions || 0) - (left.conversions || 0) || (right.cost || 0) - (left.cost || 0));
+    }).filter(group => group.rows.length)
+      .sort((left, right) => (right.conversions || 0) - (left.conversions || 0) || (right.cost || 0) - (left.cost || 0));
     return { groups, hasMetrics: kw.hasMetrics, hasImpressions: kw.hasImpressions, range: kw.range };
   }
 
@@ -1461,15 +1466,18 @@
       : `<td class="${isGroup ? '' : 'rp-name'}" title="${esc(name)}">${esc(name)}</td>
           <td class="num">${count(row.conversions)}</td>
           <td class="num">${isNum(share) ? `${Math.round(share * 100)}%` : '—'}</td>`);
-    // Lo que entra en la lamina: con un solo conjunto, sus primeras palabras; con varios, menos de cada uno.
-    const limit = groups.length <= 1 ? 5 : Math.max(2, Math.floor(MAX_KEYWORDS / groups.length));
+    // Lo que entra en la lamina: con un solo conjunto, sus primeras palabras; con varios, cada conjunto
+    // con su linea de totales y su palabra lider, que es lo que cabe sin desbordar el cuadro.
+    const limit = groups.length <= 1 ? 5 : 1;
     const groupRows = groups.map(group => {
       const total = groups.reduce((acc, item) => acc + (Number(item.conversions) || 0), 0);
-      const groupHead = `<tr class="rp-group">${cells(group.name, group, total > 0 ? group.conversions / total : null, true)}</tr>`;
+      const nombre = groups.length > 1 ? `${group.name} · ${group.rows.length} ${group.rows.length === 1 ? 'palabra' : 'palabras'}` : group.name;
+      const groupHead = `<tr class="rp-group">${cells(nombre, group, total > 0 ? group.conversions / total : null, true)}</tr>`;
       const rows = group.rows.slice(0, limit)
         .map(row => `<tr>${cells(row.keyword, row, Number(group.conversions) > 0 ? row.conversions / group.conversions : null, false)}</tr>`).join('');
       const rest = group.rows.length - Math.min(group.rows.length, limit);
-      const more = rest > 0 ? `<tr><td colspan="${cols.length}" class="rp-table-more">y ${rest} ${rest === 1 ? 'palabra clave más' : 'palabras clave más'} del conjunto</td></tr>` : '';
+      // Con varios conjuntos la linea del resto no cabe: el total de palabras ya va en la cabecera del grupo.
+      const more = rest > 0 && groups.length <= 1 ? `<tr><td colspan="${cols.length}" class="rp-table-more">y ${rest} ${rest === 1 ? 'palabra clave más' : 'palabras clave más'} del conjunto</td></tr>` : '';
       return groupHead + rows + more;
     }).join('');
     const empty = `<tr><td colspan="${cols.length}" class="rp-empty">El informe de palabras clave de ${esc(rangeText(kw.range.from, kw.range.to, true))} no trae la columna «Grupo de anuncios»: expórtalo desde Google Ads con el grupo de anuncios para repartir las palabras por conjunto.</td></tr>`;
