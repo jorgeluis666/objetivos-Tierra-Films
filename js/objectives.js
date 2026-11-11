@@ -9,7 +9,6 @@
   const LEGACY_ALL = 'all';
   // Indicadores, vista y minimizado del grafico de cada campana, por campana.
   const CAMP_CHARTS_KEY = 'tierra_films_gasto_campaign_charts';
-  const KW_COMPACT_KEY = 'tierra_films_gasto_kw_compact';
   const MONTH_NAMES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
   const MONTH_SHORT = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
   const SHORT_NAMES = MONTH_NAMES.map(name => name.slice(0, 3));
@@ -24,6 +23,14 @@
   const EST_DASH = [6, 5];
   // Top de palabras clave del conjunto (pie) y su escala de azules, de la lider a la ultima.
   const TOP_KEYWORDS = 5;
+  // El pie reparte el indicador que elija el filtro; solo se ofrecen los que el informe del mes trae.
+  const PIE_METRICS = [
+    { key: 'conversions', label: 'Conversiones', of: 'las conversiones' },
+    { key: 'cost', label: 'Inversión', of: 'la inversión' },
+    { key: 'clicks', label: 'Clics', of: 'los clics' },
+    { key: 'impressions', label: 'Impresiones', of: 'las impresiones' }
+  ];
+  const PIE_METRIC_KEY = 'tierra_films_gasto_pie_metric';
   const PIE_COLORS = ['#2563eb', '#60a5fa', '#1e40af', '#93c5fd', '#3b82f6'];
   const REST_COLOR = '#cbd5e1';
   const CHEVRON ='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 15 6-6 6 6"/></svg>';
@@ -80,11 +87,7 @@
     charts: new Map(),
     // Palabras clave por mes, armadas una vez por version de la data.
     kwCache: new Map(),
-    kwFilter: 'all',
-    kwGroupFilter: 'all',
-    compact: readSetting(KW_COMPACT_KEY) === 'true',
-    fullscreen: false,
-    tabsHome: null
+    pieMetric: readSetting(PIE_METRIC_KEY) || 'conversions'
   };
 
   const isNum = value => value !== null && value !== undefined && value !== '' && Number.isFinite(Number(value));
@@ -1267,36 +1270,6 @@
     };
   }
 
-  // Comparacion con el mes calendario anterior: solo si los dos meses usan el mismo informe y cubren el mes
-  // completo o los mismos dias.
-  function keywordCompare(period) {
-    if (period.annual) return { compare: null, reason: null };
-    const current = keywordMonth(period.month);
-    if (!current) return { compare: null, reason: null };
-    const previousMonth = gastoMonthByKey(previousKey(period.month));
-    if (!previousMonth || !previousMonth.hasData) return { compare: null, reason: 'Sin mes anterior para comparar.' };
-    const previous = keywordMonth(previousMonth);
-    if (!previous) return { compare: null, reason: `Sin informe de palabras clave de ${previousMonth.name} para comparar.` };
-    if (current.source !== previous.source) {
-      const what = kw => ({ drive: kw.hasMetrics ? 'del informe de palabras clave' : 'del informe por acción de conversión', weekly: 'del informe semanal', platform: 'del informe por día' }[kw.source]);
-      return { compare: null, reason: `Sin comparación: ${period.month.name} sale ${what(current)} y ${previousMonth.name}, ${what(previous)}.` };
-    }
-    const sameDays = current.startDay === previous.startDay && current.endDay === previous.endDay;
-    if ((current.complete && previous.complete) || sameDays) {
-      const rows = new Map(keywordScope({ months: [previousMonth], month: previousMonth }).rows.map(row => [row.key, row]));
-      return { compare: { month: previousMonth, rows, label: current.complete ? previousMonth.name : dayRange(previousMonth, previous.startDay, previous.endDay), estimated: previous.estimated }, reason: null };
-    }
-    return { compare: null, reason: `Sin comparación: el informe de palabras clave de ${period.month.name} (${current.startDay}-${current.endDay}) y el de ${previousMonth.name} no cubren los mismos días.` };
-  }
-
-  // Variacion con el mes anterior: "Nuevo" si no estaba, verde o rojo si no.
-  function variationCell(current, previous) {
-    if (previous === null || previous === undefined) return '<span class="status-pill new">Nuevo</span>';
-    const d = change(current, previous);
-    if (d === null) return '<span class="no-data">—</span>';
-    return `<span class="status-pill ${d >= 0 ? 'green' : 'red'}">${d >= 0 ? '▲' : '▼'} ${pctText(d, 0)}</span>`;
-  }
-
   const matchText = match => MATCH_LABELS[match] || match || 'Sin concordancia';
   // Debajo de la palabra: la concordancia y, si el informe lo trae, el conjunto de anuncios.
   const keywordDetail = row => [row.match ? matchText(row.match) : row.group ? '' : 'Sin concordancia', row.group ? `Conjunto: ${row.group}` : ''].filter(Boolean).join(' · ');
@@ -1421,7 +1394,9 @@
     const campaigns = [...new Set(group.rows.map(row => row.campaign).filter(Boolean))];
     const owner = campaigns.length ? campaigns.join(', ') : campaignLabel;
     const actions = groupActions(group, period, onlyGroup);
-    const top = group.rows.filter(row => Number(row.conversions) > 0).slice(0, TOP_KEYWORDS);
+    const metric = groupMetric(group);
+    const metrics = groupMetrics(group);
+    const top = group.rows.filter(row => Number(row[metric.key]) > 0).slice(0, TOP_KEYWORDS);
     const id = slug(group.key) || 'conjunto';
     return `
       <section class="gasto-camp-block gasto-group-block" data-group="${escapeHtml(group.key)}">
@@ -1445,12 +1420,17 @@
           </div>
           <div class="gasto-group-side">
             <div class="gasto-group-card">
-              <div class="gasto-kw-block-head"><div class="panel-title">Top ${top.length || TOP_KEYWORDS} palabras clave</div>
-                <div class="panel-sub">Reparto de las conversiones del conjunto.</div></div>
+              <div class="gasto-kw-block-head gasto-pie-head">
+                <div>
+                  <div class="panel-title">Top ${top.length || TOP_KEYWORDS} palabras clave</div>
+                  <div class="panel-sub">Reparto de ${escapeHtml(metric.of)} del conjunto.</div>
+                </div>
+                ${metrics.length > 1 ? `<label class="gasto-tool-select"><span class="sr-only">Indicador del gráfico</span><select class="gasto-pie-metric">${metrics.map(item => `<option value="${escapeHtml(item.key)}"${item.key === metric.key ? ' selected' : ''}>${escapeHtml(item.label)}</option>`).join('')}</select></label>` : ''}
+              </div>
               ${top.length
     ? `<div class="chart-wrap h-240"><canvas id="chart-kwpie-${id}" role="img" aria-label="Top de palabras clave del conjunto ${escapeHtml(group.name)}"></canvas></div>
                  <div class="gasto-pie-legend" data-pie-legend="${escapeHtml(group.key)}"></div>`
-    : '<div class="panel-sub gasto-group-empty">Ninguna palabra clave del conjunto registró conversiones en el periodo.</div>'}
+    : `<div class="panel-sub gasto-group-empty">Ninguna palabra clave del conjunto registró ${escapeHtml(metric.of)} en el periodo.</div>`}
             </div>
             <div class="gasto-group-card">
               <div class="gasto-kw-block-head"><div class="panel-title">Conversiones por acción</div>
@@ -1501,19 +1481,31 @@
     groups.forEach(group => drawGroupPie(group));
   }
 
-  // Pie del top de palabras clave del conjunto: reparto de sus conversiones, con su leyenda al lado.
+  // Indicadores que el conjunto puede repartir en el pie: conversiones siempre; los demas, si el
+  // informe del mes los trae por palabra.
+  const metricFormat = key => (key === 'cost' ? fmtMoney : key === 'conversions' ? fmtConv : fmtCount);
+  const groupMetrics = group => PIE_METRICS
+    .filter(metric => group.rows.some(row => Number(row[metric.key]) > 0))
+    .map(metric => Object.assign({}, metric, { fmt: metricFormat(metric.key) }));
+  const groupMetric = group => {
+    const list = groupMetrics(group);
+    return list.find(metric => metric.key === gasto.pieMetric) || list[0] || Object.assign({}, PIE_METRICS[0], { fmt: fmtConv });
+  };
+
+  // Pie del top de palabras clave del conjunto, del indicador que elija el filtro, con su leyenda al lado.
   function drawGroupPie(group) {
     const id = `chart-kwpie-${slug(group.key) || 'conjunto'}`;
     const canvas = document.getElementById(id);
     if (!canvas) return;
-    const converting = group.rows.filter(row => Number(row.conversions) > 0);
-    if (!converting.length) return;
-    const top = converting.slice(0, TOP_KEYWORDS);
-    const total = converting.reduce((sum, row) => sum + Number(row.conversions), 0);
+    const metric = groupMetric(group);
+    const rows = group.rows.filter(row => Number(row[metric.key]) > 0).sort((a, b) => Number(b[metric.key]) - Number(a[metric.key]));
+    if (!rows.length) return;
+    const top = rows.slice(0, TOP_KEYWORDS);
+    const total = rows.reduce((sum, row) => sum + Number(row[metric.key]), 0);
     // El resto entra como una porcion gris para que el pie sea el conjunto completo y los % cuadren con la tabla.
-    const rest = converting.slice(TOP_KEYWORDS);
-    const restSum = rest.reduce((sum, row) => sum + Number(row.conversions), 0);
-    const slices = top.map((row, index) => ({ label: row.keyword, value: Number(row.conversions), color: PIE_COLORS[index % PIE_COLORS.length] }))
+    const rest = rows.slice(TOP_KEYWORDS);
+    const restSum = rest.reduce((sum, row) => sum + Number(row[metric.key]), 0);
+    const slices = top.map((row, index) => ({ label: row.keyword, value: Number(row[metric.key]), color: PIE_COLORS[index % PIE_COLORS.length] }))
       .concat(rest.length ? [{ label: `Otras ${rest.length} ${rest.length === 1 ? 'palabra' : 'palabras'}`, value: restSum, color: REST_COLOR }] : []);
     const legend = document.querySelector(`[data-pie-legend="${CSS.escape(group.key)}"]`);
     if (legend) {
@@ -1521,7 +1513,7 @@
         <div class="gasto-pie-item">
           <i style="background:${slice.color}"></i>
           <span title="${escapeHtml(slice.label)}">${escapeHtml(slice.label)}</span>
-          <b>${fmtConv(slice.value)}</b>
+          <b>${metric.fmt(slice.value)}</b>
           <em>${total > 0 ? fmtPercent(slice.value / total) : '—'}</em>
         </div>`).join('');
     }
@@ -1543,121 +1535,10 @@
         cutout: '58%',
         plugins: {
           legend: { display: false },
-          tooltip: { callbacks: { label: context => ` ${context.label}: ${fmtConv(context.raw)} (${total > 0 ? fmtPercent(context.raw / total) : '—'})` } }
+          tooltip: { callbacks: { label: context => ` ${context.label}: ${metric.fmt(context.raw)} (${total > 0 ? fmtPercent(context.raw / total) : '—'})` } }
         }
       }
     }));
-  }
-
-  // ── Ranking de palabras clave del periodo ──
-  function renderRanking(period, campaigns) {
-    const panel = document.getElementById('gasto-kw-panel');
-    const body = document.getElementById('gasto-kw-body');
-    const select = document.getElementById('gasto-kw-campaign');
-    const groupSelect = document.getElementById('gasto-kw-group');
-    const sub = document.getElementById('gasto-kw-sub');
-    if (!panel || !body) return;
-    const scope = keywordScope(period);
-    const { compare, reason } = keywordCompare(period);
-    panel.classList.toggle('no-compare', !compare);
-    panel.classList.toggle('no-metrics', !scope.hasMetrics);
-    panel.classList.toggle('no-cpa', scope.mixed);
-    panel.classList.toggle('no-impr', scope.hasMetrics && !scope.hasImpressions);
-    document.getElementById('gasto-kw-title').textContent = `Ranking de palabras clave | ${period.label} ${period.year}`;
-    document.getElementById('gasto-kw-prev-head').textContent = compare ? `Conversiones ${compare.label}` : 'Mes anterior';
-    // Las filas sin campana (informes semanal y por accion) van a la campana principal del periodo.
-    const primary = campaigns[0];
-    const campaignOf = row => campaigns.find(item => item.key === row.campaignKey) || (row.campaignKey ? { key: row.campaignKey, label: row.campaign, name: row.campaign } : primary);
-    const present = [...new Map(scope.rows.filter(row => kwActive(row, scope.hasMetrics)).map(row => campaignOf(row)).filter(Boolean).map(item => [item.key, item])).values()];
-    if (gasto.kwFilter !== 'all' && !present.some(item => item.key === gasto.kwFilter)) gasto.kwFilter = 'all';
-    select.innerHTML = ['<option value="all">Todas las campañas</option>'].concat(present.map(item => `<option value="${escapeHtml(item.key)}"${gasto.kwFilter === item.key ? ' selected' : ''}>${escapeHtml(item.label)}</option>`)).join('');
-    // Conjuntos de anuncios del periodo: el filtro solo aparece si el informe trae la columna.
-    const groups = [...new Map(scope.rows.filter(row => kwActive(row, scope.hasMetrics) && row.group).map(row => [normalizeText(row.group), row.group])).entries()];
-    if (gasto.kwGroupFilter !== 'all' && !groups.some(([key]) => key === gasto.kwGroupFilter)) gasto.kwGroupFilter = 'all';
-    panel.classList.toggle('no-groups', !groups.length);
-    if (groupSelect) groupSelect.innerHTML = ['<option value="all">Todos los conjuntos</option>'].concat(groups.map(([key, label]) => `<option value="${escapeHtml(key)}"${gasto.kwGroupFilter === key ? ' selected' : ''}>${escapeHtml(label)}</option>`)).join('');
-    if (!scope.months.length) {
-      sub.textContent = '';
-      body.innerHTML = `<tr><td class="table-empty" colspan="11">${period.annual ? 'Ningún mes del periodo tiene' : `${escapeHtml(period.month.label)} no tiene`} informe de palabras clave. Súbelo a la carpeta Google Ads TF Keywords de Drive.</td></tr>`;
-      return;
-    }
-    const order = new Map(campaigns.map((item, index) => [item.key, index]));
-    const rows = scope.rows.filter(row => kwActive(row, scope.hasMetrics))
-      .map(row => Object.assign(row, { owner: campaignOf(row) }))
-      .sort((a, b) => ((order.get(a.owner && a.owner.key) ?? 99) - (order.get(b.owner && b.owner.key) ?? 99)) || b.conversions - a.conversions || (b.cost || 0) - (a.cost || 0) || (b.clicks || 0) - (a.clicks || 0));
-    // Estrella: la que mas convierte en cada campana.
-    const leaders = new Set();
-    rows.forEach(row => { row.leader = false; const key = row.owner && row.owner.key; if (row.conversions > 0 && !leaders.has(key)) { leaders.add(key); row.leader = true; } });
-    const visible = rows
-      .filter(row => gasto.kwFilter === 'all' || (row.owner && row.owner.key === gasto.kwFilter))
-      .filter(row => gasto.kwGroupFilter === 'all' || normalizeText(row.group) === gasto.kwGroupFilter);
-    const est = estTag(scope.estimated);
-    sub.textContent = `${visible.length} ${visible.length === 1 ? 'palabra clave ordenada' : 'palabras clave ordenadas'} por conversiones, ${scope.label}. La estrella marca a la líder de cada campaña.${scope.hasMetrics ? (scope.hasImpressions ? '' : ' Sin impresiones: el informe por día no las trae.') : ' Solo conversiones: el informe viene separado por acción de conversión.'}${scope.mixed ? ` Inversión, impresiones y clics solo de ${scope.metricMonths.map(month => month.shortName).join(', ')}.` : ''}${compare ? '' : reason ? ` ${reason}` : ''}`;
-    body.innerHTML = visible.map(row => {
-      const before = compare ? compare.rows.get(row.key) : null;
-      return `
-        <tr>
-          <td class="gasto-rank-campaign" title="${escapeHtml(`${row.owner ? row.owner.name : ''}${row.group ? ` · Conjunto: ${row.group}` : ''}`)}"><span>${escapeHtml(row.owner ? row.owner.label : '—')}</span>${row.group ? `<small>Conjunto: ${escapeHtml(row.group)}</small>` : ''}</td>
-          ${keywordCell(Object.assign({}, row, { group: '' }), 'gasto-rank-keyword')}
-          <td class="num gasto-strong">${fmtConv(row.conversions)}</td>
-          <td class="num">${before ? fmtConv(before.conversions) : '<span class="no-data">—</span>'}</td>
-          <td class="num">${compare ? variationCell(row.conversions, before ? before.conversions : null) : '<span class="no-data">—</span>'}</td>
-          <td class="num">${fmtMoney(row.costPerConversion)}</td>
-          <td class="num">${fmtMoney(row.cost)}${est}</td>
-          <td class="num">${fmtCount(row.impressions)}${est}</td>
-          <td class="num">${fmtCount(row.clicks)}${est}</td>
-          <td class="num">${fmtPercent(row.ctr)}</td>
-          <td class="num">${fmtMoney(row.cpc)}</td>
-        </tr>`;
-    }).join('') || '<tr><td class="table-empty" colspan="11">No hay palabras clave de esta campaña en el periodo.</td></tr>';
-  }
-
-  // ── Herramientas del ranking: compacto y pantalla completa ──
-  function applyCompact() {
-    const panel = document.getElementById('gasto-kw-panel');
-    const button = document.getElementById('gasto-kw-density');
-    if (!panel || !button) return;
-    panel.classList.toggle('is-compact', gasto.compact);
-    button.setAttribute('aria-pressed', String(gasto.compact));
-    button.textContent = gasto.compact ? 'Cómodo' : 'Compacto';
-    button.title = gasto.compact ? 'Volver a filas amplias' : 'Reducir el alto de las filas';
-  }
-  function toggleCompact() {
-    gasto.compact = !gasto.compact;
-    saveSetting(KW_COMPACT_KEY, gasto.compact);
-    applyCompact();
-  }
-
-  function toggleFullscreen(force) {
-    const panel = document.getElementById('gasto-kw-panel');
-    const button = document.getElementById('gasto-kw-expand');
-    const tabs = document.getElementById('month-tabs');
-    if (!panel || !button || !tabs) return;
-    const next = force === undefined ? !gasto.fullscreen : Boolean(force);
-    if (next === gasto.fullscreen) return;
-    gasto.fullscreen = next;
-    const scroller = panel.querySelector('.gasto-rank-scroll');
-    panel.classList.toggle('is-fullscreen', next);
-    document.body.classList.toggle('gasto-table-fullscreen', next);
-    // Las pestanas de mes viajan al panel para poder cambiar de mes sin salir.
-    if (next) {
-      gasto.tabsHome = { parent: tabs.parentNode, next: tabs.nextSibling };
-      panel.insertBefore(tabs, scroller);
-    } else if (gasto.tabsHome) {
-      gasto.tabsHome.parent.insertBefore(tabs, gasto.tabsHome.next);
-      gasto.tabsHome = null;
-    }
-    button.setAttribute('aria-pressed', String(next));
-    button.textContent = next ? '✕ Salir' : '⤢ Pantalla completa';
-    button.title = next ? 'Salir de pantalla completa (Esc)' : 'Ver la tabla en pantalla completa (Esc para salir)';
-    if (next) scroller.focus();
-  }
-
-  function openKeywordsView() {
-    toggleFullscreen(false);
-    const button = document.querySelector('.s-item[data-view-target="view-keywords"]');
-    if (button) button.click();
-    window.scrollTo(0, 0);
   }
 
   // ── Render ──
@@ -1685,7 +1566,6 @@
       document.getElementById('gasto-blocks').innerHTML = '';
       document.getElementById('gasto-groups').innerHTML = '';
       document.getElementById('gasto-groups-sub').textContent = 'Sin resultados para mostrar.';
-      document.getElementById('gasto-kw-body').innerHTML = '<tr><td class="table-empty" colspan="11">Sin resultados para mostrar.</td></tr>';
       return;
     }
     const campaigns = periodCampaigns(period);
@@ -1693,7 +1573,6 @@
     renderDistribution(period, campaigns);
     renderCampaigns(period, campaigns);
     renderAdGroups(period, campaigns);
-    renderRanking(period, campaigns);
   }
 
   function periodLabel() {
@@ -1749,16 +1628,14 @@
         renderCampaignChart(key);
         return;
       }
-      if (event.target.closest('#gasto-kw-density')) { toggleCompact(); return; }
-      if (event.target.closest('#gasto-kw-expand')) { toggleFullscreen(); return; }
-      if (event.target.closest('#gasto-kw-more')) openKeywordsView();
     });
     view.addEventListener('change', event => {
-      if (event.target.id === 'gasto-kw-campaign' || event.target.id === 'gasto-kw-group') {
-        if (event.target.id === 'gasto-kw-group') gasto.kwGroupFilter = event.target.value;
-        else gasto.kwFilter = event.target.value;
+      // El filtro del pie es uno por conjunto, pero el indicador elegido vale para todos.
+      if (event.target.classList.contains('gasto-pie-metric')) {
+        gasto.pieMetric = event.target.value;
+        saveSetting(PIE_METRIC_KEY, gasto.pieMetric);
         const period = currentPeriod();
-        if (period) renderRanking(period, periodCampaigns(period));
+        if (period) renderAdGroups(period, periodCampaigns(period));
         return;
       }
       const input = event.target.closest('.gasto-camp-block input');
@@ -1774,10 +1651,6 @@
       }
       renderCampaignChart(key);
     });
-    // Esc y el cambio de modulo cierran la pantalla completa (con el panel fijo la pagina quedaria bloqueada).
-    document.addEventListener('keydown', event => { if (event.key === 'Escape') toggleFullscreen(false); });
-    document.querySelectorAll('.s-item').forEach(button => button.addEventListener('click', () => toggleFullscreen(false)));
-    applyCompact();
   }
 
   // Deja lista una version de la data (la del repo o la ya mezclada con Drive) y redibuja todo.

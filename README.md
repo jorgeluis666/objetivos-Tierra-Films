@@ -66,26 +66,25 @@ paneles de Amador y Aquarius.
      trae y antes dejaba el mes sin ninguna (setiembre 2026). Se compara con el mes anterior solo si los
      dos usan el mismo informe y cubren el mes completo o los mismos días. En
      Anual, con meses de los dos informes, no se calcula el costo por conversión.
-   - **Conjuntos de anuncios**: un bloque por grupo de anuncios con su barra de
-     KPIs (los que el informe da, más palabras clave y calidad promedio) y, debajo,
+   - **Conjuntos de anuncios**: un bloque por grupo de anuncios, con la misma
+     barra de indicadores del periodo —tarjetas blancas, los ocho principales más
+     palabras clave y calidad promedio, en una sola fila desde 1320px— y, debajo,
      dos columnas: a la izquierda las palabras clave del conjunto (impresiones,
      clics, CTR, conversiones, % del conjunto y nivel de calidad; con inversión y
      costo por conversión cuando el informe los trae) y a la derecha el pie del
      `Top 5 palabras clave` —el resto entra como `Otras N palabras` para que el
      reparto cuadre con la tabla— y `Conversiones por acción` del conjunto, de las
-     acciones de sus palabras clave. Solo sale si el informe del mes trae la
+     acciones de sus palabras clave. El pie lleva su propio filtro de indicador
+     (conversiones, inversión, clics o impresiones, solo los que el informe trae):
+     lo elegido vale para todos los conjuntos y se recuerda en
+     `tierra_films_gasto_pie_metric`. Solo sale si el informe del mes trae la
      columna `Grupo de anuncios`: la traen el informe por día de la carpeta
      Campañas (cuando lo exportan por palabra clave) y el de la carpeta Keywords
-     exportado por acción de conversión con campaña y grupo. Si el informe no la
-     trae, el panel dice qué falta exportar y deja las conversiones por acción del
-     periodo; en Anual solo reparte los meses que sí la traen. Las columnas que el
-     informe no alimenta quedan en guion: el de acción de conversión solo trae
-     conversiones.
-   - **Ranking de palabras clave del periodo**: cabecera fija, Campaña y Palabra
-     clave ancladas (bajo la campaña va el conjunto de anuncios, si el informe lo
-     trae), estrella en la líder, filtro por campaña y por conjunto, `Compacto`
-     (`tierra_films_gasto_kw_compact`) y `Pantalla completa` (las pestañas de mes
-     entran al panel; `Esc` sale). `Ver análisis completo` abre Palabras Clave.
+     exportado con campaña y grupo. Si el informe no la trae, el panel dice qué
+     falta exportar y deja las conversiones por acción del periodo; en Anual solo
+     reparte los meses que sí la traen. Lo que el informe no alimenta queda en
+     guion, en la barra y en la tabla: el de acción de conversión solo trae
+     conversiones por palabra.
    - Campañas, palabras y semanas sin inversión, impresiones ni clics no aparecen.
 2. **Proyecciones**: cierre del mes en curso (el mes del ultimo dia con datos).
    - Cada semana de Google Ads se reparte en partes iguales entre sus dias para
