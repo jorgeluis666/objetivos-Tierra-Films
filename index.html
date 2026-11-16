@@ -57,9 +57,9 @@
       <div class="s-text"><div class="s-title-nav">Generación de Reporte</div><div class="s-desc-nav">Reporte de Publicidad en PDF</div></div>
     </button>
     <!-- leads.js lo muestra solo si la marca tiene campanas de leads o WhatsApp. -->
-    <button title="Leads" class="s-item" type="button" data-view-target="view-leads" hidden>
+    <button title="Leads" class="s-item" type="button" data-view-target="view-leads">
       <div class="s-icon"><svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="16 11 18 13 22 9"/></svg></div>
-      <div class="s-text"><div class="s-title-nav">Leads</div><div class="s-desc-nav">CRM de feedback</div></div>
+      <div class="s-text"><div class="s-title-nav">Leads</div><div class="s-desc-nav">CRM conectado y feedback</div></div>
     </button>
     <!-- El constructor de enlaces etiquetados: arma las direcciones de los anuncios en el
          navegador. Es lo que después deja a cada lead emparejado con la palabra que lo trajo. -->
@@ -351,6 +351,17 @@
       </section>
 
       <section class="view" id="view-leads">
+        <h1 class="section-title">Leads � CRM</h1>
+        <p class="section-desc">Resultados del CRM de Tierra Films sincronizados por Nexus. Consulta el avance comercial por periodo y origen, o abre el feedback manual por campa�a.</p>
+        <div class="crm-source-tabs" role="group" aria-label="Vista del CRM">
+          <button type="button" id="crm-nexus-tab" aria-pressed="true" aria-controls="crm-nexus-panel">CRM conectado</button>
+          <button type="button" id="crm-feedback-tab" aria-pressed="false" aria-controls="crm-feedback-panel">Feedback manual</button>
+        </div>
+        <div id="crm-nexus-panel">
+          <p class="projection-note">Fuente de solo lectura. Si aparece el acceso al CRM, utiliza la clave configurada por la agencia. Los datos se actualizan autom�ticamente en Nexus.</p>
+          <iframe id="crm-nexus-frame" title="CRM de Tierra Films sincronizado por Nexus" data-src="https://nexus.limaretail.com/crm/embed?slug=tierrafilms" referrerpolicy="no-referrer"></iframe>
+        </div>
+        <div id="crm-feedback-panel" hidden>
         <h1 class="section-title">Leads · CRM de feedback</h1>
         <p class="section-desc">CRM de feedback: la inversión y los leads que reporta cada plataforma se cargan solos; el cliente completa en las columnas resaltadas lo que de verdad recibió de cada campaña y el tablero calcula lo que las plataformas no ven, como costo por lead real, costo por venta y ROAS.</p>
         <div class="data-notice crm-mode" id="crm-mode" role="status" hidden></div>
@@ -371,6 +382,7 @@
             </table>
           </div>
           <p class="projection-note" id="crm-summary-foot"></p>
+        </div>
         </div>
       </section>
 
@@ -396,6 +408,7 @@
 <script src="js/segmentation.js?v=1.43.0"></script>
 <script src="js/report-week.js?v=1.43.0"></script>
 <script src="js/leads.js?v=1.43.0"></script>
+<script src="js/crm-nexus.js?v=1"></script>
 <script src="js/utm-builder.js?v=1.43.0"></script>
 <script src="js/navigation.js?v=1.43.0"></script>
 <script src="js/sidebar.js?v=1.43.0"></script>

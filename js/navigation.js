@@ -38,9 +38,9 @@
     },
     'view-leads': {
       title: 'Leads',
-      caption: 'CRM de feedback',
+      caption: 'CRM conectado y feedback',
       status: 'Leads reales frente a las plataformas',
-      source: 'Fuente: CRM del cliente y Gasto publicitario',
+      source: 'Fuente: CRM de Nexus y feedback del cliente',
       footer: 'Los leads del cliente no se guardan en el repositorio',
     },
     'view-utm': {
