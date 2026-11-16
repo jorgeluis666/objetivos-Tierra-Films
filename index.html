@@ -1,418 +1,418 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Tierra Films | Dashboard Lima Retail 2026</title>
-<link rel="icon" href="assets/logo-tierra-films.png">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
-<link rel="stylesheet" href="css/dashboard.css?v=1.43.0">
-<style>
-  .reservations-total-row td { height: auto !important; padding: 10px 12px !important; border-top: 1px solid var(--border) !important; color: #0f172a !important; background: #f8fbff; font-size: 13px; font-weight: 700; vertical-align: middle; }
-  .reservations-total-row .total-label { text-align: right; }
-  .reservations-total-row .resultados-col { font-size: 12px; }
-  .campaigns-note { display: none; margin: -5px 0 12px; color: #64748b; font-size: 10px; font-weight: 600; line-height: 1.45; }
-  .campaigns-note.visible { display: block; }
-  .deadline-cell { min-width: 92px; }
-  .days-counter { display: block; margin-top: 5px; color: #64748b; font-size: 9px; font-weight: 700; white-space: nowrap; }
-  .days-counter.urgent { color: #b91c1c; }
-  .days-counter.closed { color: #94a3b8; }
-  .reservation-value { display: block; }
-  .reservation-trend { display: block; margin-top: 3px; font-size: 9px; font-weight: 800; line-height: 1.2; white-space: nowrap; }
-  .reservation-trend.up { color: #16a34a; }
-  .reservation-trend.down { color: #dc2626; }
-</style>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
-<script>
-  if (location.protocol === 'file:' && !location.pathname.replace(/\\/g, '/').includes('/dist/')) {
-    location.replace(new URL('dist/index.html', location.href));
-  }
-</script>
-</head>
-<body>
-<div class="shell">
-  <aside class="sidebar" id="sidebar">
-    <div class="s-brand"><div class="s-title">Tierra Films</div><div class="s-sub">BI Agencia Lima Retail <span class="app-version">v1.43.0</span></div></div>
-    <div class="s-group-lbl">Módulos activos</div>
-    <button title="Gasto publicitario" class="s-item active" type="button" data-view-target="view-obj">
-      <div class="s-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg></div>
-      <div class="s-text"><div class="s-title-nav">Gasto publicitario</div><div class="s-desc-nav">Google Ads semanal</div></div>
-    </button>
-    <button title="Proyecciones" class="s-item" type="button" data-view-target="view-projection">
-      <div class="s-icon"><svg viewBox="0 0 24 24"><polyline points="3 17 9 11 13 15 21 7"/><polyline points="15 7 21 7 21 13"/></svg></div>
-      <div class="s-text"><div class="s-title-nav">Proyecciones</div><div class="s-desc-nav">Cierre de mes y metas</div></div>
-    </button>
-    <button title="Palabras clave" class="s-item" type="button" data-view-target="view-keywords">
-      <div class="s-icon"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.5" y2="16.5"/></svg></div>
-      <div class="s-text"><div class="s-title-nav">Palabras clave</div><div class="s-desc-nav">Cuota, ranking y calidad</div></div>
-    </button>
-    <button title="Segmentación" class="s-item" type="button" data-view-target="view-segmentation" hidden>
-      <div class="s-icon"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-9-9v9z"/><path d="M14 3.3A9 9 0 0 1 20.7 10H14z"/></svg></div>
-      <div class="s-text"><div class="s-title-nav">Segmentación</div><div class="s-desc-nav">Intención de búsqueda y zona</div></div>
-    </button>
-    <button title="Generación de Reporte" class="s-item" type="button" data-view-target="view-week">
-      <div class="s-icon"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="14" x2="13" y2="14"/></svg></div>
-      <div class="s-text"><div class="s-title-nav">Generación de Reporte</div><div class="s-desc-nav">Reporte de Publicidad en PDF</div></div>
-    </button>
-    <!-- leads.js lo muestra solo si la marca tiene campanas de leads o WhatsApp. -->
-    <button title="Leads" class="s-item" type="button" data-view-target="view-leads">
-      <div class="s-icon"><svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="16 11 18 13 22 9"/></svg></div>
-      <div class="s-text"><div class="s-title-nav">Leads</div><div class="s-desc-nav">CRM conectado y feedback</div></div>
-    </button>
-    <!-- El constructor de enlaces etiquetados: arma las direcciones de los anuncios en el
-         navegador. Es lo que después deja a cada lead emparejado con la palabra que lo trajo. -->
-    <button title="Enlaces UTM" class="s-item" type="button" data-view-target="view-utm">
-      <div class="s-icon"><svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg></div>
-      <div class="s-text"><div class="s-title-nav">Enlaces UTM</div><div class="s-desc-nav">Etiquetas para los anuncios</div></div>
-    </button>
-    <!-- El enlace «Ads x CRM» se retiró: llevaba el id de una hoja restringida dentro del HTML y
-         el cruce que prometía se hace ahora en el tablero, no en una hoja aparte. -->
-    <div class="s-modulo-activo">
-      <div class="s-ma-label">CUENTA</div>
-      <div class="s-ma-name">Tierra Films</div>
-      <a class="s-wa" href="https://wa.me/51937409733" target="_blank" rel="noopener" title="WhatsApp de Agencia Lima Retail · +51 937 409 733" aria-label="WhatsApp de Agencia Lima Retail: +51 937 409 733"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12.04 2.01a9.9 9.9 0 0 0-8.56 14.85L2.05 22l5.3-1.39a9.9 9.9 0 1 0 4.69-18.6m0 1.8a8.1 8.1 0 1 1-4.1 15.08l-.3-.18-3.14.82.84-3.06-.2-.32A8.1 8.1 0 0 1 12.04 3.8m-3.3 4.3c-.16 0-.42.06-.64.3-.22.24-.84.82-.84 2s.86 2.32.98 2.48c.12.16 1.69 2.58 4.1 3.62.98.42 1.74.68 2.34.87.98.31 1.88.27 2.58.16.79-.12 1.43-.59 1.63-1.15.2-.56.2-1.04.14-1.14-.06-.1-.22-.16-.46-.28-.24-.12-1.43-.71-1.65-.79-.22-.08-.38-.12-.54.12-.16.24-.62.78-.76.94-.14.16-.28.18-.52.06-.24-.12-1.02-.38-1.94-1.2-.72-.64-1.2-1.43-1.34-1.67-.14-.24-.02-.37.1-.49.11-.11.24-.28.36-.42.12-.14.16-.24.24-.4.08-.16.04-.3-.02-.42-.06-.12-.54-1.3-.74-1.78-.19-.46-.39-.4-.54-.41z"/></svg><span>+51 937 409 733</span></a>
-      <a class="s-web" href="https://www.limaretail.com" target="_blank" rel="noopener">www.limaretail.com</a>
-    </div>
-</aside>
-  <main class="main">
-    <div class="topbar"><div class="topbar-left"><button class="sidebar-toggle" id="sidebar-toggle" type="button" aria-controls="sidebar" aria-expanded="true" aria-label="Minimizar panel" title="Minimizar panel"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="9" y1="4" x2="9" y2="20"/><polyline class="sidebar-toggle-arrow" points="16 9 13 12 16 15"/></svg></button><div><div class="topbar-title" id="topbar-title">Gasto publicitario</div><div class="topbar-caption" id="topbar-caption">Google Ads semanal</div></div></div><div class="topbar-meta">
-      <!-- Campanita: avisos del mes y la ruedita de los correos de la alerta (js/notificaciones.js). -->
-      <div class="notif-zone" id="notif-zone" hidden></div>
-      <div class="data-status" id="data-status">
-        <button type="button" class="topbar-pill sync loading" id="data-status-btn" aria-expanded="false" aria-controls="data-status-card" title="Ver el detalle de la sincronización"><span class="sync-dot"></span><span id="topbar-status">cargando…</span><svg class="status-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
-        <div class="data-status-card" id="data-status-card" hidden>
-          <div class="data-status-head">Sincronización de los datos</div>
-          <div class="data-status-row"><span>En esta vista</span><strong id="status-view">—</strong></div>
-          <div class="data-status-row"><span>Datos</span><strong id="status-data">—</strong></div>
-          <div class="data-status-row"><span>Meses cargados</span><strong id="status-months">—</strong></div>
-          <div class="data-status-row"><span>Último barrido</span><strong id="status-sweep">—</strong></div>
-          <div class="data-status-row"><span>Próximo barrido</span><strong id="status-next">—</strong></div>
-          <div class="data-status-row"><span>Palabras clave</span><strong id="status-keywords">—</strong></div>
-          <div class="data-status-head data-status-sub">Fuentes en Google Drive</div>
-          <div class="data-status-row"><span>Carpetas de Drive</span><strong id="status-folders">—</strong></div>
-          <p class="data-status-note" id="status-note"></p>
-          <p class="data-status-note" id="sync-status"></p>
-        </div>
-      </div>
-      <button class="topbar-refresh" id="drive-sync" type="button" data-state="idle" title="Leer ahora las carpetas de Google Drive"><svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg><span id="drive-sync-label">Actualizar</span></button>
-    </div></div>
-    <div class="content">
-      <section class="view visible" id="view-obj">
-        <h1 class="section-title">Gasto publicitario · Google Ads</h1>
-        <p class="section-desc">Resultados de Google Ads por campaña: inversión, clics, conversiones y costo por conversión, mes a mes y en el acumulado del año.</p>
-        <div class="month-tabs gasto-month-tabs" id="month-tabs" role="group" aria-label="Mes del gasto publicitario"></div>
-        <div class="data-notice gasto-alerts" id="gasto-alerts" role="status" hidden></div>
-        <div class="panel gasto-period-panel">
-          <div class="gasto-period-head">
-            <div class="panel-title" id="gasto-period-title">Cargando datos de Google Ads...</div>
-            <div class="panel-sub" id="gasto-period-sub"></div>
-          </div>
-          <div class="kpi-strip gasto-kpis" id="kpi-strip" role="group" aria-label="Resumen del periodo"></div>
-        </div>
-        <div class="panel gasto-dist-panel">
-          <div class="panel-head"><div>
-            <div class="panel-title">Distribución de inversión por campaña</div>
-            <div class="panel-sub" id="gasto-dist-sub"></div>
-          </div></div>
-          <div class="table-scroll">
-            <table class="data-table gasto-dist-table">
-              <thead><tr><th>Campaña</th><th>Estado</th><th class="num">Presupuesto diario</th><th class="num">Inversión</th><th>% de la inversión</th><th class="num">Impresiones</th><th class="num">Clics</th><th class="num">CTR</th><th class="num">CPC</th><th class="num">Conversiones</th><th class="num">Costo por conversión</th><th class="num">Tasa de conversión</th></tr></thead>
-              <tbody id="gasto-dist-body"></tbody>
-            </table>
-          </div>
-          <div class="gasto-camp-blocks" id="gasto-blocks"></div>
-        </div>
-        <div class="panel gasto-groups-panel" id="gasto-groups-panel">
-          <div class="panel-head"><div>
-            <div class="panel-title">Conjuntos de anuncios</div>
-            <div class="panel-sub" id="gasto-groups-sub"></div>
-          </div></div>
-          <div class="gasto-camp-blocks gasto-group-blocks" id="gasto-groups"></div>
-        </div>
-      </section>
-
-      <section class="view" id="view-projection">
-        <h1 class="section-title">Proyecciones · Cierre de mes y metas</h1>
-        <p class="section-desc">Proyección al cierre de mes calculada con los datos reales del módulo Gasto publicitario. Los días que faltan se proyectan con el ritmo del mes.</p>
-        <div class="kpi-strip projection-kpis" id="projection-kpis" aria-label="KPIs de proyección"></div>
-        <div class="panel projection-panel" id="projection-panel">
-          <div class="panel-head projection-panel-head">
-            <div>
-              <div class="panel-title" id="projection-title">Línea de tiempo</div>
-              <div class="panel-sub" id="projection-sub">Cargando datos...</div>
-            </div>
-            <div class="projection-controls">
-              <div class="chart-series-toggles" id="projection-metrics" role="radiogroup" aria-label="Indicador del gráfico"></div>
-            </div>
-          </div>
-          <div class="chart-wrap h-360"><canvas id="chart-projection" aria-label="Acumulado real y proyectado del mes"></canvas></div>
-          <div class="chart-legend projection-legend" id="projection-legend"></div>
-          <p class="projection-note" id="projection-note"></p>
-
-          <div class="projection-sim">
-            <div class="projection-sim-head">
-              <div>
-                <div class="panel-title">Simulador de cierre</div>
-                <div class="panel-sub">Arrastra el nodo naranja del gráfico o escribe la meta: se recalcula cuánto gasto exigen esas conversiones.</div>
-              </div>
-              <div class="projection-sim-actions">
-                <label class="messages-field projection-sim-field" for="projection-goal">
-                  <span>Conversiones al cierre</span>
-                  <span class="messages-input-wrap"><b>#</b><input id="projection-goal" type="number" min="0" step="1"></span>
-                </label>
-                <label class="messages-field projection-sim-field" for="projection-cpa">
-                  <span>Costo x conversión marginal</span>
-                  <span class="messages-input-wrap"><b>S/.</b><input id="projection-cpa" type="number" min="0" step="0.5"></span>
-                </label>
-                <button class="messages-btn secondary" id="projection-sim-prev" type="button">Igualar mes anterior</button>
-                <button class="messages-btn secondary" id="projection-sim-reset" type="button">Restablecer</button>
-              </div>
-            </div>
-            <div class="projection-sim-grid" id="projection-sim-grid"></div>
-            <p class="projection-note" id="projection-sim-note"></p>
-          </div>
-        </div>
-
-        <div class="panel projection-table-panel">
-          <div class="panel-head projection-table-head">
-            <div>
-              <div class="panel-title">Proyección al cierre del mes</div>
-              <div class="panel-sub" id="projection-table-sub"></div>
-            </div>
-          </div>
-          <div class="table-scroll">
-            <table class="data-table projection-table">
-              <thead><tr><th>Indicador</th><th class="num" id="projection-actual-head">Real</th><th class="num">Ritmo diario</th><th class="num" id="projection-close-head">Proyección al cierre</th><th class="num" id="projection-sim-head">Simulación</th><th class="num" id="projection-ref-head">Mes anterior</th><th>Vs mes anterior</th></tr></thead>
-              <tbody id="projection-body"><tr><td class="table-empty" colspan="7">Cargando proyección...</td></tr></tbody>
-            </table>
-          </div>
-        </div>
-
-        <div class="panel projection-table-panel">
-          <div class="panel-head projection-table-head">
-            <div>
-              <div class="panel-title">Semanas que faltan</div>
-              <div class="panel-sub" id="projection-weeks-sub">Lo que aportaria cada semana restante del mes con el escenario elegido.</div>
-            </div>
-          </div>
-          <div class="table-scroll">
-            <table class="data-table projection-table">
-              <thead><tr><th>Semana</th><th class="num">Gasto</th><th class="num">Gasto x día</th><th class="num">Impresiones</th><th class="num">Clics</th><th class="num">Conversiones</th><th class="num">Costo x conversión</th></tr></thead>
-              <tbody id="projection-weeks-body"></tbody>
-            </table>
-          </div>
-        </div>
-
-        <div class="panel projection-table-panel acciones-panel">
-          <div class="panel-head">
-            <div>
-              <div class="panel-title">Acciones sugeridas</div>
-              <div class="panel-sub" id="acciones-sub">Lo que toca hacer en Google Ads, con las cifras del mes.</div>
-            </div>
-            <div class="acciones-estado" id="acciones-estado"></div>
-          </div>
-          <div class="acciones-lista" id="acciones-lista"></div>
-          <p class="acciones-nota" id="acciones-nota"></p>
-        </div>
-      </section>
-
-      <section class="view" id="view-keywords">
-        <h1 class="section-title">Palabras clave · Cuota, ranking y calidad</h1>
-        <p class="section-desc">Informe semanal de palabras clave de búsqueda: cuánto del mercado captamos, cuánto perdemos por Ad Rank y qué palabras mueven el gasto.</p>
-        <div class="retail-filters" id="keywords-filters"></div>
-        <div class="kpi-strip" id="keywords-kpis" aria-label="KPIs de palabras clave"></div>
-
-        <div class="panel projection-table-panel diagnosis-panel">
-          <div class="panel-head">
-            <div>
-              <div class="panel-title">Por qué se movieron las impresiones y los clics</div>
-              <div class="panel-sub" id="keywords-diagnosis-sub"></div>
-            </div>
-          </div>
-          <ul class="diagnosis-list" id="keywords-diagnosis"></ul>
-        </div>
-
-        <div class="panel chart-panel">
-          <div class="panel-head chart-panel-head">
-            <div>
-              <div class="panel-title">Evolución semanal</div>
-              <div class="panel-sub" id="keywords-chart-sub"></div>
-            </div>
-            <div class="chart-legend projection-legend" id="keywords-legend"></div>
-          </div>
-          <div class="chart-wrap h-360"><canvas id="chart-keywords" aria-label="Impresiones, cuota y ranking por semana"></canvas></div>
-        </div>
-
-        <div class="panel campaigns-panel">
-          <div class="panel-head">
-            <div>
-              <div class="panel-title">Palabras clave del periodo</div>
-              <div class="panel-sub" id="keywords-table-sub"></div>
-            </div>
-          </div>
-          <div class="table-scroll">
-            <table class="data-table campaigns-table">
-              <thead><tr><th>Palabra clave</th><th class="num">Impresiones</th><th class="num">% Δ</th><th class="num">Clics</th><th class="num">CTR</th><th class="num">Gasto</th><th class="num">CPC</th><th class="num">Conv.</th><th class="num">Costo x conv.</th><th class="num">Cuota impr.</th><th class="num">Perdido ranking</th><th class="num">Calidad</th><th>Relevancia anuncio</th><th>Página destino</th></tr></thead>
-              <tbody id="keywords-body"></tbody>
-            </table>
-          </div>
-        </div>
-        <div class="drive-block" id="kw-drive"></div>
-      </section>
-
-      <section class="view" id="view-segmentation">
-        <div class="section-head">
-          <div>
-            <h1 class="section-title">Segmentación · Intención de búsqueda y zona</h1>
-            <p class="section-desc">Qué busca la gente que ve nuestros anuncios y desde dónde convierte. Sale de los informes de la carpeta Google Ads TF Segmentación y sirve para decidir a qué intención y a qué zona apuntar la cuenta.</p>
-            <p class="seg-period" id="seg-period"></p>
-          </div>
-          <a class="drive-link" id="seg-folder" href="https://drive.google.com/drive/folders/1Ehko4amk1IjGW6H-HB4WtkF98aaNeB7U" target="_blank" rel="noopener">Carpeta Segmentación</a>
-        </div>
-
-        <div class="data-notice" id="seg-empty" hidden><strong>Todavía no hay informes de segmentación.</strong>Sube a la carpeta Segmentación el informe de estadísticas de los términos de búsqueda y el de ubicaciones y aprieta Actualizar.</div>
-
-        <div id="seg-body-wrap">
-          <div class="kpi-strip" id="seg-kpis" aria-label="KPIs de segmentación"></div>
-
-          <div class="panel projection-table-panel diagnosis-panel">
-            <div class="panel-head"><div><div class="panel-title">Qué dice la data para segmentar</div><div class="panel-sub">Hallazgos calculados con los informes de la carpeta; se actualizan al sincronizar.</div></div></div>
-            <ul class="diagnosis-list" id="seg-diagnosis"></ul>
-          </div>
-
-          <div class="panel chart-panel">
-            <div class="panel-head chart-panel-head">
-              <div><div class="panel-title">Segmentos de intención</div><div class="panel-sub" id="seg-segments-sub"></div></div>
-              <div class="chart-legend projection-legend" id="seg-legend"></div>
-            </div>
-            <div class="seg-rows" id="seg-bars"></div>
-            <div class="table-scroll seg-table">
-              <table class="data-table campaigns-table drive-terms-table">
-                <thead><tr><th>Segmento</th><th class="num">Categorías</th><th class="num">Impresiones</th><th class="num">% impr.</th><th class="num">Clics</th><th class="num">CTR</th><th class="num">Conv.</th><th class="num">Tasa conv.</th><th class="num">Demanda % Δ</th><th>Decisión</th></tr></thead>
-                <tbody id="seg-body"></tbody>
-              </table>
-            </div>
-            <div class="panel-note">Los segmentos agrupan las categorías de Google Ads por intención con reglas del tablero (js/segmentation.js). Demanda % Δ: cambio del volumen de búsquedas ponderado por el tamaño de cada categoría.</div>
-          </div>
-
-          <div class="panel campaigns-panel seg-panel" id="seg-categories">
-            <div class="panel-head">
-              <div><div class="panel-title">Categorías y acción sugerida</div><div class="panel-sub" id="seg-cat-sub"></div></div>
-            </div>
-            <div class="seg-chips" id="seg-actions" role="group" aria-label="Filtrar por acción"></div>
-            <div class="table-scroll">
-              <table class="data-table campaigns-table drive-terms-table">
-                <thead><tr><th>Categoría</th><th>Segmento</th><th class="num">Impresiones</th><th class="num">% Δ</th><th class="num">Clics</th><th class="num">CTR</th><th class="num">Conv.</th><th class="num">Volumen de búsquedas</th><th class="num">% Δ</th><th>Acción</th></tr></thead>
-                <tbody id="seg-cat-body"></tbody>
-              </table>
-            </div>
-          </div>
-
-          <div class="seg-grid">
-            <div class="panel seg-panel">
-              <div class="panel-head"><div><div class="panel-title">Demanda del mercado</div><div class="panel-sub" id="seg-demand-sub"></div></div></div>
-              <div class="demand-head"><span>Categoría</span><span>Volumen de búsquedas</span><span>Cambio</span><span>Nuestras</span></div>
-              <ul class="demand-list" id="seg-demand"></ul>
-              <div class="drive-more-wrap"><button type="button" class="drive-more" id="seg-demand-more" hidden></button></div>
-            </div>
-            <div class="panel seg-panel">
-              <div class="panel-head"><div><div class="panel-title">Segmentación geográfica</div><div class="panel-sub" id="seg-geo-sub"></div></div></div>
-              <div id="seg-geo"></div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section class="view" id="view-week">
-        <h1 class="section-title">Generación de Reporte</h1>
-        <p class="section-desc">El Reporte de Publicidad con el diseño del modelo de Tierra Films: portada, contenido, resumen de leads, palabras clave, anuncio y calidad, conclusiones y próximos pasos, y cierre. Elige el tipo: <b>Semanal</b> (de lunes a domingo, Semana 1, Semana 2… de cada mes), <b>Acumulado del mes</b> (del 1 a cada domingo) o <b>Mensual</b> (el mes completo). Los textos vienen propuestos y se editan con un clic sobre la página antes de descargar el PDF; ahí mismo se completan el anuncio y, si Google Ads no los entrega, los leads por formulario y por WhatsApp (en pantalla van con borde punteado).</p>
-        <div class="panel week-toolbar">
-          <div class="week-toolbar-pick">
-            <div class="week-type" role="group" aria-label="Tipo de reporte">
-              <button class="gasto-tool-btn" type="button" data-week-type="semana" aria-pressed="true" title="Las semanas del mes, de lunes a domingo">Semanal</button>
-              <button class="gasto-tool-btn" type="button" data-week-type="avance" aria-pressed="false" title="Del 1 del mes a cada domingo">Acumulado del mes</button>
-              <button class="gasto-tool-btn" type="button" data-week-type="mes" aria-pressed="false" title="El mes completo, contra el mes anterior">Mensual</button>
-            </div>
-            <label class="gasto-tool-select" for="week-select">
-              <span class="sr-only">Período del reporte</span>
-              <select id="week-select"><option value="">Cargando semanas...</option></select>
-            </label>
-          </div>
-          <div class="week-toolbar-meta">
-            <span class="week-source" id="week-source"></span>
-            <span class="week-notes" id="week-notes" role="status"></span>
-            <button class="gasto-tool-btn" type="button" id="week-reset" title="Vuelve a los textos propuestos con los números del período">Restablecer textos</button>
-            <button class="gasto-tool-btn" type="button" id="week-print" title="Abre el diálogo de impresión para guardar el reporte como PDF">Descargar PDF</button>
-          </div>
-        </div>
-        <div id="week-report"><div class="panel"><div class="empty-state"><strong>Cargando el reporte...</strong><span>Leyendo los informes de Google Ads.</span></div></div></div>
-      </section>
-
-      <section class="view" id="view-leads">
-        <h1 class="section-title">Leads · CRM</h1>
-        <p class="section-desc">Resultados del CRM de Tierra Films sincronizados por Nexus. Consulta el avance comercial por periodo y origen, o abre el feedback manual por campaña.</p>
-        <div class="crm-source-tabs" role="group" aria-label="Vista del CRM">
-          <button type="button" id="crm-nexus-tab" aria-pressed="true" aria-controls="crm-nexus-panel">CRM conectado</button>
-          <button type="button" id="crm-feedback-tab" aria-pressed="false" aria-controls="crm-feedback-panel">Feedback manual</button>
-        </div>
-        <div id="crm-nexus-panel">
-          <p class="projection-note">Fuente de solo lectura. Si aparece el acceso al CRM, utiliza la clave configurada por la agencia. Los datos se actualizan automáticamente en Nexus.</p>
-          <iframe id="crm-nexus-frame" title="CRM de Tierra Films sincronizado por Nexus" data-src="https://nexus.limaretail.com/crm/embed?slug=tierrafilms" referrerpolicy="no-referrer"></iframe>
-        </div>
-        <div id="crm-feedback-panel" hidden>
-        <h1 class="section-title">Leads · CRM de feedback</h1>
-        <p class="section-desc">CRM de feedback: la inversión y los leads que reporta cada plataforma se cargan solos; el cliente completa en las columnas resaltadas lo que de verdad recibió de cada campaña y el tablero calcula lo que las plataformas no ven, como costo por lead real, costo por venta y ROAS.</p>
-        <div class="data-notice crm-mode" id="crm-mode" role="status" hidden></div>
-        <div class="retail-filters crm-filters" id="crm-filters"></div>
-        <div class="kpi-strip crm-kpis" id="crm-kpis" aria-label="Resumen de leads"></div>
-        <div class="panel crm-summary-panel">
-          <div class="panel-head"><div>
-            <div class="panel-title" id="crm-summary-title">Leads por campaña</div>
-            <div class="panel-sub" id="crm-summary-sub"></div>
-          </div></div>
-          <div class="table-scroll">
-            <table class="data-table crm-summary-table">
-              <thead>
-                <tr class="crm-group-row"><th colspan="5"></th><th class="crm-client crm-client-group" colspan="4">Lo completa el cliente</th><th colspan="7"></th></tr>
-                <tr><th>Campaña</th><th>Plataforma</th><th>Objetivo</th><th class="num">Inversión</th><th class="num">Leads plataforma</th><th class="num crm-client">Leads reales</th><th class="num crm-client">Calificados</th><th class="num crm-client">Ventas</th><th class="num crm-client">Monto vendido (S/.)</th><th class="num">Coincidencia</th><th class="num">CPL plataforma</th><th class="num">CPL real</th><th class="num">Costo por calificado</th><th class="num">Costo por venta</th><th class="num">ROAS</th><th aria-label="Guardado"></th></tr>
-              </thead>
-              <tbody id="crm-summary-body"></tbody>
-            </table>
-          </div>
-          <p class="projection-note" id="crm-summary-foot"></p>
-        </div>
-        </div>
-      </section>
-
-      <!-- Constructor de enlaces etiquetados. No pide nada a ninguna API: arma las direcciones
-           en el navegador y se copian al anuncio. Lo que escribas no se guarda al recargar. -->
-      <section class="view" id="view-utm">
-        <h1 class="section-title">Enlaces UTM · etiquetas para los anuncios</h1>
-        <p class="section-desc">Arma la dirección de cada anuncio con sus etiquetas, en los mismos tres niveles que la plataforma: campaña, conjunto y anuncio. El nombre del conjunto viaja como <code>utm_term</code> y el del anuncio como <code>utm_content</code>; eso es lo que después permite saber qué palabra trajo a cada lead del CRM.</p>
-        <p class="utm-intro">Marca de este tablero: <code id="utm-marca-actual">—</code> · encabeza cada <code>utm_campaign</code>. Lo que escribas aquí no se guarda al recargar.</p>
-        <div id="utm-blocks"></div>
-      </section>
-
-      <div class="site-footer"><span id="footer-source">Fuente: data/tierra-films-lima-retail-2026.json</span><span id="footer-status">Resultados de Google Ads</span></div>
-    </div>
-  </main>
-</div>
-<script src="js/alertas-core.js?v=1.43.0"></script>
-<script src="js/drive-sync.js?v=1.43.0"></script>
-<script src="js/objectives.js?v=1.43.0"></script>
-<script src="js/projections.js?v=1.43.0"></script>
-<script src="js/keywords.js?v=1.43.0"></script>
-<script src="js/search-insights.js?v=1.43.0"></script>
-<script src="js/segmentation.js?v=1.43.0"></script>
-<script src="js/report-week.js?v=1.43.0"></script>
-<script src="js/leads.js?v=1.43.0"></script>
-<script src="js/crm-nexus.js?v=1"></script>
-<script src="js/utm-builder.js?v=1.43.0"></script>
-<script src="js/navigation.js?v=1.43.0"></script>
-<script src="js/sidebar.js?v=1.43.0"></script>
-<script src="js/notificaciones.js?v=1.43.0"></script>
-<script src="js/acciones.js?v=1.43.0"></script>
-</body>
-</html>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tierra Films | Dashboard Lima Retail 2026</title>
+<link rel="icon" href="assets/logo-tierra-films.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="css/dashboard.css?v=1.43.0">
+<style>
+  .reservations-total-row td { height: auto !important; padding: 10px 12px !important; border-top: 1px solid var(--border) !important; color: #0f172a !important; background: #f8fbff; font-size: 13px; font-weight: 700; vertical-align: middle; }
+  .reservations-total-row .total-label { text-align: right; }
+  .reservations-total-row .resultados-col { font-size: 12px; }
+  .campaigns-note { display: none; margin: -5px 0 12px; color: #64748b; font-size: 10px; font-weight: 600; line-height: 1.45; }
+  .campaigns-note.visible { display: block; }
+  .deadline-cell { min-width: 92px; }
+  .days-counter { display: block; margin-top: 5px; color: #64748b; font-size: 9px; font-weight: 700; white-space: nowrap; }
+  .days-counter.urgent { color: #b91c1c; }
+  .days-counter.closed { color: #94a3b8; }
+  .reservation-value { display: block; }
+  .reservation-trend { display: block; margin-top: 3px; font-size: 9px; font-weight: 800; line-height: 1.2; white-space: nowrap; }
+  .reservation-trend.up { color: #16a34a; }
+  .reservation-trend.down { color: #dc2626; }
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+  if (location.protocol === 'file:' && !location.pathname.replace(/\\/g, '/').includes('/dist/')) {
+    location.replace(new URL('dist/index.html', location.href));
+  }
+</script>
+</head>
+<body>
+<div class="shell">
+  <aside class="sidebar" id="sidebar">
+    <div class="s-brand"><div class="s-title">Tierra Films</div><div class="s-sub">BI Agencia Lima Retail <span class="app-version">v1.43.0</span></div></div>
+    <div class="s-group-lbl">Módulos activos</div>
+    <button title="Gasto publicitario" class="s-item active" type="button" data-view-target="view-obj">
+      <div class="s-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg></div>
+      <div class="s-text"><div class="s-title-nav">Gasto publicitario</div><div class="s-desc-nav">Google Ads semanal</div></div>
+    </button>
+    <button title="Proyecciones" class="s-item" type="button" data-view-target="view-projection">
+      <div class="s-icon"><svg viewBox="0 0 24 24"><polyline points="3 17 9 11 13 15 21 7"/><polyline points="15 7 21 7 21 13"/></svg></div>
+      <div class="s-text"><div class="s-title-nav">Proyecciones</div><div class="s-desc-nav">Cierre de mes y metas</div></div>
+    </button>
+    <button title="Palabras clave" class="s-item" type="button" data-view-target="view-keywords">
+      <div class="s-icon"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.5" y2="16.5"/></svg></div>
+      <div class="s-text"><div class="s-title-nav">Palabras clave</div><div class="s-desc-nav">Cuota, ranking y calidad</div></div>
+    </button>
+    <button title="Segmentación" class="s-item" type="button" data-view-target="view-segmentation" hidden>
+      <div class="s-icon"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-9-9v9z"/><path d="M14 3.3A9 9 0 0 1 20.7 10H14z"/></svg></div>
+      <div class="s-text"><div class="s-title-nav">Segmentación</div><div class="s-desc-nav">Intención de búsqueda y zona</div></div>
+    </button>
+    <button title="Generación de Reporte" class="s-item" type="button" data-view-target="view-week">
+      <div class="s-icon"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="14" x2="13" y2="14"/></svg></div>
+      <div class="s-text"><div class="s-title-nav">Generación de Reporte</div><div class="s-desc-nav">Reporte de Publicidad en PDF</div></div>
+    </button>
+    <!-- leads.js lo muestra solo si la marca tiene campanas de leads o WhatsApp. -->
+    <button title="Leads" class="s-item" type="button" data-view-target="view-leads">
+      <div class="s-icon"><svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="16 11 18 13 22 9"/></svg></div>
+      <div class="s-text"><div class="s-title-nav">Leads</div><div class="s-desc-nav">CRM conectado y feedback</div></div>
+    </button>
+    <!-- El constructor de enlaces etiquetados: arma las direcciones de los anuncios en el
+         navegador. Es lo que después deja a cada lead emparejado con la palabra que lo trajo. -->
+    <button title="Enlaces UTM" class="s-item" type="button" data-view-target="view-utm">
+      <div class="s-icon"><svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg></div>
+      <div class="s-text"><div class="s-title-nav">Enlaces UTM</div><div class="s-desc-nav">Etiquetas para los anuncios</div></div>
+    </button>
+    <!-- El enlace «Ads x CRM» se retiró: llevaba el id de una hoja restringida dentro del HTML y
+         el cruce que prometía se hace ahora en el tablero, no en una hoja aparte. -->
+    <div class="s-modulo-activo">
+      <div class="s-ma-label">CUENTA</div>
+      <div class="s-ma-name">Tierra Films</div>
+      <a class="s-wa" href="https://wa.me/51937409733" target="_blank" rel="noopener" title="WhatsApp de Agencia Lima Retail · +51 937 409 733" aria-label="WhatsApp de Agencia Lima Retail: +51 937 409 733"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12.04 2.01a9.9 9.9 0 0 0-8.56 14.85L2.05 22l5.3-1.39a9.9 9.9 0 1 0 4.69-18.6m0 1.8a8.1 8.1 0 1 1-4.1 15.08l-.3-.18-3.14.82.84-3.06-.2-.32A8.1 8.1 0 0 1 12.04 3.8m-3.3 4.3c-.16 0-.42.06-.64.3-.22.24-.84.82-.84 2s.86 2.32.98 2.48c.12.16 1.69 2.58 4.1 3.62.98.42 1.74.68 2.34.87.98.31 1.88.27 2.58.16.79-.12 1.43-.59 1.63-1.15.2-.56.2-1.04.14-1.14-.06-.1-.22-.16-.46-.28-.24-.12-1.43-.71-1.65-.79-.22-.08-.38-.12-.54.12-.16.24-.62.78-.76.94-.14.16-.28.18-.52.06-.24-.12-1.02-.38-1.94-1.2-.72-.64-1.2-1.43-1.34-1.67-.14-.24-.02-.37.1-.49.11-.11.24-.28.36-.42.12-.14.16-.24.24-.4.08-.16.04-.3-.02-.42-.06-.12-.54-1.3-.74-1.78-.19-.46-.39-.4-.54-.41z"/></svg><span>+51 937 409 733</span></a>
+      <a class="s-web" href="https://www.limaretail.com" target="_blank" rel="noopener">www.limaretail.com</a>
+    </div>
+</aside>
+  <main class="main">
+    <div class="topbar"><div class="topbar-left"><button class="sidebar-toggle" id="sidebar-toggle" type="button" aria-controls="sidebar" aria-expanded="true" aria-label="Minimizar panel" title="Minimizar panel"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="9" y1="4" x2="9" y2="20"/><polyline class="sidebar-toggle-arrow" points="16 9 13 12 16 15"/></svg></button><div><div class="topbar-title" id="topbar-title">Gasto publicitario</div><div class="topbar-caption" id="topbar-caption">Google Ads semanal</div></div></div><div class="topbar-meta">
+      <!-- Campanita: avisos del mes y la ruedita de los correos de la alerta (js/notificaciones.js). -->
+      <div class="notif-zone" id="notif-zone" hidden></div>
+      <div class="data-status" id="data-status">
+        <button type="button" class="topbar-pill sync loading" id="data-status-btn" aria-expanded="false" aria-controls="data-status-card" title="Ver el detalle de la sincronización"><span class="sync-dot"></span><span id="topbar-status">cargando…</span><svg class="status-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
+        <div class="data-status-card" id="data-status-card" hidden>
+          <div class="data-status-head">Sincronización de los datos</div>
+          <div class="data-status-row"><span>En esta vista</span><strong id="status-view">—</strong></div>
+          <div class="data-status-row"><span>Datos</span><strong id="status-data">—</strong></div>
+          <div class="data-status-row"><span>Meses cargados</span><strong id="status-months">—</strong></div>
+          <div class="data-status-row"><span>Último barrido</span><strong id="status-sweep">—</strong></div>
+          <div class="data-status-row"><span>Próximo barrido</span><strong id="status-next">—</strong></div>
+          <div class="data-status-row"><span>Palabras clave</span><strong id="status-keywords">—</strong></div>
+          <div class="data-status-head data-status-sub">Fuentes en Google Drive</div>
+          <div class="data-status-row"><span>Carpetas de Drive</span><strong id="status-folders">—</strong></div>
+          <p class="data-status-note" id="status-note"></p>
+          <p class="data-status-note" id="sync-status"></p>
+        </div>
+      </div>
+      <button class="topbar-refresh" id="drive-sync" type="button" data-state="idle" title="Leer ahora las carpetas de Google Drive"><svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg><span id="drive-sync-label">Actualizar</span></button>
+    </div></div>
+    <div class="content">
+      <section class="view visible" id="view-obj">
+        <h1 class="section-title">Gasto publicitario · Google Ads</h1>
+        <p class="section-desc">Resultados de Google Ads por campaña: inversión, clics, conversiones y costo por conversión, mes a mes y en el acumulado del año.</p>
+        <div class="month-tabs gasto-month-tabs" id="month-tabs" role="group" aria-label="Mes del gasto publicitario"></div>
+        <div class="data-notice gasto-alerts" id="gasto-alerts" role="status" hidden></div>
+        <div class="panel gasto-period-panel">
+          <div class="gasto-period-head">
+            <div class="panel-title" id="gasto-period-title">Cargando datos de Google Ads...</div>
+            <div class="panel-sub" id="gasto-period-sub"></div>
+          </div>
+          <div class="kpi-strip gasto-kpis" id="kpi-strip" role="group" aria-label="Resumen del periodo"></div>
+        </div>
+        <div class="panel gasto-dist-panel">
+          <div class="panel-head"><div>
+            <div class="panel-title">Distribución de inversión por campaña</div>
+            <div class="panel-sub" id="gasto-dist-sub"></div>
+          </div></div>
+          <div class="table-scroll">
+            <table class="data-table gasto-dist-table">
+              <thead><tr><th>Campaña</th><th>Estado</th><th class="num">Presupuesto diario</th><th class="num">Inversión</th><th>% de la inversión</th><th class="num">Impresiones</th><th class="num">Clics</th><th class="num">CTR</th><th class="num">CPC</th><th class="num">Conversiones</th><th class="num">Costo por conversión</th><th class="num">Tasa de conversión</th></tr></thead>
+              <tbody id="gasto-dist-body"></tbody>
+            </table>
+          </div>
+          <div class="gasto-camp-blocks" id="gasto-blocks"></div>
+        </div>
+        <div class="panel gasto-groups-panel" id="gasto-groups-panel">
+          <div class="panel-head"><div>
+            <div class="panel-title">Conjuntos de anuncios</div>
+            <div class="panel-sub" id="gasto-groups-sub"></div>
+          </div></div>
+          <div class="gasto-camp-blocks gasto-group-blocks" id="gasto-groups"></div>
+        </div>
+      </section>
+
+      <section class="view" id="view-projection">
+        <h1 class="section-title">Proyecciones · Cierre de mes y metas</h1>
+        <p class="section-desc">Proyección al cierre de mes calculada con los datos reales del módulo Gasto publicitario. Los días que faltan se proyectan con el ritmo del mes.</p>
+        <div class="kpi-strip projection-kpis" id="projection-kpis" aria-label="KPIs de proyección"></div>
+        <div class="panel projection-panel" id="projection-panel">
+          <div class="panel-head projection-panel-head">
+            <div>
+              <div class="panel-title" id="projection-title">Línea de tiempo</div>
+              <div class="panel-sub" id="projection-sub">Cargando datos...</div>
+            </div>
+            <div class="projection-controls">
+              <div class="chart-series-toggles" id="projection-metrics" role="radiogroup" aria-label="Indicador del gráfico"></div>
+            </div>
+          </div>
+          <div class="chart-wrap h-360"><canvas id="chart-projection" aria-label="Acumulado real y proyectado del mes"></canvas></div>
+          <div class="chart-legend projection-legend" id="projection-legend"></div>
+          <p class="projection-note" id="projection-note"></p>
+
+          <div class="projection-sim">
+            <div class="projection-sim-head">
+              <div>
+                <div class="panel-title">Simulador de cierre</div>
+                <div class="panel-sub">Arrastra el nodo naranja del gráfico o escribe la meta: se recalcula cuánto gasto exigen esas conversiones.</div>
+              </div>
+              <div class="projection-sim-actions">
+                <label class="messages-field projection-sim-field" for="projection-goal">
+                  <span>Conversiones al cierre</span>
+                  <span class="messages-input-wrap"><b>#</b><input id="projection-goal" type="number" min="0" step="1"></span>
+                </label>
+                <label class="messages-field projection-sim-field" for="projection-cpa">
+                  <span>Costo x conversión marginal</span>
+                  <span class="messages-input-wrap"><b>S/.</b><input id="projection-cpa" type="number" min="0" step="0.5"></span>
+                </label>
+                <button class="messages-btn secondary" id="projection-sim-prev" type="button">Igualar mes anterior</button>
+                <button class="messages-btn secondary" id="projection-sim-reset" type="button">Restablecer</button>
+              </div>
+            </div>
+            <div class="projection-sim-grid" id="projection-sim-grid"></div>
+            <p class="projection-note" id="projection-sim-note"></p>
+          </div>
+        </div>
+
+        <div class="panel projection-table-panel">
+          <div class="panel-head projection-table-head">
+            <div>
+              <div class="panel-title">Proyección al cierre del mes</div>
+              <div class="panel-sub" id="projection-table-sub"></div>
+            </div>
+          </div>
+          <div class="table-scroll">
+            <table class="data-table projection-table">
+              <thead><tr><th>Indicador</th><th class="num" id="projection-actual-head">Real</th><th class="num">Ritmo diario</th><th class="num" id="projection-close-head">Proyección al cierre</th><th class="num" id="projection-sim-head">Simulación</th><th class="num" id="projection-ref-head">Mes anterior</th><th>Vs mes anterior</th></tr></thead>
+              <tbody id="projection-body"><tr><td class="table-empty" colspan="7">Cargando proyección...</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="panel projection-table-panel">
+          <div class="panel-head projection-table-head">
+            <div>
+              <div class="panel-title">Semanas que faltan</div>
+              <div class="panel-sub" id="projection-weeks-sub">Lo que aportaria cada semana restante del mes con el escenario elegido.</div>
+            </div>
+          </div>
+          <div class="table-scroll">
+            <table class="data-table projection-table">
+              <thead><tr><th>Semana</th><th class="num">Gasto</th><th class="num">Gasto x día</th><th class="num">Impresiones</th><th class="num">Clics</th><th class="num">Conversiones</th><th class="num">Costo x conversión</th></tr></thead>
+              <tbody id="projection-weeks-body"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="panel projection-table-panel acciones-panel">
+          <div class="panel-head">
+            <div>
+              <div class="panel-title">Acciones sugeridas</div>
+              <div class="panel-sub" id="acciones-sub">Lo que toca hacer en Google Ads, con las cifras del mes.</div>
+            </div>
+            <div class="acciones-estado" id="acciones-estado"></div>
+          </div>
+          <div class="acciones-lista" id="acciones-lista"></div>
+          <p class="acciones-nota" id="acciones-nota"></p>
+        </div>
+      </section>
+
+      <section class="view" id="view-keywords">
+        <h1 class="section-title">Palabras clave · Cuota, ranking y calidad</h1>
+        <p class="section-desc">Informe semanal de palabras clave de búsqueda: cuánto del mercado captamos, cuánto perdemos por Ad Rank y qué palabras mueven el gasto.</p>
+        <div class="retail-filters" id="keywords-filters"></div>
+        <div class="kpi-strip" id="keywords-kpis" aria-label="KPIs de palabras clave"></div>
+
+        <div class="panel projection-table-panel diagnosis-panel">
+          <div class="panel-head">
+            <div>
+              <div class="panel-title">Por qué se movieron las impresiones y los clics</div>
+              <div class="panel-sub" id="keywords-diagnosis-sub"></div>
+            </div>
+          </div>
+          <ul class="diagnosis-list" id="keywords-diagnosis"></ul>
+        </div>
+
+        <div class="panel chart-panel">
+          <div class="panel-head chart-panel-head">
+            <div>
+              <div class="panel-title">Evolución semanal</div>
+              <div class="panel-sub" id="keywords-chart-sub"></div>
+            </div>
+            <div class="chart-legend projection-legend" id="keywords-legend"></div>
+          </div>
+          <div class="chart-wrap h-360"><canvas id="chart-keywords" aria-label="Impresiones, cuota y ranking por semana"></canvas></div>
+        </div>
+
+        <div class="panel campaigns-panel">
+          <div class="panel-head">
+            <div>
+              <div class="panel-title">Palabras clave del periodo</div>
+              <div class="panel-sub" id="keywords-table-sub"></div>
+            </div>
+          </div>
+          <div class="table-scroll">
+            <table class="data-table campaigns-table">
+              <thead><tr><th>Palabra clave</th><th class="num">Impresiones</th><th class="num">% Δ</th><th class="num">Clics</th><th class="num">CTR</th><th class="num">Gasto</th><th class="num">CPC</th><th class="num">Conv.</th><th class="num">Costo x conv.</th><th class="num">Cuota impr.</th><th class="num">Perdido ranking</th><th class="num">Calidad</th><th>Relevancia anuncio</th><th>Página destino</th></tr></thead>
+              <tbody id="keywords-body"></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="drive-block" id="kw-drive"></div>
+      </section>
+
+      <section class="view" id="view-segmentation">
+        <div class="section-head">
+          <div>
+            <h1 class="section-title">Segmentación · Intención de búsqueda y zona</h1>
+            <p class="section-desc">Qué busca la gente que ve nuestros anuncios y desde dónde convierte. Sale de los informes de la carpeta Google Ads TF Segmentación y sirve para decidir a qué intención y a qué zona apuntar la cuenta.</p>
+            <p class="seg-period" id="seg-period"></p>
+          </div>
+          <a class="drive-link" id="seg-folder" href="https://drive.google.com/drive/folders/1Ehko4amk1IjGW6H-HB4WtkF98aaNeB7U" target="_blank" rel="noopener">Carpeta Segmentación</a>
+        </div>
+
+        <div class="data-notice" id="seg-empty" hidden><strong>Todavía no hay informes de segmentación.</strong>Sube a la carpeta Segmentación el informe de estadísticas de los términos de búsqueda y el de ubicaciones y aprieta Actualizar.</div>
+
+        <div id="seg-body-wrap">
+          <div class="kpi-strip" id="seg-kpis" aria-label="KPIs de segmentación"></div>
+
+          <div class="panel projection-table-panel diagnosis-panel">
+            <div class="panel-head"><div><div class="panel-title">Qué dice la data para segmentar</div><div class="panel-sub">Hallazgos calculados con los informes de la carpeta; se actualizan al sincronizar.</div></div></div>
+            <ul class="diagnosis-list" id="seg-diagnosis"></ul>
+          </div>
+
+          <div class="panel chart-panel">
+            <div class="panel-head chart-panel-head">
+              <div><div class="panel-title">Segmentos de intención</div><div class="panel-sub" id="seg-segments-sub"></div></div>
+              <div class="chart-legend projection-legend" id="seg-legend"></div>
+            </div>
+            <div class="seg-rows" id="seg-bars"></div>
+            <div class="table-scroll seg-table">
+              <table class="data-table campaigns-table drive-terms-table">
+                <thead><tr><th>Segmento</th><th class="num">Categorías</th><th class="num">Impresiones</th><th class="num">% impr.</th><th class="num">Clics</th><th class="num">CTR</th><th class="num">Conv.</th><th class="num">Tasa conv.</th><th class="num">Demanda % Δ</th><th>Decisión</th></tr></thead>
+                <tbody id="seg-body"></tbody>
+              </table>
+            </div>
+            <div class="panel-note">Los segmentos agrupan las categorías de Google Ads por intención con reglas del tablero (js/segmentation.js). Demanda % Δ: cambio del volumen de búsquedas ponderado por el tamaño de cada categoría.</div>
+          </div>
+
+          <div class="panel campaigns-panel seg-panel" id="seg-categories">
+            <div class="panel-head">
+              <div><div class="panel-title">Categorías y acción sugerida</div><div class="panel-sub" id="seg-cat-sub"></div></div>
+            </div>
+            <div class="seg-chips" id="seg-actions" role="group" aria-label="Filtrar por acción"></div>
+            <div class="table-scroll">
+              <table class="data-table campaigns-table drive-terms-table">
+                <thead><tr><th>Categoría</th><th>Segmento</th><th class="num">Impresiones</th><th class="num">% Δ</th><th class="num">Clics</th><th class="num">CTR</th><th class="num">Conv.</th><th class="num">Volumen de búsquedas</th><th class="num">% Δ</th><th>Acción</th></tr></thead>
+                <tbody id="seg-cat-body"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="seg-grid">
+            <div class="panel seg-panel">
+              <div class="panel-head"><div><div class="panel-title">Demanda del mercado</div><div class="panel-sub" id="seg-demand-sub"></div></div></div>
+              <div class="demand-head"><span>Categoría</span><span>Volumen de búsquedas</span><span>Cambio</span><span>Nuestras</span></div>
+              <ul class="demand-list" id="seg-demand"></ul>
+              <div class="drive-more-wrap"><button type="button" class="drive-more" id="seg-demand-more" hidden></button></div>
+            </div>
+            <div class="panel seg-panel">
+              <div class="panel-head"><div><div class="panel-title">Segmentación geográfica</div><div class="panel-sub" id="seg-geo-sub"></div></div></div>
+              <div id="seg-geo"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="view" id="view-week">
+        <h1 class="section-title">Generación de Reporte</h1>
+        <p class="section-desc">El Reporte de Publicidad con el diseño del modelo de Tierra Films: portada, contenido, resumen de leads, palabras clave, anuncio y calidad, conclusiones y próximos pasos, y cierre. Elige el tipo: <b>Semanal</b> (de lunes a domingo, Semana 1, Semana 2… de cada mes), <b>Acumulado del mes</b> (del 1 a cada domingo) o <b>Mensual</b> (el mes completo). Los textos vienen propuestos y se editan con un clic sobre la página antes de descargar el PDF; ahí mismo se completan el anuncio y, si Google Ads no los entrega, los leads por formulario y por WhatsApp (en pantalla van con borde punteado).</p>
+        <div class="panel week-toolbar">
+          <div class="week-toolbar-pick">
+            <div class="week-type" role="group" aria-label="Tipo de reporte">
+              <button class="gasto-tool-btn" type="button" data-week-type="semana" aria-pressed="true" title="Las semanas del mes, de lunes a domingo">Semanal</button>
+              <button class="gasto-tool-btn" type="button" data-week-type="avance" aria-pressed="false" title="Del 1 del mes a cada domingo">Acumulado del mes</button>
+              <button class="gasto-tool-btn" type="button" data-week-type="mes" aria-pressed="false" title="El mes completo, contra el mes anterior">Mensual</button>
+            </div>
+            <label class="gasto-tool-select" for="week-select">
+              <span class="sr-only">Período del reporte</span>
+              <select id="week-select"><option value="">Cargando semanas...</option></select>
+            </label>
+          </div>
+          <div class="week-toolbar-meta">
+            <span class="week-source" id="week-source"></span>
+            <span class="week-notes" id="week-notes" role="status"></span>
+            <button class="gasto-tool-btn" type="button" id="week-reset" title="Vuelve a los textos propuestos con los números del período">Restablecer textos</button>
+            <button class="gasto-tool-btn" type="button" id="week-print" title="Abre el diálogo de impresión para guardar el reporte como PDF">Descargar PDF</button>
+          </div>
+        </div>
+        <div id="week-report"><div class="panel"><div class="empty-state"><strong>Cargando el reporte...</strong><span>Leyendo los informes de Google Ads.</span></div></div></div>
+      </section>
+
+      <section class="view" id="view-leads">
+        <h1 class="section-title">Leads · CRM</h1>
+        <p class="section-desc">Resultados del CRM de Tierra Films sincronizados por Nexus. Consulta el avance comercial por periodo y origen, o abre el feedback manual por campaña.</p>
+        <div class="crm-source-tabs" role="group" aria-label="Vista del CRM">
+          <button type="button" id="crm-nexus-tab" aria-pressed="true" aria-controls="crm-nexus-panel">CRM conectado</button>
+          <button type="button" id="crm-feedback-tab" aria-pressed="false" aria-controls="crm-feedback-panel">Feedback manual</button>
+        </div>
+        <div id="crm-nexus-panel">
+          <p class="projection-note">Fuente de solo lectura. Si aparece el acceso al CRM, utiliza la clave configurada por la agencia. Los datos se actualizan automáticamente en Nexus.</p>
+          <iframe id="crm-nexus-frame" title="CRM de Tierra Films sincronizado por Nexus" data-src="https://nexus.limaretail.com/crm/embed?slug=tierrafilms" referrerpolicy="no-referrer"></iframe>
+        </div>
+        <div id="crm-feedback-panel" hidden>
+        <h1 class="section-title">Leads · CRM de feedback</h1>
+        <p class="section-desc">CRM de feedback: la inversión y los leads que reporta cada plataforma se cargan solos; el cliente completa en las columnas resaltadas lo que de verdad recibió de cada campaña y el tablero calcula lo que las plataformas no ven, como costo por lead real, costo por venta y ROAS.</p>
+        <div class="data-notice crm-mode" id="crm-mode" role="status" hidden></div>
+        <div class="retail-filters crm-filters" id="crm-filters"></div>
+        <div class="kpi-strip crm-kpis" id="crm-kpis" aria-label="Resumen de leads"></div>
+        <div class="panel crm-summary-panel">
+          <div class="panel-head"><div>
+            <div class="panel-title" id="crm-summary-title">Leads por campaña</div>
+            <div class="panel-sub" id="crm-summary-sub"></div>
+          </div></div>
+          <div class="table-scroll">
+            <table class="data-table crm-summary-table">
+              <thead>
+                <tr class="crm-group-row"><th colspan="5"></th><th class="crm-client crm-client-group" colspan="4">Lo completa el cliente</th><th colspan="7"></th></tr>
+                <tr><th>Campaña</th><th>Plataforma</th><th>Objetivo</th><th class="num">Inversión</th><th class="num">Leads plataforma</th><th class="num crm-client">Leads reales</th><th class="num crm-client">Calificados</th><th class="num crm-client">Ventas</th><th class="num crm-client">Monto vendido (S/.)</th><th class="num">Coincidencia</th><th class="num">CPL plataforma</th><th class="num">CPL real</th><th class="num">Costo por calificado</th><th class="num">Costo por venta</th><th class="num">ROAS</th><th aria-label="Guardado"></th></tr>
+              </thead>
+              <tbody id="crm-summary-body"></tbody>
+            </table>
+          </div>
+          <p class="projection-note" id="crm-summary-foot"></p>
+        </div>
+        </div>
+      </section>
+
+      <!-- Constructor de enlaces etiquetados. No pide nada a ninguna API: arma las direcciones
+           en el navegador y se copian al anuncio. Lo que escribas no se guarda al recargar. -->
+      <section class="view" id="view-utm">
+        <h1 class="section-title">Enlaces UTM · etiquetas para los anuncios</h1>
+        <p class="section-desc">Arma la dirección de cada anuncio con sus etiquetas, en los mismos tres niveles que la plataforma: campaña, conjunto y anuncio. El nombre del conjunto viaja como <code>utm_term</code> y el del anuncio como <code>utm_content</code>; eso es lo que después permite saber qué palabra trajo a cada lead del CRM.</p>
+        <p class="utm-intro">Marca de este tablero: <code id="utm-marca-actual">—</code> · encabeza cada <code>utm_campaign</code>. Lo que escribas aquí no se guarda al recargar.</p>
+        <div id="utm-blocks"></div>
+      </section>
+
+      <div class="site-footer"><span id="footer-source">Fuente: data/tierra-films-lima-retail-2026.json</span><span id="footer-status">Resultados de Google Ads</span></div>
+    </div>
+  </main>
+</div>
+<script src="js/alertas-core.js?v=1.43.0"></script>
+<script src="js/drive-sync.js?v=1.43.0"></script>
+<script src="js/objectives.js?v=1.43.0"></script>
+<script src="js/projections.js?v=1.43.0"></script>
+<script src="js/keywords.js?v=1.43.0"></script>
+<script src="js/search-insights.js?v=1.43.0"></script>
+<script src="js/segmentation.js?v=1.43.0"></script>
+<script src="js/report-week.js?v=1.43.0"></script>
+<script src="js/leads.js?v=1.43.0"></script>
+<script src="js/crm-nexus.js?v=1"></script>
+<script src="js/utm-builder.js?v=1.43.0"></script>
+<script src="js/navigation.js?v=1.43.0"></script>
+<script src="js/sidebar.js?v=1.43.0"></script>
+<script src="js/notificaciones.js?v=1.43.0"></script>
+<script src="js/acciones.js?v=1.43.0"></script>
+</body>
+</html>
