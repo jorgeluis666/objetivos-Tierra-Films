@@ -43,6 +43,13 @@
       source: 'Fuente: CRM del cliente y Gasto publicitario',
       footer: 'Los leads del cliente no se guardan en el repositorio',
     },
+    'view-utm': {
+      title: 'Enlaces UTM',
+      caption: 'Etiquetas para los anuncios',
+      status: 'Se arma en el navegador, no consulta nada',
+      source: 'Fuente: lo que escribes aquí',
+      footer: 'Copia cada enlace al anuncio que le corresponde',
+    },
   };
 
   function storedView() {
@@ -91,6 +98,7 @@
     if (viewId === 'view-segmentation') window.TierraFilmsSegmentation?.render();
     if (viewId === 'view-week') window.TierraFilmsWeekReport?.init();
     if (viewId === 'view-leads') window.TierraFilmsLeads?.init();
+    if (viewId === 'view-utm') window.TierraFilmsUtm?.init();
     if (viewId === 'view-obj') {
       window.TierraFilmsRefreshLabels?.();
       window.setTimeout(() => window.dispatchEvent(new Event('resize')), 0);

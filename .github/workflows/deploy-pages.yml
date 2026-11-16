@@ -30,6 +30,9 @@ jobs:
       - name: Verificar guardado de destinatarios
         run: node --test scripts/notificaciones.test.cjs
 
+      - name: Verificar los enlaces UTM
+        run: node --test scripts/utm-builder.test.cjs
+
       - name: Build
         env:
           TF_PAGE_PASSWORD: ${{ secrets.TF_PAGE_PASSWORD }}
