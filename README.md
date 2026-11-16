@@ -694,3 +694,9 @@ URL publica: **https://tierrafilms.limaretail.com**. Cada push a `main` la actua
   tambien en `localStorage`. La sal es fija por marca, asi que sirve entre deploys hasta que cambie la clave.
 - El repo es publico: lo que esta en `data/`, `js/drive-sync.js` y el historial de git (que incluye la clave
   vieja del login) sigue visible en GitHub aunque el sitio vaya con clave.
+
+## CRM conectado de Nexus
+
+Leads abre ahora el CRM de Nexus dentro de este mismo tablero mediante una vista autenticada de solo lectura. `Feedback manual` conserva la tabla, guardado y cálculos anteriores sin mezclar sus cifras con el CRM importado. No se utiliza ni redirige al tablero generado por Nexus.
+
+El iframe apunta a `/crm/embed?slug=tierrafilms`, requiere la sesión autorizada o la clave CRM existente y solo admite como padre `https://tierrafilms.limaretail.com`. Los filtros y la última sincronización pertenecen al CRM; la sincronización de Drive de la barra superior sigue mostrando los informes publicitarios. No se incrustan contactos ni claves nuevas en el repositorio.
