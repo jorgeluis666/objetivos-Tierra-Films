@@ -28,7 +28,7 @@ jobs:
           node-version: 20
 
       - name: Verificar guardado de destinatarios
-        run: node --test scripts/notificaciones.test.cjs
+        run: node --test scripts/notificaciones.test.cjs scripts/crm-nexus.test.cjs
 
       - name: Verificar los enlaces UTM
         run: node --test scripts/utm-builder.test.cjs
