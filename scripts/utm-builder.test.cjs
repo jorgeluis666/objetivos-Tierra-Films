@@ -61,3 +61,23 @@ test('term y content son opcionales', () => {
   assert.equal(url.searchParams.has('utm_term'), false);
   assert.equal(url.searchParams.has('utm_content'), false);
 });
+
+test('ValueTrack: las llaves llegan literales, que es lo que Google sustituye', () => {
+  // Codificadas como %7B%7D no sustituye nada y el anuncio manda el texto «{keyword}» como si
+  // fuera lo que buscó la persona.
+  const url = construirUrl('https://tierrafilms.pe/contacto', { ...base, term: '{keyword}', content: '{creative}' });
+  assert.ok(url.includes('utm_term={keyword}'), url);
+  assert.ok(url.includes('utm_content={creative}'), url);
+  assert.equal(url.includes('%7B'), false);
+});
+
+test('el marcador no destapa llaves de la ruta ni del ancla, que son del cliente', () => {
+  const url = construirUrl('https://tierrafilms.pe/a%7Bb%7D/contacto#cot%7Bizar', { ...base, term: '{keyword}' });
+  assert.ok(url.includes('/a%7Bb%7D/contacto'), url);
+  assert.ok(url.endsWith('#cot%7Bizar'), url);
+  assert.equal(construirUrl('https://tierrafilms.pe/a%7Bb%7D', base).includes('%7B'), true);
+});
+
+test('escribir «{keyword}» a mano en el conjunto no lo convierte en marcador', () => {
+  assert.equal(limpiar('{keyword}'), 'keyword');
+});

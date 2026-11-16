@@ -14,11 +14,15 @@
 // las marcas que viven allí. Solo cambia de dónde sale el nombre de la marca. Un arreglo en la
 // construcción de la URL hay que llevarlo a las dos; sus pruebas son las mismas.
 (function () {
+  // `claveAuto` es un marcador de ValueTrack: Google lo sustituye en el clic por la palabra clave
+  // que hizo match. Es la única forma de saber qué buscó la persona; el nombre del conjunto, que es
+  // lo que se escribe a mano, dice otra cosa. En Meta y TikTok no existe nada equivalente.
   const BLOQUES = [
     { id: 'meta', source: 'meta', medium: 'paid_social', label: 'Meta Ads' },
-    { id: 'google', source: 'google', medium: 'cpc', label: 'Google Ads' },
+    { id: 'google', source: 'google', medium: 'cpc', label: 'Google Ads', claveAuto: '{keyword}' },
     { id: 'tiktok', source: 'tiktok', medium: 'paid_social', label: 'TikTok Ads' },
   ];
+  const VALUETRACK = /^\{[a-z_]+\}$/;
   const ICONO = {
     basura: '<svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>',
     mas: '<svg viewBox="0 0 24 24" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>',
@@ -66,7 +70,14 @@
     raiz.searchParams.set('utm_campaign', datos.campana);
     if (datos.term) { raiz.searchParams.set('utm_term', datos.term); }
     if (datos.content) { raiz.searchParams.set('utm_content', datos.content); }
-    return raiz.href;
+    // Las llaves de ValueTrack tienen que llegar literales: codificadas como %7B%7D, Google no las
+    // sustituye y el anuncio acaba enviando el texto «{keyword}» como si fuera la palabra buscada.
+    // Se destapan solo cuando pusimos un marcador; lo que se escribe a mano pasa por limpiar(), que
+    // quita las llaves, así que nunca llega aquí por accidente.
+    const marcador = VALUETRACK.test(String(datos.term || '')) || VALUETRACK.test(String(datos.content || ''));
+    if (!marcador) { return raiz.href; }
+    // Solo en la parte de los parámetros: una ruta o un ancla que llevaran %7B son del cliente.
+    return raiz.origin + raiz.pathname + raiz.search.replace(/%7B/g, '{').replace(/%7D/g, '}') + raiz.hash;
   }
 
   function anuncioHtml(bloque, camp, ad, as) {
@@ -137,6 +148,10 @@
           <strong>${escapar(bloque.label)}</strong>
           <span class="utm-pill"><span>utm_source</span><input id="utm-${bloque.id}-source" value="${escapar(bloque.source)}" aria-label="utm_source de ${escapar(bloque.label)}" /></span>
           <span class="utm-pill"><span>utm_medium</span><input id="utm-${bloque.id}-medium" value="${escapar(bloque.medium)}" aria-label="utm_medium de ${escapar(bloque.label)}" /></span>
+          ${bloque.claveAuto ? `<label class="utm-check" title="Google sustituye ${escapar(bloque.claveAuto)} por la palabra clave que hizo match. Sin esto, utm_term lleva el nombre del conjunto.">
+            <input type="checkbox" id="utm-${bloque.id}-clave" checked />
+            <span>utm_term = <code>${escapar(bloque.claveAuto)}</code></span>
+          </label>` : ''}
           <span class="utm-block-actions">
             <button type="button" class="utm-ghost" data-action="export-csv" data-block="${bloque.id}">${ICONO.bajar} Exportar CSV</button>
             <button type="button" class="utm-ghost" data-action="clear-block" data-block="${bloque.id}">Limpiar</button>
@@ -147,6 +162,14 @@
           <button type="button" class="utm-add" data-action="add-campaign" data-block="${bloque.id}">${ICONO.mas} Añadir campaña</button>
         </div>
       </div>`;
+  }
+
+  // Qué va en `utm_term`: la palabra clave que Google sustituirá, o el nombre del conjunto cuando
+  // la plataforma no tiene palabras clave o alguien prefiere desactivarlo.
+  function terminoDe(bloque, nombreConjunto) {
+    const def = BLOQUES.find(b => b.id === bloque);
+    const auto = def && def.claveAuto && document.getElementById(`utm-${bloque}-clave`)?.checked;
+    return auto ? def.claveAuto : limpiar(nombreConjunto);
   }
 
   function refrescarBloque(bloque) {
@@ -173,7 +196,7 @@
     if (!arbol) return;
     arbol.querySelectorAll('.utm-adset').forEach(asEl => {
       const as = asEl.dataset.as;
-      const term = limpiar(valor(`${base}-as-name-${as}`));
+      const term = terminoDe(bloque, valor(`${base}-as-name-${as}`));
       const asVista = document.getElementById(`${base}-as-preview-${as}`);
       const asValor = document.getElementById(`${base}-as-pv-${as}`);
       if (asVista && asValor) { asVista.hidden = !term; asValor.textContent = term; }
@@ -210,7 +233,7 @@
         asEl.querySelectorAll('.utm-ad-row').forEach(adEl => {
           const url = document.getElementById(`${base}-ad-url-${adEl.dataset.ad}`)?.value;
           if (!url) return;
-          filas.push([source, medium, campana, limpiar(valor(`${base}-as-name-${as}`)), limpiar(valor(`${base}-ad-name-${adEl.dataset.ad}`)), url]);
+          filas.push([source, medium, campana, terminoDe(bloque, valor(`${base}-as-name-${as}`)), limpiar(valor(`${base}-ad-name-${adEl.dataset.ad}`)), url]);
         });
       });
     });

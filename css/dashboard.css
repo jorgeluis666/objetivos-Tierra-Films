@@ -5397,3 +5397,6 @@ button.topbar-pill {
   .utm-ad-name, .utm-url { width: 100%; flex: 1 1 100%; }
   .utm-block-actions { width: 100%; margin-left: 0; }
 }
+.utm-check { display: inline-flex; align-items: center; gap: 7px; padding: 4px 10px; border: 1px solid #bfdbfe; border-radius: 6px; background: #fff; color: var(--ink); font-size: 11px; cursor: pointer; }
+.utm-check input { width: 14px; height: 14px; margin: 0; accent-color: var(--brand); }
+.utm-check code { color: var(--brand-text); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 11px; }
