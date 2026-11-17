@@ -164,6 +164,11 @@ los meses y queda de solo lectura.
   variables > Actions, crear `TF_CRM_URL` (la URL `/exec`) y `TF_CRM_TOKEN` (el token de `crearToken`). El
   siguiente deploy los incrusta como `window.TIERRA_FILMS_CRM` dentro del HTML cifrado con `TF_PAGE_PASSWORD`;
   nunca quedan en el repo. Lo que completa el cliente tampoco va al repo.
+- **El CRM conectado de Nexus abre solo**: el secret `TF_NEXUS_CRM_KEY` (Settings > Secrets and variables >
+  Actions) lleva la misma cadena que `crm_embed_keys['tierrafilms']` en la configuracion privada de Nexus. El
+  deploy la incrusta como `window.TIERRA_FILMS_NEXUS` dentro del HTML cifrado y `js/crm-nexus.js` se la pasa al
+  iframe por `postMessage` cuando este avisa de que esta cerrado; el cliente no escribe una segunda clave.
+  Sin el secret no se rompe nada: el iframe pide la clave del CRM, como antes.
 - **El mismo Web App guarda tres cosas**, cada una en su pestaña de la hoja: `Leads por campana`, `Acciones del
   mes` (las acciones sugeridas de Proyecciones) y `Textos del reporte` (lo editado en Generacion de Reporte). Las
   pestañas se crean solas la primera vez. Si se cambia `crm-leads.gs`, hay que pegar el archivo nuevo en el Apps

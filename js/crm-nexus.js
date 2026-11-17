@@ -20,10 +20,21 @@
   }
   document.getElementById('crm-nexus-tab').addEventListener('click', () => choose('nexus'));
   document.getElementById('crm-feedback-tab').addEventListener('click', () => choose('feedback'));
+  let nexusOrigin = '';
+  try { nexusOrigin = new URL(frame.dataset.src, location.href).origin; } catch (_) { nexusOrigin = ''; }
+  // La llave del CRM llega por TF_NEXUS_CRM_KEY y solo existe dentro de este HTML cifrado, que ya
+  // se abrio con la clave de la pagina. Se la damos al iframe cuando dice que esta cerrado, para
+  // que el cliente no escriba una segunda contrasena. Nunca viaja en una URL.
+  const crmKey = (window.TIERRA_FILMS_NEXUS || {}).key || '';
   window.addEventListener('message', event => {
-    if (event.origin !== 'https://nexus.limaretail.com' || event.source !== frame.contentWindow
-        || event.data?.type !== 'nexus-crm-height' || !Number.isFinite(event.data.height)) return;
-    frame.style.height = Math.min(5000, Math.max(300, event.data.height + 24)) + 'px';
+    if (!nexusOrigin || event.origin !== nexusOrigin || event.source !== frame.contentWindow || !event.data) return;
+    if (event.data.type === 'nexus-crm-height' && Number.isFinite(event.data.height)) {
+      frame.style.height = Math.min(5000, Math.max(300, event.data.height + 24)) + 'px';
+      return;
+    }
+    if (event.data.type === 'nexus-crm-locked' && crmKey) {
+      frame.contentWindow.postMessage({ type: 'nexus-crm-key', key: crmKey }, nexusOrigin);
+    }
   });
   window.TierraFilmsLeads = {...manual, init: () => choose(selected)};
 })();

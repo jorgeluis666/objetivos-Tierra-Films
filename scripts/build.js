@@ -83,6 +83,13 @@ function main() {
   if (alertas.url && alertas.token) console.log('[build] correos de las alertas conectados al Web App');
   else console.warn('[build] sin TF_ALERTAS_URL/TF_ALERTAS_TOKEN: la ruedita de Notificaciones no puede guardar');
 
+  // La llave con la que este tablero abre el CRM de Nexus sin pedirle al cliente una segunda
+  // clave. No vive en el repo: llega por TF_NEXUS_CRM_KEY y solo queda dentro del HTML cifrado.
+  const nexusCrm = { key: process.env.TF_NEXUS_CRM_KEY || '' };
+  const nexusJson = JSON.stringify(nexusCrm).replace(/</g, '\\u003c');
+  if (nexusCrm.key) console.log('[build] el CRM de Nexus abre con la llave del tablero');
+  else console.warn('[build] sin TF_NEXUS_CRM_KEY: el CRM de Nexus le pedira su clave al cliente');
+
   // Ciclo Mensual de Analisis y Optimizacion: dice en que parte del mes vamos y con eso ordena los
   // avisos de Notificaciones. dist/ no lleva la carpeta data/, asi que viaja dentro del HTML.
   let reglasJson = 'null';
@@ -92,7 +99,7 @@ function main() {
     console.warn(`[build] sin data/reglas.json: los avisos no se ordenan por hito (${error.message})`);
   }
 
-  html = html.replace('</head>', () => `<script>window.TIERRA_FILMS_RETAIL_DATA = ${data};window.TIERRA_FILMS_DRIVE_SNAPSHOT = ${snapshot};window.TIERRA_FILMS_CRM = ${crmJson};window.TIERRA_FILMS_ALERTAS = ${alertasJson};window.TIERRA_FILMS_REGLAS = ${reglasJson};</script></head>`);
+  html = html.replace('</head>', () => `<script>window.TIERRA_FILMS_RETAIL_DATA = ${data};window.TIERRA_FILMS_DRIVE_SNAPSHOT = ${snapshot};window.TIERRA_FILMS_CRM = ${crmJson};window.TIERRA_FILMS_ALERTAS = ${alertasJson};window.TIERRA_FILMS_NEXUS = ${nexusJson};window.TIERRA_FILMS_REGLAS = ${reglasJson};</script></head>`);
 
   try {
     fs.rmSync(DIST_DIR, { recursive: true, force: true });
